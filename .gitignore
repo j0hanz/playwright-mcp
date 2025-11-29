@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+dist/
+coverage/
+reports/
+logs/
+test-results/
+storage-state.json
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+/.idea
