@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Comprehensive MCP server with Playwright browser automation for portfolio testing",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "dev": "tsx watch src/index.ts",
     "format": "prettier --write .",
     "test": "playwright test",
@@ -15,7 +15,7 @@
     "test:debug": "playwright test --debug",
     "test:trace": "playwright test --trace on",
     "test:report": "playwright show-report",
-    "type-check": "tsc -b",
+    "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "install:browsers": "npx playwright install"
