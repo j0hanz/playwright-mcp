@@ -13,8 +13,13 @@
  */
 import { z } from 'zod';
 
-import type { AriaRole } from '../../types/index.js';
+import { ARIA_ROLES, type AriaRole } from '../../types/index.js';
 import { type ToolContext, toolErrorResponse } from './types.js';
+
+// Helper to create non-empty tuple for zod enum
+function toNonEmptyTuple<T extends readonly [string, ...string[]]>(arr: T): T {
+  return arr;
+}
 
 export function registerInteractionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -182,56 +187,8 @@ export function registerInteractionTools(ctx: ToolContext): void {
         sessionId: z.string().describe('Browser session ID'),
         pageId: z.string().describe('Page ID'),
         role: z
-          .enum([
-            'alert',
-            'alertdialog',
-            'button',
-            'checkbox',
-            'combobox',
-            'dialog',
-            'grid',
-            'gridcell',
-            'heading',
-            'img',
-            'link',
-            'list',
-            'listbox',
-            'listitem',
-            'menu',
-            'menubar',
-            'menuitem',
-            'menuitemcheckbox',
-            'menuitemradio',
-            'navigation',
-            'option',
-            'progressbar',
-            'radio',
-            'radiogroup',
-            'region',
-            'row',
-            'rowgroup',
-            'rowheader',
-            'scrollbar',
-            'search',
-            'searchbox',
-            'separator',
-            'slider',
-            'spinbutton',
-            'status',
-            'switch',
-            'tab',
-            'table',
-            'tablist',
-            'tabpanel',
-            'textbox',
-            'timer',
-            'toolbar',
-            'tooltip',
-            'tree',
-            'treegrid',
-            'treeitem',
-          ])
-          .describe('ARIA role of the element'),
+          .enum(toNonEmptyTuple(ARIA_ROLES as readonly [string, ...string[]]))
+          .describe('ARIA role of the element'), // Uses shared ARIA_ROLES constant for consistency
         name: z
           .string()
           .optional()

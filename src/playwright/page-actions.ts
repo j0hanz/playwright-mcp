@@ -109,7 +109,7 @@ export async function clickElement(
 ): Promise<{ success: boolean }> {
   const { timeout = timeoutOptions.action, ...clickOptions } = options;
 
-  await page.click(selector, { ...clickOptions, timeout });
+  await page.locator(selector).click({ ...clickOptions, timeout });
 
   return { success: true };
 }
@@ -499,14 +499,15 @@ export async function getElementInfo(
   page: Page,
   selector: string
 ): Promise<Record<string, unknown> | null> {
-  const element = await page.$(selector);
-  if (!element) return null;
+  const locator = page.locator(selector).first();
+
+  if ((await locator.count()) === 0) return null;
 
   const [tagName, textContent, attributes, boundingBox, isVisible, isEnabled] =
     await Promise.all([
-      element.evaluate((el: Element) => el.tagName.toLowerCase()),
-      element.textContent(),
-      element.evaluate((el: Element) => {
+      locator.evaluate((el: Element) => el.tagName.toLowerCase()),
+      locator.textContent(),
+      locator.evaluate((el: Element) => {
         const attrs: Record<string, string> = {};
         for (let i = 0; i < el.attributes.length; i++) {
           const attr = el.attributes.item(i);
@@ -516,9 +517,9 @@ export async function getElementInfo(
         }
         return attrs;
       }),
-      element.boundingBox(),
-      element.isVisible(),
-      element.isEnabled(),
+      locator.boundingBox(),
+      locator.isVisible(),
+      locator.isEnabled(),
     ]);
 
   return {
@@ -543,41 +544,3 @@ export async function getElementCount(
 
   return { count };
 }
-
-export default {
-  // Navigation
-  navigateTo,
-  navigateBack,
-  navigateForward,
-  reload,
-  // Interactions
-  clickElement,
-  clickByRole,
-  clickByText,
-  clickByTestId,
-  fillInput,
-  fillByLabel,
-  fillByPlaceholder,
-  hoverElement,
-  selectOption,
-  setChecked,
-  // Keyboard
-  pressKey,
-  typeText,
-  // Mouse
-  moveMouse,
-  clickAt,
-  dragAndDrop,
-  // Wait
-  waitForSelector,
-  waitForNavigation,
-  waitForLoadState,
-  // Content
-  getContent,
-  takeScreenshot,
-  generatePdf,
-  evaluate,
-  // Element info
-  getElementInfo,
-  getElementCount,
-};

@@ -9,6 +9,19 @@ import { toError } from '../utils/error-handler.js';
 import { Logger } from '../utils/logger.js';
 import { registerAllHandlers, toolErrorResponse } from './handlers/index.js';
 
+/**
+ * Escapes HTML special characters to prevent XSS attacks.
+ * Used for sanitizing user-controllable content in generated HTML reports.
+ */
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export class MCPPlaywrightServer {
   private server: McpServer;
   protected browserManager: BrowserManager;
@@ -31,40 +44,46 @@ export class MCPPlaywrightServer {
     this.startSessionCleanup();
   }
 
+  /**
+   * Performs session cleanup with proper error handling.
+   * Separated from setInterval to avoid floating promise anti-pattern.
+   */
+  private async performSessionCleanup(): Promise<void> {
+    try {
+      const { cleaned } = await this.browserManager.cleanupExpiredSessions(
+        config.sessionTimeout
+      );
+      this.cleanupFailures = 0;
+      if (cleaned > 0) {
+        this.logger.info('Cleaned up expired sessions', { count: cleaned });
+      }
+    } catch (error: unknown) {
+      this.cleanupFailures++;
+      const err = toError(error);
+      this.logger.error('Session cleanup failed', {
+        error: err.message,
+        stack: err.stack,
+        failures: this.cleanupFailures,
+      });
+
+      // Stop cleanup interval if failing repeatedly
+      if (this.cleanupFailures >= MCPPlaywrightServer.MAX_CLEANUP_FAILURES) {
+        this.logger.error(
+          'Cleanup failing repeatedly, stopping cleanup interval',
+          { failures: this.cleanupFailures }
+        );
+        if (this.cleanupInterval) {
+          clearInterval(this.cleanupInterval);
+          this.cleanupInterval = null;
+        }
+      }
+    }
+  }
+
   private startSessionCleanup(): void {
     // Run session cleanup at configured interval
     this.cleanupInterval = setInterval(() => {
-      this.browserManager
-        .cleanupExpiredSessions(config.sessionTimeout)
-        .then(({ cleaned }) => {
-          this.cleanupFailures = 0;
-          if (cleaned > 0) {
-            this.logger.info('Cleaned up expired sessions', { count: cleaned });
-          }
-        })
-        .catch((error: unknown) => {
-          this.cleanupFailures++;
-          const err = toError(error);
-          this.logger.error('Session cleanup failed', {
-            error: err.message,
-            stack: err.stack,
-            failures: this.cleanupFailures,
-          });
-
-          // Stop cleanup interval if failing repeatedly
-          if (
-            this.cleanupFailures >= MCPPlaywrightServer.MAX_CLEANUP_FAILURES
-          ) {
-            this.logger.error(
-              'Cleanup failing repeatedly, stopping cleanup interval',
-              { failures: this.cleanupFailures }
-            );
-            if (this.cleanupInterval) {
-              clearInterval(this.cleanupInterval);
-              this.cleanupInterval = null;
-            }
-          }
-        });
+      void this.performSessionCleanup();
     }, config.cleanupInterval);
   }
 
@@ -2486,9 +2505,9 @@ export class MCPPlaywrightServer {
         },
       },
       this.createToolHandler(async ({ sessionId, pageId, state, timeout }) => {
-        const page = this.browserManager['getPage'](sessionId, pageId);
+        const page = this.browserManager.getPageForTool(sessionId, pageId);
         await page.waitForLoadState(state, { timeout });
-        this.browserManager['updateSessionActivity'](sessionId);
+        this.browserManager.markSessionActive(sessionId);
         return {
           content: [{ type: 'text', text: `Page reached ${state} state` }],
           structuredContent: { success: true },
@@ -2516,9 +2535,9 @@ export class MCPPlaywrightServer {
         },
       },
       this.createToolHandler(async ({ sessionId, pageId, timeout }) => {
-        const page = this.browserManager['getPage'](sessionId, pageId);
+        const page = this.browserManager.getPageForTool(sessionId, pageId);
         await page.waitForLoadState('networkidle', { timeout });
-        this.browserManager['updateSessionActivity'](sessionId);
+        this.browserManager.markSessionActive(sessionId);
         return {
           content: [{ type: 'text', text: 'Network is idle' }],
           structuredContent: { success: true },
@@ -2549,9 +2568,9 @@ export class MCPPlaywrightServer {
         },
       },
       this.createToolHandler(async ({ sessionId, pageId, reducedMotion }) => {
-        const page = this.browserManager['getPage'](sessionId, pageId);
+        const page = this.browserManager.getPageForTool(sessionId, pageId);
         await page.emulateMedia({ reducedMotion });
-        this.browserManager['updateSessionActivity'](sessionId);
+        this.browserManager.markSessionActive(sessionId);
         return {
           content: [
             { type: 'text', text: `Reduced motion set to: ${reducedMotion}` },
@@ -2579,9 +2598,9 @@ export class MCPPlaywrightServer {
         },
       },
       this.createToolHandler(async ({ sessionId, pageId, colorScheme }) => {
-        const page = this.browserManager['getPage'](sessionId, pageId);
+        const page = this.browserManager.getPageForTool(sessionId, pageId);
         await page.emulateMedia({ colorScheme });
-        this.browserManager['updateSessionActivity'](sessionId);
+        this.browserManager.markSessionActive(sessionId);
         return {
           content: [
             { type: 'text', text: `Color scheme set to: ${colorScheme}` },
@@ -2696,19 +2715,19 @@ export class MCPPlaywrightServer {
       : result.violations
           .map(
             (v) => `
-  <div class="violation ${v.impact}">
-    <h2>${v.id} <span class="impact-badge impact-${v.impact}">${v.impact}</span></h2>
-    <p>${v.description}</p>
-    <p><strong>How to fix:</strong> ${v.help}</p>
-    <p><a href="${v.helpUrl}" target="_blank" rel="noopener noreferrer">Learn more →</a></p>
+  <div class="violation ${escapeHtml(v.impact || 'minor')}">
+    <h2>${escapeHtml(v.id)} <span class="impact-badge impact-${escapeHtml(v.impact || 'minor')}">${escapeHtml(v.impact || 'minor')}</span></h2>
+    <p>${escapeHtml(v.description)}</p>
+    <p><strong>How to fix:</strong> ${escapeHtml(v.help)}</p>
+    <p><a href="${escapeHtml(v.helpUrl)}" target="_blank" rel="noopener noreferrer">Learn more →</a></p>
     <h3>Affected Elements (${v.nodes.length})</h3>
     ${v.nodes
       .slice(0, 10)
       .map(
         (n) => `
       <div class="node">
-        <code>${n.html.replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 300)}${n.html.length > 300 ? '...' : ''}</code>
-        <p style="margin: 8px 0 0; color: #666;">${n.failureSummary}</p>
+        <code>${escapeHtml(n.html.slice(0, 300))}${n.html.length > 300 ? '...' : ''}</code>
+        <p style="margin: 8px 0 0; color: #666;">${escapeHtml(n.failureSummary || '')}</p>
       </div>`
       )
       .join('')}

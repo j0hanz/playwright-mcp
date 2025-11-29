@@ -1,6 +1,7 @@
 import { promises as fs, constants as fsConstants } from 'fs';
 import path from 'path';
 import { Browser, chromium, Dialog, firefox, Page, webkit } from 'playwright';
+import type { LaunchOptions } from 'playwright';
 import { fileURLToPath } from 'url';
 import { validate as isValidUUID, v4 as uuidv4 } from 'uuid';
 
@@ -56,6 +57,15 @@ let cachedExpect: typeof import('@playwright/test').expect | null = null;
 async function getPlaywrightExpect() {
   if (!cachedExpect) {
     const mod = await import('@playwright/test');
+
+    // Validate that expect exists in the imported module
+    if (!('expect' in mod) || typeof mod.expect !== 'function') {
+      throw ErrorHandler.createError(
+        ErrorCode.INTERNAL_ERROR,
+        'Failed to import expect from @playwright/test. Please ensure @playwright/test is installed.'
+      );
+    }
+
     cachedExpect = mod.expect;
   }
   return cachedExpect;
@@ -72,6 +82,7 @@ const ALLOWED_UPLOAD_DIR = fileURLToPath(
 export class BrowserManager {
   private sessions = new Map<string, BrowserSession>();
   private pendingDialogs = new Map<string, Dialog>();
+  private dialogTimeouts = new Map<string, NodeJS.Timeout>();
   private tracingActive = new Map<string, boolean>();
   private networkRoutes = new Map<
     string,
@@ -125,24 +136,23 @@ export class BrowserManager {
   /**
    * Rate limiting check for session creation.
    * Throws if rate limit exceeded.
+   * Uses efficient filtering with memory bounds to prevent unbounded growth.
    */
   private checkSessionRateLimit(): void {
     const now = Date.now();
     const oneMinuteAgo = now - 60_000;
+    const MAX_TRACKED_SESSIONS = 100; // Prevent unbounded memory growth
 
-    // Remove expired timestamps (in-place, no new array allocation)
-    let writeIndex = 0;
-    for (
-      let readIndex = 0;
-      readIndex < this.sessionCreationTimestamps.length;
-      readIndex++
-    ) {
-      if (this.sessionCreationTimestamps[readIndex] > oneMinuteAgo) {
-        this.sessionCreationTimestamps[writeIndex++] =
-          this.sessionCreationTimestamps[readIndex];
-      }
+    // Remove expired timestamps (keep only last minute)
+    this.sessionCreationTimestamps = this.sessionCreationTimestamps.filter(
+      (ts) => ts > oneMinuteAgo
+    );
+
+    // Limit array size to prevent unbounded growth
+    if (this.sessionCreationTimestamps.length > MAX_TRACKED_SESSIONS) {
+      this.sessionCreationTimestamps =
+        this.sessionCreationTimestamps.slice(-MAX_TRACKED_SESSIONS);
     }
-    this.sessionCreationTimestamps.length = writeIndex;
 
     if (
       this.sessionCreationTimestamps.length >=
@@ -208,7 +218,14 @@ export class BrowserManager {
     selector: string
   ): Promise<Record<string, unknown> | null> {
     try {
-      return await page.locator(selector).evaluate((el: Element) => {
+      const locator = page.locator(selector).first();
+
+      // Check if element exists before trying to evaluate
+      if ((await locator.count()) === 0) {
+        return null;
+      }
+
+      return await locator.evaluate((el: Element) => {
         const htmlEl = el as HTMLElement;
         const text = htmlEl.textContent;
         return {
@@ -281,21 +298,64 @@ export class BrowserManager {
       headless = config.headless,
       viewport = config.defaultViewport,
       userAgent,
+      channel,
+      slowMo,
+      proxy,
+      timeout,
       recordVideo,
     } = options;
 
     try {
       const launcher = BROWSER_LAUNCHERS[browserType];
-      const browser = await launcher({ headless });
+      const launchOptions: LaunchOptions = {
+        headless,
+      };
+
+      if (typeof timeout === 'number') {
+        launchOptions.timeout = timeout;
+      }
+
+      if (typeof slowMo === 'number') {
+        launchOptions.slowMo = slowMo;
+      }
+
+      if (proxy) {
+        launchOptions.proxy = proxy;
+      }
+
+      if (channel) {
+        if (browserType === 'chromium') {
+          launchOptions.channel = channel;
+        } else {
+          this.logger.warn('Channel option ignored for non-Chromium browsers', {
+            browserType,
+            channel,
+          });
+        }
+      }
+
+      const browser = await launcher(launchOptions);
 
       const contextOptions: Parameters<Browser['newContext']>[0] = {
         viewport,
-        userAgent,
         ignoreHTTPSErrors: config.ignoreHTTPSErrors,
         // Locale and timezone for consistent behavior across runs
         locale: config.locale,
         timezoneId: config.timezoneId,
       };
+
+      if (userAgent) {
+        contextOptions.userAgent = userAgent;
+      }
+
+      if (recordVideo) {
+        const videoDir = this.validateOutputPath(recordVideo.dir);
+        await fs.mkdir(videoDir, { recursive: true });
+        contextOptions.recordVideo = {
+          dir: videoDir,
+          size: recordVideo.size,
+        };
+      }
 
       const context = await browser.newContext(contextOptions);
       const sessionId = uuidv4();
@@ -320,7 +380,11 @@ export class BrowserManager {
         headless,
       });
 
-      return { sessionId, browserType, recordingVideo: !!recordVideo };
+      return {
+        sessionId,
+        browserType,
+        recordingVideo: !!contextOptions.recordVideo,
+      };
     } catch (error) {
       const err = toError(error);
       this.logger.error('Failed to launch browser', {
@@ -420,7 +484,7 @@ export class BrowserManager {
       await element.click({ force, position, timeout });
 
       this.updateSessionActivity(sessionId);
-      this.logger.info('Element clicked successfully', {
+      this.logger.debug('Element clicked successfully', {
         sessionId,
         pageId,
         selector,
@@ -459,7 +523,7 @@ export class BrowserManager {
       await element.fill(text, { force, timeout });
 
       this.updateSessionActivity(sessionId);
-      this.logger.info('Input filled successfully', {
+      this.logger.debug('Input filled successfully', {
         sessionId,
         pageId,
         selector,
@@ -498,7 +562,7 @@ export class BrowserManager {
       await element.hover({ force, position, timeout });
 
       this.updateSessionActivity(sessionId);
-      this.logger.info('Element hovered successfully', {
+      this.logger.debug('Element hovered successfully', {
         sessionId,
         pageId,
         selector,
@@ -524,7 +588,7 @@ export class BrowserManager {
       sessionId,
       pageId,
       fullPage = false,
-      path,
+      path: outputPath,
       type = 'png',
       quality,
       clip,
@@ -534,12 +598,20 @@ export class BrowserManager {
     const page = this.getPage(sessionId, pageId);
 
     try {
+      const resolvedPath = outputPath
+        ? this.validateOutputPath(outputPath)
+        : undefined;
+
+      if (resolvedPath) {
+        await fs.mkdir(path.dirname(resolvedPath), { recursive: true });
+      }
+
       const maskLocators = mask?.map((selector) => page.locator(selector));
 
       const screenshotOptions: Parameters<Page['screenshot']>[0] = {
         fullPage,
         type,
-        path,
+        path: resolvedPath,
         mask: maskLocators,
       };
 
@@ -558,11 +630,11 @@ export class BrowserManager {
       this.logger.info('Screenshot taken successfully', {
         sessionId,
         pageId,
-        path,
+        path: resolvedPath,
         fullPage,
       });
 
-      return { path, base64 };
+      return { path: resolvedPath, base64 };
     } catch (error) {
       const err = toError(error);
       this.logger.error('Screenshot failed', {
@@ -623,6 +695,43 @@ export class BrowserManager {
     }
   }
 
+  /**
+   * Execute JavaScript code in the page context with strict security controls.
+   *
+   * **Security Model**:
+   * - Allowlist: Only safe DOM query patterns are permitted by default
+   * - Blocklist: Dangerous operations (eval, XHR, storage access) are rejected
+   * - Templates: Predefined safe scripts bypass validation for common operations
+   *
+   * **Threat Prevention**:
+   * - XSS: Blocks innerHTML, document.write, and script injection vectors
+   * - Prototype pollution: Blocks __proto__, constructor, Object methods
+   * - Code execution: Blocks eval, Function, setTimeout
+   * - Data exfiltration: Blocks fetch, XHR, storage access
+   *
+   * **Usage**:
+   * Prefer predefined templates (getTitle, getURL, etc.) over custom scripts.
+   * Custom scripts must match safe patterns or will be rejected.
+   *
+   * @param sessionId - Browser session ID
+   * @param pageId - Page ID
+   * @param script - JavaScript code or template name (max 5000 chars)
+   * @returns Execution result wrapped in result object
+   * @throws {MCPPlaywrightError} VALIDATION_FAILED if script violates security policy
+   * @throws {MCPPlaywrightError} INTERNAL_ERROR if execution fails
+   *
+   * @example
+   * // Use predefined template (recommended)
+   * await evaluateScript(sessionId, pageId, 'getTitle');
+   *
+   * // Safe custom query
+   * await evaluateScript(sessionId, pageId, 'document.querySelector(".header")');
+   *
+   * // ❌ Rejected: Dangerous operation
+   * await evaluateScript(sessionId, pageId, 'localStorage.getItem("token")');
+   *
+   * @see https://playwright.dev/docs/evaluating for Playwright evaluation patterns
+   */
   async evaluateScript(
     sessionId: string,
     pageId: string,
@@ -887,18 +996,28 @@ export class BrowserManager {
 
     for (const [sessionId, session] of this.sessions) {
       if (now - session.metadata.lastActivity.getTime() > maxAge) {
-        // Skip if session is currently being cleaned or in use
+        // Attempt to claim cleanup slot atomically
         if (this.cleanupInProgress.has(sessionId)) {
           continue;
         }
 
+        // Claim immediately to prevent race condition
+        this.cleanupInProgress.add(sessionId);
+
         try {
-          this.cleanupInProgress.add(sessionId);
           await session.browser.close();
 
-          // Clean up all resources
+          // Clean up all resources including dialog timeouts
           for (const [pageId] of session.pages) {
             const dialogKey = `${sessionId}:${pageId}`;
+
+            // Clear dialog timeout to prevent memory leak
+            const timeoutId = this.dialogTimeouts.get(dialogKey);
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              this.dialogTimeouts.delete(dialogKey);
+            }
+
             this.pendingDialogs.delete(dialogKey);
             this.networkRoutes.delete(dialogKey);
           }
@@ -914,6 +1033,7 @@ export class BrowserManager {
             error: err.message,
           });
         } finally {
+          // Always release cleanup lock
           this.cleanupInProgress.delete(sessionId);
         }
       }
@@ -1122,6 +1242,13 @@ export class BrowserManager {
         await dialog.dismiss();
       }
 
+      // Clear the auto-dismiss timeout to prevent memory leak
+      const timeoutId = this.dialogTimeouts.get(dialogKey);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        this.dialogTimeouts.delete(dialogKey);
+      }
+
       this.pendingDialogs.delete(dialogKey);
       this.updateSessionActivity(sessionId);
       this.logger.info('Dialog handled', {
@@ -1238,6 +1365,13 @@ export class BrowserManager {
     const dialogKey = `${sessionId}:${pageId}`;
 
     page.on('dialog', (dialog) => {
+      // Clear any existing timeout for this dialog key to prevent memory leaks
+      const existingTimeout = this.dialogTimeouts.get(dialogKey);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        this.dialogTimeouts.delete(dialogKey);
+      }
+
       this.pendingDialogs.set(dialogKey, dialog);
       this.logger.info('Dialog detected', {
         sessionId,
@@ -1247,10 +1381,12 @@ export class BrowserManager {
       });
 
       // Auto-dismiss after timeout to prevent blocking and memory leaks
-      setTimeout(() => {
+      // Store timeout ID so it can be cleared if dialog is handled manually
+      const timeoutId = setTimeout(() => {
         if (this.pendingDialogs.has(dialogKey)) {
           dialog.dismiss().catch(() => {});
           this.pendingDialogs.delete(dialogKey);
+          this.dialogTimeouts.delete(dialogKey);
           this.logger.warn('Dialog auto-dismissed due to timeout', {
             sessionId,
             pageId,
@@ -1258,10 +1394,17 @@ export class BrowserManager {
           });
         }
       }, BrowserManager.DIALOG_AUTO_DISMISS_TIMEOUT);
+      this.dialogTimeouts.set(dialogKey, timeoutId);
     });
 
     // Clean up on page close to prevent memory leaks
     page.on('close', () => {
+      // Clear any pending dialog timeout
+      const timeoutId = this.dialogTimeouts.get(dialogKey);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        this.dialogTimeouts.delete(dialogKey);
+      }
       this.pendingDialogs.delete(dialogKey);
       this.networkRoutes.delete(dialogKey);
       this.logger.debug('Page closed, cleaned up dialogs and routes', {
@@ -1283,6 +1426,22 @@ export class BrowserManager {
       pageCount: session.pages.size,
       lastActivity: session.metadata.lastActivity,
     }));
+  }
+
+  /**
+   * Public API for accessing a page instance.
+   * Use this instead of bracket notation to access private getPage method.
+   */
+  getPageForTool(sessionId: string, pageId: string): Page {
+    return this.getPage(sessionId, pageId);
+  }
+
+  /**
+   * Public API for updating session activity timestamp.
+   * Use this instead of bracket notation to access private method.
+   */
+  markSessionActive(sessionId: string): void {
+    this.updateSessionActivity(sessionId);
   }
 
   getServerStatus(): {
@@ -1748,6 +1907,18 @@ export class BrowserManager {
       failureMode?: 'timeout' | 'abort' | 'malformed-json';
     }
   ): Promise<{ success: boolean; routeId: string }> {
+    // Validate response body size to prevent DoS
+    const MAX_RESPONSE_BODY_SIZE = 50 * 1024 * 1024; // 50 MB
+    if (
+      response.body &&
+      Buffer.byteLength(response.body, 'utf8') > MAX_RESPONSE_BODY_SIZE
+    ) {
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        `Response body exceeds maximum size of ${MAX_RESPONSE_BODY_SIZE / 1024 / 1024}MB`
+      );
+    }
+
     const page = this.getPage(sessionId, pageId);
     const routeKey = `${sessionId}:${pageId}`;
     const routeId = uuidv4();
