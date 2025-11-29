@@ -4,17 +4,10 @@ import { z } from 'zod';
 
 import config from '../config/server-config.js';
 import { BrowserManager } from '../playwright/browser-manager.js';
+import { ARIA_ROLES } from '../types/index.js';
 import { toError } from '../utils/error-handler.js';
 import { Logger } from '../utils/logger.js';
-
-// Helper to create tool error response
-function toolErrorResponse(prefix: string, error: unknown) {
-  const err = toError(error);
-  return {
-    content: [{ type: 'text' as const, text: `${prefix}: ${err.message}` }],
-    isError: true,
-  };
-}
+import { registerAllHandlers, toolErrorResponse } from './handlers/index.js';
 
 export class MCPPlaywrightServer {
   private server: McpServer;
@@ -244,26 +237,23 @@ export class MCPPlaywrightServer {
           url: z.string(),
         },
       },
-      this.createToolHandler(
-        async ({ sessionId, url, waitUntil }) => {
-          const result = await this.browserManager.navigateToPage({
-            sessionId,
-            url,
-            waitUntil,
-          });
+      this.createToolHandler(async ({ sessionId, url, waitUntil }) => {
+        const result = await this.browserManager.navigateToPage({
+          sessionId,
+          url,
+          waitUntil,
+        });
 
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Navigated to: ${result.title} (${result.url})`,
-              },
-            ],
-            structuredContent: result,
-          };
-        },
-        'Error navigating to URL'
-      )
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Navigated to: ${result.title} (${result.url})`,
+            },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error navigating to URL')
     );
 
     // Navigate Back Tool
@@ -281,25 +271,22 @@ export class MCPPlaywrightServer {
           url: z.string().optional(),
         },
       },
-      this.createToolHandler(
-        async ({ sessionId, pageId }) => {
-          const result = await this.browserManager.navigateBack(
-            sessionId,
-            pageId
-          );
+      this.createToolHandler(async ({ sessionId, pageId }) => {
+        const result = await this.browserManager.navigateBack(
+          sessionId,
+          pageId
+        );
 
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Navigated back${result.url ? ` to ${result.url}` : ''}`,
-              },
-            ],
-            structuredContent: result,
-          };
-        },
-        'Error navigating back'
-      )
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Navigated back${result.url ? ` to ${result.url}` : ''}`,
+            },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error navigating back')
     );
 
     // Browser Resize Tool
@@ -318,23 +305,20 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      this.createToolHandler(
-        async ({ sessionId, pageId, width, height }) => {
-          const result = await this.browserManager.resizeViewport(
-            sessionId,
-            pageId,
-            { width, height }
-          );
+      this.createToolHandler(async ({ sessionId, pageId, width, height }) => {
+        const result = await this.browserManager.resizeViewport(
+          sessionId,
+          pageId,
+          { width, height }
+        );
 
-          return {
-            content: [
-              { type: 'text', text: `Viewport resized to ${width}x${height}` },
-            ],
-            structuredContent: result,
-          };
-        },
-        'Error resizing viewport'
-      )
+        return {
+          content: [
+            { type: 'text', text: `Viewport resized to ${width}x${height}` },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error resizing viewport')
     );
 
     // Browser Tabs Tool
@@ -373,31 +357,28 @@ export class MCPPlaywrightServer {
           newPageId: z.string().optional(),
         },
       },
-      this.createToolHandler(
-        async ({ sessionId, action, pageId, url }) => {
-          const result = await this.browserManager.manageTabs(
-            sessionId,
-            action,
-            pageId,
-            url
-          );
+      this.createToolHandler(async ({ sessionId, action, pageId, url }) => {
+        const result = await this.browserManager.manageTabs(
+          sessionId,
+          action,
+          pageId,
+          url
+        );
 
-          const message =
-            action === 'list'
-              ? `Found ${result.tabs?.length ?? 0} tab(s)`
-              : action === 'create'
-                ? `Created new tab${result.newPageId ? ` (${result.newPageId})` : ''}`
-                : action === 'close'
-                  ? `Closed tab ${pageId}`
-                  : `Selected tab ${pageId}`;
+        const message =
+          action === 'list'
+            ? `Found ${result.tabs?.length ?? 0} tab(s)`
+            : action === 'create'
+              ? `Created new tab${result.newPageId ? ` (${result.newPageId})` : ''}`
+              : action === 'close'
+                ? `Closed tab ${pageId}`
+                : `Selected tab ${pageId}`;
 
-          return {
-            content: [{ type: 'text', text: message }],
-            structuredContent: result,
-          };
-        },
-        'Error managing tabs'
-      )
+        return {
+          content: [{ type: 'text', text: message }],
+          structuredContent: result,
+        };
+      }, 'Error managing tabs')
     );
 
     // Handle Dialog Tool
@@ -464,8 +445,8 @@ export class MCPPlaywrightServer {
           filesUploaded: z.number(),
         },
       },
-      async ({ sessionId, pageId, selector, filePaths }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, selector, filePaths }) => {
           const result = await this.browserManager.uploadFiles(
             sessionId,
             pageId,
@@ -482,10 +463,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error uploading files', error);
-        }
-      }
+        },
+        'Error uploading files'
+      )
     );
 
     // Click Element Tool
@@ -528,17 +508,17 @@ export class MCPPlaywrightServer {
           elementInfo: z.record(z.string(), z.unknown()).optional(),
         },
       },
-      async ({
-        sessionId,
-        pageId,
-        selector,
-        force,
-        button,
-        clickCount,
-        modifiers,
-        delay,
-      }) => {
-        try {
+      this.createToolHandler(
+        async ({
+          sessionId,
+          pageId,
+          selector,
+          force,
+          button,
+          clickCount,
+          modifiers,
+          delay,
+        }) => {
           const result = await this.browserManager.clickElement({
             sessionId,
             pageId,
@@ -554,10 +534,9 @@ export class MCPPlaywrightServer {
             content: [{ type: 'text', text: `Clicked element: ${selector}` }],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse(`Error clicking element ${selector}`, error);
-        }
-      }
+        },
+        'Error clicking element'
+      )
     );
 
     // Fill Input Tool
@@ -576,25 +555,21 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, selector, text }) => {
-        try {
-          const result = await this.browserManager.fillInput({
-            sessionId,
-            pageId,
-            selector,
-            text,
-          });
+      this.createToolHandler(async ({ sessionId, pageId, selector, text }) => {
+        const result = await this.browserManager.fillInput({
+          sessionId,
+          pageId,
+          selector,
+          text,
+        });
 
-          return {
-            content: [
-              { type: 'text', text: `Filled input ${selector} with text` },
-            ],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse(`Error filling input ${selector}`, error);
-        }
-      }
+        return {
+          content: [
+            { type: 'text', text: `Filled input ${selector} with text` },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error filling input')
     );
 
     // Hover Element Tool
@@ -612,24 +587,20 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, selector }) => {
-        try {
-          const result = await this.browserManager.hoverElement({
-            sessionId,
-            pageId,
-            selector,
-          });
+      this.createToolHandler(async ({ sessionId, pageId, selector }) => {
+        const result = await this.browserManager.hoverElement({
+          sessionId,
+          pageId,
+          selector,
+        });
 
-          return {
-            content: [
-              { type: 'text', text: `Hovered over element: ${selector}` },
-            ],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse(`Error hovering element ${selector}`, error);
-        }
-      }
+        return {
+          content: [
+            { type: 'text', text: `Hovered over element: ${selector}` },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error hovering element')
     );
 
     // Screenshot Tool
@@ -663,8 +634,8 @@ export class MCPPlaywrightServer {
           mimeType: z.string().optional(),
         },
       },
-      async ({ sessionId, pageId, fullPage, path, type, quality }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, fullPage, path, type, quality }) => {
           const result = await this.browserManager.takeScreenshot({
             sessionId,
             pageId,
@@ -694,10 +665,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: { ...result, mimeType },
           };
-        } catch (error) {
-          return toolErrorResponse('Error taking screenshot', error);
-        }
-      }
+        },
+        'Error taking screenshot'
+      )
     );
 
     // Get Page Content Tool
@@ -715,26 +685,22 @@ export class MCPPlaywrightServer {
           text: z.string(),
         },
       },
-      async ({ sessionId, pageId }) => {
-        try {
-          const result = await this.browserManager.getPageContent(
-            sessionId,
-            pageId
-          );
+      this.createToolHandler(async ({ sessionId, pageId }) => {
+        const result = await this.browserManager.getPageContent(
+          sessionId,
+          pageId
+        );
 
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Page content retrieved (${result.html.length} chars HTML, ${result.text.length} chars text)`,
-              },
-            ],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error getting page content', error);
-        }
-      }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Page content retrieved (${result.html.length} chars HTML, ${result.text.length} chars text)`,
+            },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error getting page content')
     );
 
     // Wait for Selector Tool
@@ -757,8 +723,8 @@ export class MCPPlaywrightServer {
           found: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, selector, state, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, selector, state, timeout }) => {
           const result = await this.browserManager.waitForSelector(
             sessionId,
             pageId,
@@ -777,13 +743,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse(
-            `Error waiting for selector ${selector}`,
-            error
-          );
-        }
-      }
+        },
+        'Error waiting for selector'
+      )
     );
 
     // Execute Script Tool
@@ -801,27 +763,23 @@ export class MCPPlaywrightServer {
           result: z.unknown(),
         },
       },
-      async ({ sessionId, pageId, script }) => {
-        try {
-          const result = await this.browserManager.evaluateScript(
-            sessionId,
-            pageId,
-            script
-          );
+      this.createToolHandler(async ({ sessionId, pageId, script }) => {
+        const result = await this.browserManager.evaluateScript(
+          sessionId,
+          pageId,
+          script
+        );
 
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Script executed. Result: ${JSON.stringify(result.result)}`,
-              },
-            ],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error executing script', error);
-        }
-      }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Script executed. Result: ${JSON.stringify(result.result)}`,
+            },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error executing script')
     );
 
     // Close Browser Tool
@@ -837,20 +795,16 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId }) => {
-        try {
-          const result = await this.browserManager.closeBrowser(sessionId);
+      this.createToolHandler(async ({ sessionId }) => {
+        const result = await this.browserManager.closeBrowser(sessionId);
 
-          return {
-            content: [
-              { type: 'text', text: `Browser session ${sessionId} closed` },
-            ],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error closing browser', error);
-        }
-      }
+        return {
+          content: [
+            { type: 'text', text: `Browser session ${sessionId} closed` },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error closing browser')
     );
 
     // List Sessions Tool
@@ -871,8 +825,9 @@ export class MCPPlaywrightServer {
           ),
         },
       },
-      () => {
-        try {
+      this.createToolHandler(
+        // eslint-disable-next-line @typescript-eslint/require-await
+        async () => {
           const sessions = this.browserManager.listSessions();
 
           return {
@@ -881,10 +836,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: { sessions },
           };
-        } catch (error) {
-          return toolErrorResponse('Error listing sessions', error);
-        }
-      }
+        },
+        'Error listing sessions'
+      )
     );
 
     // Keyboard Press Tool
@@ -910,23 +864,19 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, key, delay }) => {
-        try {
-          const result = await this.browserManager.keyboardPress(
-            sessionId,
-            pageId,
-            key,
-            delay ? { delay } : undefined
-          );
+      this.createToolHandler(async ({ sessionId, pageId, key, delay }) => {
+        const result = await this.browserManager.keyboardPress(
+          sessionId,
+          pageId,
+          key,
+          delay ? { delay } : undefined
+        );
 
-          return {
-            content: [{ type: 'text', text: `Pressed key: ${key}` }],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse(`Error pressing key ${key}`, error);
-        }
-      }
+        return {
+          content: [{ type: 'text', text: `Pressed key: ${key}` }],
+          structuredContent: result,
+        };
+      }, 'Error pressing key')
     );
 
     // Keyboard Type Tool
@@ -951,25 +901,19 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, text, delay }) => {
-        try {
-          const result = await this.browserManager.keyboardType(
-            sessionId,
-            pageId,
-            text,
-            delay ? { delay } : undefined
-          );
+      this.createToolHandler(async ({ sessionId, pageId, text, delay }) => {
+        const result = await this.browserManager.keyboardType(
+          sessionId,
+          pageId,
+          text,
+          delay ? { delay } : undefined
+        );
 
-          return {
-            content: [
-              { type: 'text', text: `Typed ${text.length} characters` },
-            ],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error typing text', error);
-        }
-      }
+        return {
+          content: [{ type: 'text', text: `Typed ${text.length} characters` }],
+          structuredContent: result,
+        };
+      }, 'Error typing text')
     );
 
     // Mouse Move Tool
@@ -994,24 +938,20 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, x, y, steps }) => {
-        try {
-          const result = await this.browserManager.mouseMove(
-            sessionId,
-            pageId,
-            x,
-            y,
-            steps ? { steps } : undefined
-          );
+      this.createToolHandler(async ({ sessionId, pageId, x, y, steps }) => {
+        const result = await this.browserManager.mouseMove(
+          sessionId,
+          pageId,
+          x,
+          y,
+          steps ? { steps } : undefined
+        );
 
-          return {
-            content: [{ type: 'text', text: `Mouse moved to (${x}, ${y})` }],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error moving mouse', error);
-        }
-      }
+        return {
+          content: [{ type: 'text', text: `Mouse moved to (${x}, ${y})` }],
+          structuredContent: result,
+        };
+      }, 'Error moving mouse')
     );
 
     // Mouse Click Tool
@@ -1040,8 +980,8 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, x, y, button, clickCount }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, x, y, button, clickCount }) => {
           const result = await this.browserManager.mouseClick(
             sessionId,
             pageId,
@@ -1059,10 +999,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error clicking mouse', error);
-        }
-      }
+        },
+        'Error clicking mouse'
+      )
     );
 
     // Tracing Start Tool
@@ -1086,21 +1025,17 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, screenshots, snapshots }) => {
-        try {
-          const result = await this.browserManager.startTracing(sessionId, {
-            screenshots,
-            snapshots,
-          });
+      this.createToolHandler(async ({ sessionId, screenshots, snapshots }) => {
+        const result = await this.browserManager.startTracing(sessionId, {
+          screenshots,
+          snapshots,
+        });
 
-          return {
-            content: [{ type: 'text', text: 'Tracing started' }],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error starting trace', error);
-        }
-      }
+        return {
+          content: [{ type: 'text', text: 'Tracing started' }],
+          structuredContent: result,
+        };
+      }, 'Error starting trace')
     );
 
     // Tracing Stop Tool
@@ -1118,18 +1053,14 @@ export class MCPPlaywrightServer {
           path: z.string(),
         },
       },
-      async ({ sessionId, path }) => {
-        try {
-          const result = await this.browserManager.stopTracing(sessionId, path);
+      this.createToolHandler(async ({ sessionId, path }) => {
+        const result = await this.browserManager.stopTracing(sessionId, path);
 
-          return {
-            content: [{ type: 'text', text: `Trace saved to ${path}` }],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error stopping trace', error);
-        }
-      }
+        return {
+          content: [{ type: 'text', text: `Trace saved to ${path}` }],
+          structuredContent: result,
+        };
+      }, 'Error stopping trace')
     );
 
     // Network Route Tool
@@ -1178,8 +1109,8 @@ export class MCPPlaywrightServer {
           routeId: z.string(),
         },
       },
-      async ({ sessionId, pageId, urlPattern, response }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, urlPattern, response }) => {
           const result = await this.browserManager.addNetworkRoute(
             sessionId,
             pageId,
@@ -1203,10 +1134,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error adding network route', error);
-        }
-      }
+        },
+        'Error adding network route'
+      )
     );
 
     // Network Unroute Tool
@@ -1223,21 +1153,17 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId }) => {
-        try {
-          const result = await this.browserManager.removeNetworkRoutes(
-            sessionId,
-            pageId
-          );
+      this.createToolHandler(async ({ sessionId, pageId }) => {
+        const result = await this.browserManager.removeNetworkRoutes(
+          sessionId,
+          pageId
+        );
 
-          return {
-            content: [{ type: 'text', text: 'Network routes removed' }],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error removing network routes', error);
-        }
-      }
+        return {
+          content: [{ type: 'text', text: 'Network routes removed' }],
+          structuredContent: result,
+        };
+      }, 'Error removing network routes')
     );
 
     // ==========================================
@@ -1254,57 +1180,7 @@ export class MCPPlaywrightServer {
         inputSchema: {
           sessionId: z.string().describe('Browser session ID'),
           pageId: z.string().describe('Page ID'),
-          role: z
-            .enum([
-              'alert',
-              'alertdialog',
-              'button',
-              'checkbox',
-              'combobox',
-              'dialog',
-              'grid',
-              'gridcell',
-              'heading',
-              'img',
-              'link',
-              'list',
-              'listbox',
-              'listitem',
-              'menu',
-              'menubar',
-              'menuitem',
-              'menuitemcheckbox',
-              'menuitemradio',
-              'navigation',
-              'option',
-              'progressbar',
-              'radio',
-              'radiogroup',
-              'region',
-              'row',
-              'rowgroup',
-              'rowheader',
-              'scrollbar',
-              'search',
-              'searchbox',
-              'separator',
-              'slider',
-              'spinbutton',
-              'status',
-              'switch',
-              'tab',
-              'table',
-              'tablist',
-              'tabpanel',
-              'textbox',
-              'timer',
-              'toolbar',
-              'tooltip',
-              'tree',
-              'treegrid',
-              'treeitem',
-            ])
-            .describe('ARIA role of the element'),
+          role: z.enum(ARIA_ROLES).describe('ARIA role of the element'),
           name: z
             .string()
             .optional()
@@ -1325,12 +1201,12 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, role, name, exact, force, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, role, name, exact, force, timeout }) => {
           const result = await this.browserManager.clickByRole(
             sessionId,
             pageId,
-            role as import('../types/index.js').AriaRole,
+            role,
             { name, exact, force, timeout }
           );
 
@@ -1343,10 +1219,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse(`Error clicking ${role}`, error);
-        }
-      }
+        },
+        'Error clicking by role'
+      )
     );
 
     // Fill by Label Tool
@@ -1371,8 +1246,8 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, label, text, exact, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, label, text, exact, timeout }) => {
           const result = await this.browserManager.fillByLabel(
             sessionId,
             pageId,
@@ -1387,10 +1262,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error filling input by label', error);
-        }
-      }
+        },
+        'Error filling input by label'
+      )
     );
 
     // Click by Text Tool
@@ -1417,8 +1291,8 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, text, exact, force, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, text, exact, force, timeout }) => {
           const result = await this.browserManager.clickByText(
             sessionId,
             pageId,
@@ -1432,10 +1306,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error clicking by text', error);
-        }
-      }
+        },
+        'Error clicking by text'
+      )
     );
 
     // Fill by Placeholder Tool
@@ -1459,8 +1332,8 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, placeholder, text, exact, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, placeholder, text, exact, timeout }) => {
           const result = await this.browserManager.fillByPlaceholder(
             sessionId,
             pageId,
@@ -1478,10 +1351,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error filling by placeholder', error);
-        }
-      }
+        },
+        'Error filling by placeholder'
+      )
     );
 
     // Click by TestId Tool
@@ -1504,8 +1376,8 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, testId, force, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, testId, force, timeout }) => {
           const result = await this.browserManager.clickByTestId(
             sessionId,
             pageId,
@@ -1519,10 +1391,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error clicking by testId', error);
-        }
-      }
+        },
+        'Error clicking by testId'
+      )
     );
 
     // Fill by TestId Tool
@@ -1542,8 +1413,8 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, testId, text, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, testId, text, timeout }) => {
           const result = await this.browserManager.fillByTestId(
             sessionId,
             pageId,
@@ -1558,10 +1429,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error filling by testId', error);
-        }
-      }
+        },
+        'Error filling by testId'
+      )
     );
 
     // ==========================================
@@ -1586,8 +1456,8 @@ export class MCPPlaywrightServer {
           visible: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, selector, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, selector, timeout }) => {
           const result = await this.browserManager.assertVisible(
             sessionId,
             pageId,
@@ -1606,10 +1476,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error asserting visibility', error);
-        }
-      }
+        },
+        'Error asserting visibility'
+      )
     );
 
     // Assert Hidden Tool
@@ -1630,8 +1499,8 @@ export class MCPPlaywrightServer {
           hidden: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, selector, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, selector, timeout }) => {
           const result = await this.browserManager.assertHidden(
             sessionId,
             pageId,
@@ -1650,10 +1519,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error asserting hidden', error);
-        }
-      }
+        },
+        'Error asserting hidden'
+      )
     );
 
     // Assert Text Tool
@@ -1679,8 +1547,15 @@ export class MCPPlaywrightServer {
           actualText: z.string().optional(),
         },
       },
-      async ({ sessionId, pageId, selector, expectedText, exact, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({
+          sessionId,
+          pageId,
+          selector,
+          expectedText,
+          exact,
+          timeout,
+        }) => {
           const result = await this.browserManager.assertText(
             sessionId,
             pageId,
@@ -1700,10 +1575,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error asserting text', error);
-        }
-      }
+        },
+        'Error asserting text'
+      )
     );
 
     // Assert Attribute Tool
@@ -1725,15 +1599,15 @@ export class MCPPlaywrightServer {
           actualValue: z.string().optional(),
         },
       },
-      async ({
-        sessionId,
-        pageId,
-        selector,
-        attribute,
-        expectedValue,
-        timeout,
-      }) => {
-        try {
+      this.createToolHandler(
+        async ({
+          sessionId,
+          pageId,
+          selector,
+          attribute,
+          expectedValue,
+          timeout,
+        }) => {
           const result = await this.browserManager.assertAttribute(
             sessionId,
             pageId,
@@ -1754,10 +1628,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error asserting attribute', error);
-        }
-      }
+        },
+        'Error asserting attribute'
+      )
     );
 
     // Assert Value Tool
@@ -1778,8 +1651,8 @@ export class MCPPlaywrightServer {
           actualValue: z.string().optional(),
         },
       },
-      async ({ sessionId, pageId, selector, expectedValue, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, selector, expectedValue, timeout }) => {
           const result = await this.browserManager.assertValue(
             sessionId,
             pageId,
@@ -1799,10 +1672,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error asserting value', error);
-        }
-      }
+        },
+        'Error asserting value'
+      )
     );
 
     // Assert Checked Tool
@@ -1824,8 +1696,8 @@ export class MCPPlaywrightServer {
           isChecked: z.boolean().optional(),
         },
       },
-      async ({ sessionId, pageId, selector, checked, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, selector, checked, timeout }) => {
           const result = await this.browserManager.assertChecked(
             sessionId,
             pageId,
@@ -1845,10 +1717,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error asserting checked', error);
-        }
-      }
+        },
+        'Error asserting checked'
+      )
     );
 
     // Assert URL Tool
@@ -1870,8 +1741,8 @@ export class MCPPlaywrightServer {
           actualUrl: z.string().optional(),
         },
       },
-      async ({ sessionId, pageId, expectedUrl, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, expectedUrl, timeout }) => {
           const result = await this.browserManager.assertUrl(
             sessionId,
             pageId,
@@ -1890,10 +1761,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error asserting URL', error);
-        }
-      }
+        },
+        'Error asserting URL'
+      )
     );
 
     // Assert Title Tool
@@ -1913,8 +1783,8 @@ export class MCPPlaywrightServer {
           actualTitle: z.string().optional(),
         },
       },
-      async ({ sessionId, pageId, expectedTitle, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, expectedTitle, timeout }) => {
           const result = await this.browserManager.assertTitle(
             sessionId,
             pageId,
@@ -1933,10 +1803,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error asserting title', error);
-        }
-      }
+        },
+        'Error asserting title'
+      )
     );
 
     // ==========================================
@@ -1963,8 +1832,8 @@ export class MCPPlaywrightServer {
           selectedValues: z.array(z.string()),
         },
       },
-      async ({ sessionId, pageId, selector, value, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, selector, value, timeout }) => {
           const result = await this.browserManager.selectOption(
             sessionId,
             pageId,
@@ -1982,10 +1851,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error selecting option', error);
-        }
-      }
+        },
+        'Error selecting option'
+      )
     );
 
     // Check/Uncheck Tool
@@ -2012,8 +1880,8 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, selector, checked, force, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, selector, checked, force, timeout }) => {
           const result = await this.browserManager.checkElement(
             sessionId,
             pageId,
@@ -2031,13 +1899,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse(
-            `Error ${checked ? 'checking' : 'unchecking'}`,
-            error
-          );
-        }
-      }
+        },
+        'Error checking element'
+      )
     );
 
     // ==========================================
@@ -2078,16 +1942,16 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({
-        sessionId,
-        pageId,
-        sourceSelector,
-        targetSelector,
-        sourcePosition,
-        targetPosition,
-        timeout,
-      }) => {
-        try {
+      this.createToolHandler(
+        async ({
+          sessionId,
+          pageId,
+          sourceSelector,
+          targetSelector,
+          sourcePosition,
+          targetPosition,
+          timeout,
+        }) => {
           const result = await this.browserManager.dragAndDrop(
             sessionId,
             pageId,
@@ -2105,10 +1969,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error dragging', error);
-        }
-      }
+        },
+        'Error dragging'
+      )
     );
 
     // ==========================================
@@ -2134,15 +1997,15 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({
-        sessionId,
-        pageId,
-        frameSelector,
-        elementSelector,
-        force,
-        timeout,
-      }) => {
-        try {
+      this.createToolHandler(
+        async ({
+          sessionId,
+          pageId,
+          frameSelector,
+          elementSelector,
+          force,
+          timeout,
+        }) => {
           const result = await this.browserManager.clickInFrame(
             sessionId,
             pageId,
@@ -2160,10 +2023,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error clicking in frame', error);
-        }
-      }
+        },
+        'Error clicking in frame'
+      )
     );
 
     this.server.registerTool(
@@ -2185,15 +2047,15 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({
-        sessionId,
-        pageId,
-        frameSelector,
-        elementSelector,
-        text,
-        timeout,
-      }) => {
-        try {
+      this.createToolHandler(
+        async ({
+          sessionId,
+          pageId,
+          frameSelector,
+          elementSelector,
+          text,
+          timeout,
+        }) => {
           const result = await this.browserManager.fillInFrame(
             sessionId,
             pageId,
@@ -2212,10 +2074,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error filling in frame', error);
-        }
-      }
+        },
+        'Error filling in frame'
+      )
     );
 
     // ==========================================
@@ -2240,23 +2101,19 @@ export class MCPPlaywrightServer {
           path: z.string(),
         },
       },
-      async ({ sessionId, path }) => {
-        try {
-          const result = await this.browserManager.saveStorageState(
-            sessionId,
-            path
-          );
+      this.createToolHandler(async ({ sessionId, path }) => {
+        const result = await this.browserManager.saveStorageState(
+          sessionId,
+          path
+        );
 
-          return {
-            content: [
-              { type: 'text', text: `Storage state saved to ${result.path}` },
-            ],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error saving storage state', error);
-        }
-      }
+        return {
+          content: [
+            { type: 'text', text: `Storage state saved to ${result.path}` },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error saving storage state')
     );
 
     this.server.registerTool(
@@ -2279,14 +2136,14 @@ export class MCPPlaywrightServer {
           browserType: z.string(),
         },
       },
-      async ({
-        browserType,
-        headless,
-        storageState,
-        viewportWidth,
-        viewportHeight,
-      }) => {
-        try {
+      this.createToolHandler(
+        async ({
+          browserType,
+          headless,
+          storageState,
+          viewportWidth,
+          viewportHeight,
+        }) => {
           const result = await this.browserManager.launchWithStorageState({
             browserType,
             headless,
@@ -2303,10 +2160,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error launching with auth', error);
-        }
-      }
+        },
+        'Error launching with auth'
+      )
     );
 
     // ==========================================
@@ -2332,27 +2188,23 @@ export class MCPPlaywrightServer {
           path: z.string().nullable(),
         },
       },
-      async ({ sessionId, pageId, timeout }) => {
-        try {
-          const result = await this.browserManager.waitForDownload(
-            sessionId,
-            pageId,
-            { timeout }
-          );
+      this.createToolHandler(async ({ sessionId, pageId, timeout }) => {
+        const result = await this.browserManager.waitForDownload(
+          sessionId,
+          pageId,
+          { timeout }
+        );
 
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Download completed: ${result.suggestedFilename}`,
-              },
-            ],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error waiting for download', error);
-        }
-      }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Download completed: ${result.suggestedFilename}`,
+            },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error waiting for download')
     );
 
     // ==========================================
@@ -2374,23 +2226,19 @@ export class MCPPlaywrightServer {
           clearedStorage: z.boolean(),
         },
       },
-      async ({ sessionId }) => {
-        try {
-          const result = await this.browserManager.resetSessionState(sessionId);
+      this.createToolHandler(async ({ sessionId }) => {
+        const result = await this.browserManager.resetSessionState(sessionId);
 
-          return {
-            content: [
-              {
-                type: 'text',
-                text: 'Session state cleared (cookies, localStorage, sessionStorage)',
-              },
-            ],
-            structuredContent: result,
-          };
-        } catch (error) {
-          return toolErrorResponse('Error resetting session state', error);
-        }
-      }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Session state cleared (cookies, localStorage, sessionStorage)',
+            },
+          ],
+          structuredContent: result,
+        };
+      }, 'Error resetting session state')
     );
 
     this.server.registerTool(
@@ -2441,17 +2289,17 @@ export class MCPPlaywrightServer {
           appliedSettings: z.array(z.string()),
         },
       },
-      async ({
-        sessionId,
-        pageId,
-        viewport,
-        extraHTTPHeaders,
-        geolocation,
-        permissions,
-        colorScheme,
-        reducedMotion,
-      }) => {
-        try {
+      this.createToolHandler(
+        async ({
+          sessionId,
+          pageId,
+          viewport,
+          extraHTTPHeaders,
+          geolocation,
+          permissions,
+          colorScheme,
+          reducedMotion,
+        }) => {
           const result = await this.browserManager.preparePage(
             sessionId,
             pageId,
@@ -2474,10 +2322,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error preparing page', error);
-        }
-      }
+        },
+        'Error preparing page'
+      )
     );
 
     // ==========================================
@@ -2508,8 +2355,8 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, altText, exact, force, timeout }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, altText, exact, force, timeout }) => {
           const result = await this.browserManager.clickByAltText(
             sessionId,
             pageId,
@@ -2526,10 +2373,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error clicking by alt text', error);
-        }
-      }
+        },
+        'Error clicking by alt text'
+      )
     );
 
     // ==========================================
@@ -2583,8 +2429,8 @@ export class MCPPlaywrightServer {
           inapplicable: z.number(),
         },
       },
-      async ({ sessionId, pageId, tags, includedImpacts, selector }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, tags, includedImpacts, selector }) => {
           const result = await this.browserManager.runAccessibilityScan(
             sessionId,
             pageId,
@@ -2605,10 +2451,9 @@ export class MCPPlaywrightServer {
             ],
             structuredContent: result,
           };
-        } catch (error) {
-          return toolErrorResponse('Error running accessibility scan', error);
-        }
-      }
+        },
+        'Error running accessibility scan'
+      )
     );
 
     // ==========================================
@@ -2631,25 +2476,24 @@ export class MCPPlaywrightServer {
             .describe(
               'Load state to wait for: load (all resources), domcontentloaded (DOM ready), networkidle (no network requests for 500ms)'
             ),
-          timeout: z.number().default(30000).describe('Timeout in milliseconds'),
+          timeout: z
+            .number()
+            .default(30000)
+            .describe('Timeout in milliseconds'),
         },
         outputSchema: {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, state, timeout }) => {
-        try {
-          const page = this.browserManager['getPage'](sessionId, pageId);
-          await page.waitForLoadState(state, { timeout });
-          this.browserManager['updateSessionActivity'](sessionId);
-          return {
-            content: [{ type: 'text', text: `Page reached ${state} state` }],
-            structuredContent: { success: true },
-          };
-        } catch (error) {
-          return toolErrorResponse('Error waiting for load state', error);
-        }
-      }
+      this.createToolHandler(async ({ sessionId, pageId, state, timeout }) => {
+        const page = this.browserManager['getPage'](sessionId, pageId);
+        await page.waitForLoadState(state, { timeout });
+        this.browserManager['updateSessionActivity'](sessionId);
+        return {
+          content: [{ type: 'text', text: `Page reached ${state} state` }],
+          structuredContent: { success: true },
+        };
+      }, 'Error waiting for load state')
     );
 
     // Wait for Network Idle Tool
@@ -2662,25 +2506,24 @@ export class MCPPlaywrightServer {
         inputSchema: {
           sessionId: z.string().describe('Browser session ID'),
           pageId: z.string().describe('Page ID'),
-          timeout: z.number().default(30000).describe('Timeout in milliseconds'),
+          timeout: z
+            .number()
+            .default(30000)
+            .describe('Timeout in milliseconds'),
         },
         outputSchema: {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, timeout }) => {
-        try {
-          const page = this.browserManager['getPage'](sessionId, pageId);
-          await page.waitForLoadState('networkidle', { timeout });
-          this.browserManager['updateSessionActivity'](sessionId);
-          return {
-            content: [{ type: 'text', text: 'Network is idle' }],
-            structuredContent: { success: true },
-          };
-        } catch (error) {
-          return toolErrorResponse('Error waiting for network idle', error);
-        }
-      }
+      this.createToolHandler(async ({ sessionId, pageId, timeout }) => {
+        const page = this.browserManager['getPage'](sessionId, pageId);
+        await page.waitForLoadState('networkidle', { timeout });
+        this.browserManager['updateSessionActivity'](sessionId);
+        return {
+          content: [{ type: 'text', text: 'Network is idle' }],
+          structuredContent: { success: true },
+        };
+      }, 'Error waiting for network idle')
     );
 
     // ==========================================
@@ -2705,21 +2548,17 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, reducedMotion }) => {
-        try {
-          const page = this.browserManager['getPage'](sessionId, pageId);
-          await page.emulateMedia({ reducedMotion });
-          this.browserManager['updateSessionActivity'](sessionId);
-          return {
-            content: [
-              { type: 'text', text: `Reduced motion set to: ${reducedMotion}` },
-            ],
-            structuredContent: { success: true },
-          };
-        } catch (error) {
-          return toolErrorResponse('Error emulating reduced motion', error);
-        }
-      }
+      this.createToolHandler(async ({ sessionId, pageId, reducedMotion }) => {
+        const page = this.browserManager['getPage'](sessionId, pageId);
+        await page.emulateMedia({ reducedMotion });
+        this.browserManager['updateSessionActivity'](sessionId);
+        return {
+          content: [
+            { type: 'text', text: `Reduced motion set to: ${reducedMotion}` },
+          ],
+          structuredContent: { success: true },
+        };
+      }, 'Error emulating reduced motion')
     );
 
     // Emulate Color Scheme Tool
@@ -2739,21 +2578,17 @@ export class MCPPlaywrightServer {
           success: z.boolean(),
         },
       },
-      async ({ sessionId, pageId, colorScheme }) => {
-        try {
-          const page = this.browserManager['getPage'](sessionId, pageId);
-          await page.emulateMedia({ colorScheme });
-          this.browserManager['updateSessionActivity'](sessionId);
-          return {
-            content: [
-              { type: 'text', text: `Color scheme set to: ${colorScheme}` },
-            ],
-            structuredContent: { success: true },
-          };
-        } catch (error) {
-          return toolErrorResponse('Error emulating color scheme', error);
-        }
-      }
+      this.createToolHandler(async ({ sessionId, pageId, colorScheme }) => {
+        const page = this.browserManager['getPage'](sessionId, pageId);
+        await page.emulateMedia({ colorScheme });
+        this.browserManager['updateSessionActivity'](sessionId);
+        return {
+          content: [
+            { type: 'text', text: `Color scheme set to: ${colorScheme}` },
+          ],
+          structuredContent: { success: true },
+        };
+      }, 'Error emulating color scheme')
     );
 
     // ==========================================
@@ -2787,8 +2622,8 @@ export class MCPPlaywrightServer {
           violationsCount: z.number(),
         },
       },
-      async ({ sessionId, pageId, outputPath, tags }) => {
-        try {
+      this.createToolHandler(
+        async ({ sessionId, pageId, outputPath, tags }) => {
           const result = await this.browserManager.runAccessibilityScan(
             sessionId,
             pageId,
@@ -2903,14 +2738,15 @@ export class MCPPlaywrightServer {
               violationsCount: result.violations.length,
             },
           };
-        } catch (error) {
-          return toolErrorResponse(
-            'Error generating accessibility report',
-            error
-          );
-        }
-      }
+        },
+        'Error generating accessibility report'
+      )
     );
+
+    // Register modular handlers (new pattern)
+    // These supplement the existing inline tools above
+    // As migration progresses, inline tools can be moved to handlers/
+    registerAllHandlers(this.server, this.browserManager, this.logger);
 
     this.logger.info('All tools registered successfully');
   }

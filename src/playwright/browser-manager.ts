@@ -1,5 +1,5 @@
-import path from 'path';
 import { promises as fs, constants as fsConstants } from 'fs';
+import path from 'path';
 import { Browser, chromium, Dialog, firefox, Page, webkit } from 'playwright';
 import { fileURLToPath } from 'url';
 import { validate as isValidUUID, v4 as uuidv4 } from 'uuid';
@@ -65,7 +65,9 @@ async function getPlaywrightExpect() {
 const ALLOWED_LOG_OUTPUT_DIR = fileURLToPath(
   new URL('../../logs', import.meta.url)
 );
-const ALLOWED_UPLOAD_DIR = fileURLToPath(new URL('../../uploads', import.meta.url));
+const ALLOWED_UPLOAD_DIR = fileURLToPath(
+  new URL('../../uploads', import.meta.url)
+);
 
 export class BrowserManager {
   private sessions = new Map<string, BrowserSession>();
@@ -84,7 +86,8 @@ export class BrowserManager {
 
   // Dialog timeout: 2x action timeout to give user time to handle dialog
   // Prevents memory leaks if client doesn't handle dialog
-  private static readonly DIALOG_AUTO_DISMISS_TIMEOUT = config.timeouts.action * 2;
+  private static readonly DIALOG_AUTO_DISMISS_TIMEOUT =
+    config.timeouts.action * 2;
 
   // Allowed URL protocols for navigation
   private static readonly ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
@@ -129,9 +132,14 @@ export class BrowserManager {
 
     // Remove expired timestamps (in-place, no new array allocation)
     let writeIndex = 0;
-    for (let readIndex = 0; readIndex < this.sessionCreationTimestamps.length; readIndex++) {
+    for (
+      let readIndex = 0;
+      readIndex < this.sessionCreationTimestamps.length;
+      readIndex++
+    ) {
       if (this.sessionCreationTimestamps[readIndex] > oneMinuteAgo) {
-        this.sessionCreationTimestamps[writeIndex++] = this.sessionCreationTimestamps[readIndex];
+        this.sessionCreationTimestamps[writeIndex++] =
+          this.sessionCreationTimestamps[readIndex];
       }
     }
     this.sessionCreationTimestamps.length = writeIndex;
@@ -2057,7 +2065,7 @@ export class BrowserManager {
   }
 
   // Web-first assertions (Playwright best practice)
-  
+
   /**
    * Generic assertion executor that handles common patterns:
    * - Gets page and timeout
@@ -2065,7 +2073,7 @@ export class BrowserManager {
    * - Updates session activity on success
    * - Logs debug info on failure
    * - Optionally retrieves actual value on failure
-   * 
+   *
    * @param sessionId - Browser session ID
    * @param pageId - Page ID within session
    * @param selector - CSS selector for the element
@@ -2081,7 +2089,10 @@ export class BrowserManager {
     pageId: string,
     selector: string,
     assertionName: string,
-    assertion: (page: Page, expect: typeof import('@playwright/test').expect) => Promise<void>,
+    assertion: (
+      page: Page,
+      expect: typeof import('@playwright/test').expect
+    ) => Promise<void>,
     buildSuccessResult: () => TSuccess | Promise<TSuccess>,
     buildFailureResult: (err: Error) => TFailure | Promise<TFailure>,
     extraLogData?: Record<string, unknown>
@@ -2123,7 +2134,7 @@ export class BrowserManager {
         await expect(page.locator(selector)).toBeVisible({ timeout });
       },
       () => ({ success: true, visible: true }),
-      async () => ({ success: false, visible: false })
+      () => ({ success: false, visible: false })
     );
   }
 
@@ -2144,7 +2155,7 @@ export class BrowserManager {
         await expect(page.locator(selector)).toBeHidden({ timeout });
       },
       () => ({ success: true, hidden: true }),
-      async () => ({ success: false, hidden: false })
+      () => ({ success: false, hidden: false })
     );
   }
 
@@ -2176,7 +2187,10 @@ export class BrowserManager {
         return { success: true, actualText: actualText ?? undefined };
       },
       async () => {
-        const actualText = await page.locator(selector).textContent().catch(() => null);
+        const actualText = await page
+          .locator(selector)
+          .textContent()
+          .catch(() => null);
         return { success: false, actualText: actualText ?? undefined };
       },
       { expectedText }
@@ -2200,14 +2214,23 @@ export class BrowserManager {
       selector,
       'attribute',
       async (p, expect) => {
-        await expect(p.locator(selector)).toHaveAttribute(attribute, expectedValue, { timeout });
+        await expect(p.locator(selector)).toHaveAttribute(
+          attribute,
+          expectedValue,
+          { timeout }
+        );
       },
       async () => {
-        const actualValue = await page.locator(selector).getAttribute(attribute);
+        const actualValue = await page
+          .locator(selector)
+          .getAttribute(attribute);
         return { success: true, actualValue: actualValue ?? undefined };
       },
       async () => {
-        const actualValue = await page.locator(selector).getAttribute(attribute).catch(() => null);
+        const actualValue = await page
+          .locator(selector)
+          .getAttribute(attribute)
+          .catch(() => null);
         return { success: false, actualValue: actualValue ?? undefined };
       },
       { attribute, expectedValue }
@@ -2230,14 +2253,19 @@ export class BrowserManager {
       selector,
       'value',
       async (p, expect) => {
-        await expect(p.locator(selector)).toHaveValue(expectedValue, { timeout });
+        await expect(p.locator(selector)).toHaveValue(expectedValue, {
+          timeout,
+        });
       },
       async () => {
         const actualValue = await page.locator(selector).inputValue();
         return { success: true, actualValue };
       },
       async () => {
-        const actualValue = await page.locator(selector).inputValue().catch(() => null);
+        const actualValue = await page
+          .locator(selector)
+          .inputValue()
+          .catch(() => null);
         return { success: false, actualValue: actualValue ?? undefined };
       },
       { expectedValue }
@@ -2271,7 +2299,10 @@ export class BrowserManager {
         return { success: true, isChecked };
       },
       async () => {
-        const isChecked = await page.locator(selector).isChecked().catch(() => null);
+        const isChecked = await page
+          .locator(selector)
+          .isChecked()
+          .catch(() => null);
         return { success: false, isChecked: isChecked ?? undefined };
       },
       { expectedChecked: checked }

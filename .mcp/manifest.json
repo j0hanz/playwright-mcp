@@ -1,0 +1,143 @@
+{
+  "name": "mcp-playwright-server",
+  "version": "1.0.0",
+  "description": "A comprehensive MCP server providing browser automation capabilities using Playwright. Enables LLMs to interact with web pages through structured accessibility-first selectors.",
+  "homepage": "https://github.com/j0hanz/playwright-mcp",
+  "author": "j0hanz",
+  "license": "MIT",
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": false
+  },
+  "tools": [
+    {
+      "name": "browser_launch",
+      "description": "Launch a new browser instance (Chromium, Firefox, or WebKit)"
+    },
+    {
+      "name": "browser_close",
+      "description": "Close a browser session"
+    },
+    {
+      "name": "browser_navigate",
+      "description": "Navigate to a URL in the browser"
+    },
+    {
+      "name": "browser_navigate_back",
+      "description": "Go back to the previous page in browser history"
+    },
+    {
+      "name": "browser_resize",
+      "description": "Resize the browser viewport"
+    },
+    {
+      "name": "browser_tabs",
+      "description": "List, create, close, or select browser tabs"
+    },
+    {
+      "name": "element_click",
+      "description": "Click on an element using a CSS selector"
+    },
+    {
+      "name": "element_fill",
+      "description": "Fill text into an input field"
+    },
+    {
+      "name": "element_hover",
+      "description": "Hover over an element"
+    },
+    {
+      "name": "click_by_role",
+      "description": "Click an element using its ARIA role (recommended)"
+    },
+    {
+      "name": "click_by_text",
+      "description": "Click an element containing specific text"
+    },
+    {
+      "name": "click_by_testid",
+      "description": "Click an element using data-testid attribute"
+    },
+    {
+      "name": "fill_by_label",
+      "description": "Fill an input field using its associated label text"
+    },
+    {
+      "name": "fill_by_placeholder",
+      "description": "Fill an input field using its placeholder text"
+    },
+    {
+      "name": "page_screenshot",
+      "description": "Capture a screenshot of the page"
+    },
+    {
+      "name": "page_content",
+      "description": "Get the HTML and text content of the page"
+    },
+    {
+      "name": "wait_for_selector",
+      "description": "Wait for an element to appear or disappear"
+    },
+    {
+      "name": "execute_script",
+      "description": "Execute JavaScript code in the page context"
+    },
+    {
+      "name": "keyboard_press",
+      "description": "Press a key or key combination"
+    },
+    {
+      "name": "keyboard_type",
+      "description": "Type text character by character"
+    },
+    {
+      "name": "mouse_move",
+      "description": "Move the mouse to specific coordinates"
+    },
+    {
+      "name": "mouse_click",
+      "description": "Click at specific coordinates"
+    },
+    {
+      "name": "tracing_start",
+      "description": "Start recording a trace for debugging"
+    },
+    {
+      "name": "tracing_stop",
+      "description": "Stop recording and save the trace"
+    },
+    {
+      "name": "network_route",
+      "description": "Intercept and modify network requests"
+    },
+    {
+      "name": "network_unroute",
+      "description": "Remove all network routes for a page"
+    },
+    {
+      "name": "accessibility_scan",
+      "description": "Scan page for WCAG accessibility violations"
+    },
+    {
+      "name": "sessions_list",
+      "description": "List all active browser sessions"
+    }
+  ],
+  "resources": [
+    {
+      "name": "sessions",
+      "description": "Information about active browser sessions"
+    },
+    {
+      "name": "server-status",
+      "description": "Current server status and metrics"
+    }
+  ],
+  "transport": {
+    "type": "stdio"
+  },
+  "runtime": {
+    "node": ">=18"
+  }
+}

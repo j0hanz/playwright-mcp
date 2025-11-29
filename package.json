@@ -15,6 +15,7 @@
     "test:debug": "playwright test --debug",
     "test:trace": "playwright test --trace on",
     "test:report": "playwright show-report",
+    "type-check": "tsc -b",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "install:browsers": "npx playwright install"
@@ -23,6 +24,7 @@
     "@axe-core/playwright": "^4.10.1",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@playwright/test": "^1.52.0",
+    "@trivago/prettier-plugin-sort-imports": "^6.0.0",
     "playwright": "^1.52.0",
     "winston": "^3.17.0",
     "dotenv": "^17.2.3",

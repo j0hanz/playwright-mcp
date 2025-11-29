@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
 
 // ESM-compatible __dirname equivalent
@@ -8,8 +8,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Test data fixtures - isolate test data from code (best practice)
-const TEST_DATA_PATH = path.join(__dirname, '../fixtures/test-data/credentials.json');
-const STORAGE_STATE_DIR = path.join(__dirname, '../fixtures/storage-states');
+const TEST_DATA_PATH = path.join(
+  __dirname,
+  '../fixtures/test-data/credentials.json'
+);
+const _STORAGE_STATE_DIR = path.join(__dirname, '../fixtures/storage-states');
 
 // Load test data from fixtures file
 function loadTestData() {

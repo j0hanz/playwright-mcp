@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 import { ARIA_ROLES } from '../types/index.js';
 
+// Helper to create a non-empty tuple type from a readonly array
+// This avoids the unsafe `as unknown as` double assertion
+function toNonEmptyTuple<T extends readonly [string, ...string[]]>(arr: T): T {
+  return arr;
+}
+
 // Viewport schema - reusable
 // Note: .default() applies AFTER validation, so constraints apply to defaults too
 export const viewportSchema = z.object({
@@ -44,8 +50,9 @@ export const waitUntilSchema = z.enum([
 ]);
 
 // ARIA roles schema (derived from const array for single source of truth)
+// The ARIA_ROLES array is guaranteed to be non-empty, so we assert that property
 export const ariaRoleSchema = z.enum(
-  ARIA_ROLES as unknown as [string, ...string[]]
+  toNonEmptyTuple(ARIA_ROLES as readonly [string, ...string[]])
 );
 
 // Mouse button and modifiers

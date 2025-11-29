@@ -2,7 +2,29 @@ import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import winston from 'winston';
 
-import { config } from '../config/server-config.js';
+// Avoid importing `config` here to prevent a circular dependency with
+// `server-config` which itself creates a `Logger` during config init.
+// Read log size limits from environment variables with safe defaults.
+
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = 1024 * BYTES_PER_KB;
+
+const DEFAULT_MAX_ERROR_LOG_FILE_SIZE = 5 * BYTES_PER_MB;
+const DEFAULT_MAX_LOG_FILE_SIZE = 10 * BYTES_PER_MB;
+const DEFAULT_MAX_LOG_FILES = 10;
+
+const maxErrorLogFileSize = parseInt(
+  process.env.MAX_ERROR_LOG_FILE_SIZE ?? `${DEFAULT_MAX_ERROR_LOG_FILE_SIZE}`,
+  10
+);
+const maxLogFileSize = parseInt(
+  process.env.MAX_LOG_FILE_SIZE ?? `${DEFAULT_MAX_LOG_FILE_SIZE}`,
+  10
+);
+const maxLogFiles = parseInt(
+  process.env.MAX_LOG_FILES ?? `${DEFAULT_MAX_LOG_FILES}`,
+  10
+);
 
 // Log level type
 type LogLevel = 'error' | 'warn' | 'info' | 'debug';
@@ -56,14 +78,14 @@ function createTransports(): winston.transport[] {
     new winston.transports.File({
       filename: path.join(LOG_DIR, 'error.log'),
       level: 'error',
-      maxsize: config.limits.maxErrorLogFileSize,
-      maxFiles: config.limits.maxLogFiles,
+      maxsize: maxErrorLogFileSize,
+      maxFiles: maxLogFiles,
       format,
     }),
     new winston.transports.File({
       filename: path.join(LOG_DIR, 'combined.log'),
-      maxsize: config.limits.maxLogFileSize,
-      maxFiles: config.limits.maxLogFiles,
+      maxsize: maxLogFileSize,
+      maxFiles: maxLogFiles,
       format,
     }),
   ];
