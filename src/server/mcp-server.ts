@@ -2185,6 +2185,200 @@ export class MCPPlaywrightServer {
     );
 
     // ==========================================
+    // High-Level Authentication Workflow Tool
+    // ==========================================
+
+    this.server.registerTool(
+      'auth_workflow',
+      {
+        title: 'Authentication Workflow',
+        description:
+          'High-level tool for common authentication flows. Performs login actions and saves storage state for reuse. Supports email/password login with customizable selectors.',
+        inputSchema: {
+          url: z.string().url().describe('Login page URL'),
+          credentials: z
+            .object({
+              email: z.string().describe('Email or username'),
+              password: z.string().describe('Password'),
+            })
+            .describe('Login credentials'),
+          selectors: z
+            .object({
+              email: z
+                .string()
+                .default('input[type="email"], input[name="email"]')
+                .describe('Email input selector'),
+              password: z
+                .string()
+                .default('input[type="password"]')
+                .describe('Password input selector'),
+              submit: z
+                .string()
+                .default('button[type="submit"]')
+                .describe('Submit button selector'),
+            })
+            .default({})
+            .describe('Custom selectors for login form'),
+          successIndicator: z
+            .object({
+              type: z
+                .enum(['url', 'selector', 'text'])
+                .describe('Type of success check'),
+              value: z
+                .string()
+                .describe('URL pattern, selector, or text to verify'),
+            })
+            .optional()
+            .describe('How to verify successful login'),
+          storagePath: z
+            .string()
+            .default('fixtures/storage-states/auth.json')
+            .describe('Path to save authentication state'),
+          browserType: z
+            .enum(['chromium', 'firefox', 'webkit'])
+            .default('chromium'),
+          headless: z.boolean().default(true),
+        },
+        outputSchema: {
+          success: z.boolean(),
+          sessionId: z.string(),
+          pageId: z.string(),
+          storagePath: z.string(),
+          message: z.string(),
+        },
+      },
+      this.createToolHandler(
+        async ({
+          url,
+          credentials,
+          selectors,
+          successIndicator,
+          storagePath,
+          browserType,
+          headless,
+        }) => {
+          // Launch browser
+          const launchResult = await this.browserManager.launchBrowser({
+            browserType,
+            headless,
+          });
+
+          // Navigate to login page
+          const navResult = await this.browserManager.navigateToPage({
+            sessionId: launchResult.sessionId,
+            url,
+          });
+
+          // Fill email
+          const emailSelector =
+            selectors.email || 'input[type="email"], input[name="email"]';
+          await this.browserManager.fillInput({
+            sessionId: launchResult.sessionId,
+            pageId: navResult.pageId,
+            selector: emailSelector,
+            text: credentials.email,
+          });
+
+          // Fill password
+          const passwordSelector =
+            selectors.password || 'input[type="password"]';
+          await this.browserManager.fillInput({
+            sessionId: launchResult.sessionId,
+            pageId: navResult.pageId,
+            selector: passwordSelector,
+            text: credentials.password,
+          });
+
+          // Click submit
+          const submitSelector = selectors.submit || 'button[type="submit"]';
+          await this.browserManager.clickElement({
+            sessionId: launchResult.sessionId,
+            pageId: navResult.pageId,
+            selector: submitSelector,
+          });
+
+          // Wait for navigation to complete
+          const page = this.browserManager.getPageForTool(
+            launchResult.sessionId,
+            navResult.pageId
+          );
+          await page.waitForLoadState('networkidle', { timeout: 30000 });
+
+          // Verify success if indicator provided
+          let verified = true;
+          if (successIndicator) {
+            switch (successIndicator.type) {
+              case 'url': {
+                const currentUrl = page.url();
+                verified = currentUrl.includes(successIndicator.value);
+                break;
+              }
+              case 'selector': {
+                try {
+                  await page.waitForSelector(successIndicator.value, {
+                    timeout: 5000,
+                  });
+                } catch {
+                  verified = false;
+                }
+                break;
+              }
+              case 'text': {
+                const content = await page.textContent('body');
+                verified = content?.includes(successIndicator.value) ?? false;
+                break;
+              }
+            }
+          }
+
+          if (!verified) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: 'Login may have failed - success indicator not found',
+                },
+              ],
+              structuredContent: {
+                success: false,
+                sessionId: launchResult.sessionId,
+                pageId: navResult.pageId,
+                storagePath: '',
+                message: 'Success indicator not found after login',
+              },
+            };
+          }
+
+          // Save storage state
+          const { promises: fs } = await import('fs');
+          const pathModule = await import('path');
+          await fs.mkdir(pathModule.dirname(storagePath), { recursive: true });
+          await this.browserManager.saveStorageState(
+            launchResult.sessionId,
+            storagePath
+          );
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Authentication successful! Storage state saved to ${storagePath}. Session remains open for further actions.`,
+              },
+            ],
+            structuredContent: {
+              success: true,
+              sessionId: launchResult.sessionId,
+              pageId: navResult.pageId,
+              storagePath,
+              message: 'Authentication completed and storage state saved',
+            },
+          };
+        },
+        'Error in authentication workflow'
+      )
+    );
+
+    // ==========================================
     // Download Handling Tool
     // ==========================================
 
