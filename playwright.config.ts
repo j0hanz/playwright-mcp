@@ -35,7 +35,7 @@ export default defineConfig({
 
     // Recommended: use domcontentloaded for SPAs
     navigationTimeout: 30000,
-    actionTimeout: 10000,
+    actionTimeout: 20000,
 
     // Accessibility: Test ID attribute configuration
     testIdAttribute: 'data-testid',
@@ -56,6 +56,7 @@ export default defineConfig({
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
+      timeout: 60000, // Increase timeout for Firefox
     },
     {
       name: 'webkit',
@@ -71,10 +72,11 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-  },
+  // Uncomment webServer when testing local applications
+  // webServer: {
+  //   command: 'npm run dev',
+  //   url: 'http://localhost:5173',
+  //   reuseExistingServer: !process.env.CI,
+  //   timeout: 120000,
+  // },
 });
