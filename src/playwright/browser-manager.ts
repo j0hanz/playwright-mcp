@@ -8,7 +8,6 @@
 import { Page } from 'playwright';
 
 import config from '../config/server-config.js';
-import type { BrowserType, Viewport } from '../config/types.js';
 import { ErrorCode, ErrorHandler, toError } from '../utils/error-handler.js';
 import { Logger } from '../utils/logger.js';
 import { AssertionActions } from './actions/assertion-actions.js';
@@ -20,29 +19,11 @@ import { NetworkActions } from './actions/network-actions.js';
 import { PageOperations } from './actions/page-operations.js';
 import { TracingActions } from './actions/tracing-actions.js';
 import * as browserLauncher from './browser-launcher.js';
+import type { BrowserLaunchOptions } from './browser-launcher.js';
 import { DialogManager } from './dialog-manager.js';
 import { SessionManager } from './session-manager.js';
 
-export interface BrowserLaunchOptions {
-  browserType?: BrowserType;
-  headless?: boolean;
-  viewport?: Viewport;
-  userAgent?: string;
-  timeout?: number;
-  channel?: string;
-  slowMo?: number;
-  proxy?: {
-    server: string;
-    bypass?: string;
-    username?: string;
-    password?: string;
-  };
-  recordVideo?: {
-    dir: string;
-    size?: Viewport;
-  };
-  storageState?: string;
-}
+export type { BrowserLaunchOptions };
 
 export class BrowserManager {
   private readonly sessionManager: SessionManager;
