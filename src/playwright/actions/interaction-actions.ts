@@ -1,7 +1,7 @@
 // Interaction Actions - Element interactions with Playwright actionability checks
 // @see https://playwright.dev/docs/actionability
 
-import { ElementInteractionOptions } from '../../types/index.js';
+import type { ElementInteractionOptions } from '../../config/types.js';
 import { Logger } from '../../utils/logger.js';
 import * as pageActions from '../page-actions.js';
 import * as security from '../security.js';

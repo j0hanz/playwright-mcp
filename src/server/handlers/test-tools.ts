@@ -4,8 +4,9 @@
 import path from 'path';
 import { z } from 'zod';
 
-import { ErrorCode, ErrorHandler } from '../../utils/error-handler.js';
-import { textContent, type ToolContext } from './types.js';
+import { ErrorCode, type ToolContext } from '../../config/types.js';
+import { ErrorHandler } from '../../utils/error-handler.js';
+import { textContent } from './types.js';
 
 function validateArtifactPath(filePath: string): void {
   const normalizedPath = path.normalize(filePath);

@@ -2,7 +2,7 @@
 // @see https://playwright.dev/docs/locators#filtering-locators
 
 import config from '../../config/server-config.js';
-import { AriaRole } from '../../types/index.js';
+import type { AriaRole } from '../../config/types.js';
 import { Logger } from '../../utils/logger.js';
 import * as pageActions from '../page-actions.js';
 import { SessionManager } from '../session-manager.js';

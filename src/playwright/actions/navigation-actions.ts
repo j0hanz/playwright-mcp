@@ -2,9 +2,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 
+import type { NavigationOptions } from '../../config/types.js';
 import { ErrorHandler, toError } from '../../utils/error-handler.js';
 import { Logger } from '../../utils/logger.js';
-import { NavigationOptions } from '../../types/index.js';
 import * as pageActions from '../page-actions.js';
 import * as security from '../security.js';
 import { DialogManager } from '../dialog-manager.js';

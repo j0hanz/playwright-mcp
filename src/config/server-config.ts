@@ -8,7 +8,7 @@
  */
 import dotenv from 'dotenv';
 
-import type { BrowserType, Viewport } from '../types/index.js';
+import type { BrowserType, Viewport } from './types.js';
 
 dotenv.config();
 

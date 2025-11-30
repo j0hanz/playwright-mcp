@@ -3,7 +3,7 @@
 
 import type { Locator, Page } from 'playwright';
 
-import type { AriaRole } from '../../types/index.js';
+import type { AriaRole } from '../../config/types.js';
 
 // Primary Locators
 

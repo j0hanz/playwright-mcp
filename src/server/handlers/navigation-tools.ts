@@ -3,7 +3,8 @@
 
 import { z } from 'zod';
 
-import { basePageInput, textContent, type ToolContext } from './types.js';
+import type { ToolContext } from '../../config/types.js';
+import { basePageInput, textContent } from './types.js';
 
 export function registerNavigationTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;

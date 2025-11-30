@@ -3,7 +3,7 @@
  */
 import { z } from 'zod';
 
-import { ARIA_ROLES } from '../types/index.js';
+import { ARIA_ROLES } from '../config/types.js';
 
 function toNonEmptyTuple<T extends readonly [string, ...string[]]>(arr: T): T {
   return arr;

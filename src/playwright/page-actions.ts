@@ -9,7 +9,7 @@ import type {
   KeyModifier,
   MouseButton,
   WaitUntilState,
-} from '../types/index.js';
+} from '../config/types.js';
 
 // Navigation Actions
 

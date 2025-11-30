@@ -13,7 +13,7 @@ import {
 } from 'playwright';
 
 import config from '../config/server-config.js';
-import { BrowserType, Viewport } from '../types/index.js';
+import type { BrowserType, Viewport } from '../config/types.js';
 import { ErrorCode, ErrorHandler, toError } from '../utils/error-handler.js';
 import { Logger } from '../utils/logger.js';
 

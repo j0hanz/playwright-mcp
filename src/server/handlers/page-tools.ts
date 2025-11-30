@@ -3,12 +3,12 @@
 
 import { z } from 'zod';
 
-import {
-  basePageInput,
-  longTimeoutOption,
-  textContent,
-  type ToolContext,
-} from './types.js';
+import type {
+  ToolContext,
+  AccessibilityViolation,
+  AccessibilityNode,
+} from '../../config/types.js';
+import { basePageInput, longTimeoutOption, textContent } from './types.js';
 
 export function registerPageTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -508,7 +508,7 @@ export function registerPageTools(ctx: ToolContext): void {
     </div>`
       : result.violations
           .map(
-            (v) => `
+            (v: AccessibilityViolation) => `
   <div class="violation ${v.impact || 'minor'}">
     <h2>${v.id} <span class="impact-badge impact-${v.impact || 'minor'}">${v.impact || 'minor'}</span></h2>
     <p>${v.description}</p>
@@ -518,7 +518,7 @@ export function registerPageTools(ctx: ToolContext): void {
     ${v.nodes
       .slice(0, 10)
       .map(
-        (n) => `
+        (n: AccessibilityNode) => `
       <div class="node">
         <code>${n.html.slice(0, 300).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}${n.html.length > 300 ? '...' : ''}</code>
         <p style="margin: 8px 0 0; color: #666;">${n.failureSummary || ''}</p>

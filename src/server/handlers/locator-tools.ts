@@ -3,13 +3,12 @@
 
 import { z } from 'zod';
 
-import { ARIA_ROLES } from '../../types/index.js';
+import { ARIA_ROLES, type ToolContext } from '../../config/types.js';
 import {
   baseLocatorInput,
   exactMatchOption,
   forceOption,
   textContent,
-  type ToolContext,
 } from './types.js';
 
 export function registerLocatorTools(ctx: ToolContext): void {

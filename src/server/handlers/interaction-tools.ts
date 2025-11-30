@@ -3,12 +3,8 @@
 
 import { z } from 'zod';
 
-import {
-  basePageInput,
-  textContent,
-  timeoutOption,
-  type ToolContext,
-} from './types.js';
+import type { ToolContext } from '../../config/types.js';
+import { basePageInput, textContent, timeoutOption } from './types.js';
 
 export function registerInteractionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;

@@ -3,12 +3,8 @@
 
 import { z } from 'zod';
 
-import {
-  baseLocatorInput,
-  selectorWithTimeout,
-  textContent,
-  type ToolContext,
-} from './types.js';
+import type { ToolContext } from '../../config/types.js';
+import { baseLocatorInput, selectorWithTimeout, textContent } from './types.js';
 
 export function registerAssertionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;

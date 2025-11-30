@@ -3,9 +3,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import AxeBuilder from '@axe-core/playwright';
 
+import type { Viewport } from '../../config/types.js';
 import { ErrorCode, ErrorHandler } from '../../utils/error-handler.js';
 import { Logger } from '../../utils/logger.js';
-import { Viewport } from '../../types/index.js';
 import * as pageActions from '../page-actions.js';
 import * as security from '../security.js';
 import { DialogManager } from '../dialog-manager.js';
