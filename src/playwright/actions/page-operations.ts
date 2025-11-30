@@ -6,6 +6,7 @@ import { Logger } from '../../utils/logger.js';
 import { Viewport } from '../../types/index.js';
 import * as pageActions from '../page-actions.js';
 import * as security from '../security.js';
+import { DialogManager } from '../dialog-manager.js';
 import { SessionManager } from '../session-manager.js';
 import { executePageOperation } from '../utils/execution-helper.js';
 
@@ -13,11 +14,7 @@ export class PageOperations {
   constructor(
     private sessionManager: SessionManager,
     private logger: Logger,
-    private setupDialogHandler: (
-      sessionId: string,
-      pageId: string,
-      page: import('playwright').Page
-    ) => void
+    private dialogManager: DialogManager
   ) {}
 
   async resizeViewport(
@@ -59,7 +56,7 @@ export class PageOperations {
     if (action === 'create') {
       const newPage = await session.context.newPage();
       const newPageId = uuidv4();
-      this.setupDialogHandler(sessionId, newPageId, newPage);
+      this.dialogManager.setupDialogHandler(sessionId, newPageId, newPage);
       this.sessionManager.addPage(sessionId, newPageId, newPage);
 
       if (url) {

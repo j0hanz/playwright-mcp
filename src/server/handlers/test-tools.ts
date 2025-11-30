@@ -2,7 +2,7 @@ import path from 'path';
 import { z } from 'zod';
 
 import { ErrorCode, ErrorHandler } from '../../utils/error-handler.js';
-import type { ToolContext } from './types.js';
+import { textContent, type ToolContext } from './types.js';
 
 /**
  * Validate that a file path is within allowed directories.
@@ -89,12 +89,7 @@ ${s.expected}
       await fs.writeFile(filePath, content, 'utf-8');
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Test plan created: ${filePath}`,
-          },
-        ],
+        content: [textContent(`Test plan created: ${filePath}`)],
         structuredContent: {
           success: true,
           path: filePath,
@@ -135,12 +130,7 @@ ${s.expected}
       await fs.writeFile(filePath, content, 'utf-8');
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Test file created: ${filePath}`,
-          },
-        ],
+        content: [textContent(`Test file created: ${filePath}`)],
         structuredContent: {
           success: true,
           path: filePath,
@@ -190,10 +180,9 @@ ${s.expected}
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: `Test file updated: ${filePath}${reason ? ` (${reason})` : ''}`,
-          },
+          textContent(
+            `Test file updated: ${filePath}${reason ? ` (${reason})` : ''}`
+          ),
         ],
         structuredContent: {
           success: true,
@@ -235,12 +224,7 @@ ${s.expected}
       const lines = content.split('\n').length;
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Read ${filePath} (${lines} lines)`,
-          },
-        ],
+        content: [textContent(`Read ${filePath} (${lines} lines)`)],
         structuredContent: {
           success: true,
           path: filePath,
@@ -308,10 +292,9 @@ ${s.expected}
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: `Found ${specs.length} test plan(s) and ${tests.length} test file(s)`,
-          },
+          textContent(
+            `Found ${specs.length} test plan(s) and ${tests.length} test file(s)`
+          ),
         ],
         structuredContent: {
           success: true,
@@ -350,12 +333,7 @@ ${s.expected}
         logger.info('Test artifact deleted', { path: filePath });
 
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Deleted: ${filePath}`,
-            },
-          ],
+          content: [textContent(`Deleted: ${filePath}`)],
           structuredContent: {
             success: true,
             deleted: true,
@@ -366,10 +344,7 @@ ${s.expected}
         const err = error instanceof Error ? error : new Error(String(error));
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: `Failed to delete ${filePath}: ${err.message}`,
-            },
+            textContent(`Failed to delete ${filePath}: ${err.message}`),
           ],
           structuredContent: {
             success: false,

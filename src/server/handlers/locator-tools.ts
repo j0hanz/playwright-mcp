@@ -17,6 +17,7 @@ import {
   baseLocatorInput,
   exactMatchOption,
   forceOption,
+  textContent,
   type ToolContext,
 } from './types.js';
 
@@ -56,12 +57,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
         );
 
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Clicked ${role}${name ? ` "${name}"` : ''}`,
-            },
-          ],
+          content: [textContent(`Clicked ${role}${name ? ` "${name}"` : ''}`)],
           structuredContent: result,
         };
       },
@@ -97,12 +93,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
         );
 
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Filled input labeled "${label}"`,
-            },
-          ],
+          content: [textContent(`Filled input labeled "${label}"`)],
           structuredContent: result,
         };
       },
@@ -136,12 +127,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
         );
 
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Clicked element with text "${text}"`,
-            },
-          ],
+          content: [textContent(`Clicked element with text "${text}"`)],
           structuredContent: result,
         };
       },
@@ -177,10 +163,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: `Filled input with placeholder "${placeholder}"`,
-            },
+            textContent(`Filled input with placeholder "${placeholder}"`),
           ],
           structuredContent: result,
         };
@@ -213,12 +196,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
       );
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Clicked element with testId "${testId}"`,
-          },
-        ],
+        content: [textContent(`Clicked element with testId "${testId}"`)],
         structuredContent: result,
       };
     }, 'Error clicking by testId')
@@ -249,12 +227,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
       );
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Filled input with testId "${testId}"`,
-          },
-        ],
+        content: [textContent(`Filled input with testId "${testId}"`)],
         structuredContent: result,
       };
     }, 'Error filling by testId')
@@ -287,12 +260,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
         );
 
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Clicked image with alt text "${altText}"`,
-            },
-          ],
+          content: [textContent(`Clicked image with alt text "${altText}"`)],
           structuredContent: result,
         };
       },

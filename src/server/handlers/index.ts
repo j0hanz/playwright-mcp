@@ -53,6 +53,7 @@ export {
   createToolHandlerFactory,
   imageResponse,
   successResponse,
+  textContent,
   toolErrorResponse,
   type ErrorResponse,
   type ToolContext,

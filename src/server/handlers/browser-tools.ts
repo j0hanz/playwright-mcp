@@ -14,7 +14,7 @@
  */
 import { z } from 'zod';
 
-import { basePageInput, type ToolContext } from './types.js';
+import { basePageInput, textContent, type ToolContext } from './types.js';
 
 export function registerBrowserTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -105,10 +105,9 @@ export function registerBrowserTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: `Browser launched: ${result.browserType}${result.recordingVideo ? ' (recording video)' : ''}`,
-            },
+            textContent(
+              `Browser launched: ${result.browserType}${result.recordingVideo ? ' (recording video)' : ''}`
+            ),
           ],
           structuredContent: result,
         };
@@ -134,12 +133,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       const result = await browserManager.closeBrowser(sessionId);
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Browser session ${sessionId} closed`,
-          },
-        ],
+        content: [textContent(`Browser session ${sessionId} closed`)],
         structuredContent: result,
       };
     }, 'Error closing browser')
@@ -167,12 +161,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       });
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Viewport resized to ${width}x${height}`,
-          },
-        ],
+        content: [textContent(`Viewport resized to ${width}x${height}`)],
         structuredContent: result,
       };
     }, 'Error resizing viewport')
@@ -232,7 +221,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
               : `Selected tab ${pageId}`;
 
       return {
-        content: [{ type: 'text' as const, text: message }],
+        content: [textContent(message)],
         structuredContent: result,
       };
     }, 'Error managing tabs')
@@ -260,12 +249,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       const sessions = browserManager.listSessions();
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Active sessions: ${sessions.length}`,
-          },
-        ],
+        content: [textContent(`Active sessions: ${sessions.length}`)],
         structuredContent: { sessions },
       };
     }
@@ -294,12 +278,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       const result = await browserManager.saveStorageState(sessionId, path);
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Storage state saved to ${result.path}`,
-          },
-        ],
+        content: [textContent(`Storage state saved to ${result.path}`)],
         structuredContent: result,
       };
     }, 'Error saving storage state')
@@ -343,10 +322,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: `Browser launched with auth from ${storageState}`,
-            },
+            textContent(`Browser launched with auth from ${storageState}`),
           ],
           structuredContent: result,
         };
@@ -376,10 +352,9 @@ export function registerBrowserTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: 'Session state cleared (cookies, localStorage, sessionStorage)',
-          },
+          textContent(
+            'Session state cleared (cookies, localStorage, sessionStorage)'
+          ),
         ],
         structuredContent: result,
       };
@@ -454,10 +429,9 @@ export function registerBrowserTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: `Page prepared with settings: ${result.appliedSettings.join(', ') || 'none'}`,
-            },
+            textContent(
+              `Page prepared with settings: ${result.appliedSettings.join(', ') || 'none'}`
+            ),
           ],
           structuredContent: result,
         };

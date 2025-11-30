@@ -13,7 +13,12 @@
  */
 import { z } from 'zod';
 
-import { basePageInput, timeoutOption, type ToolContext } from './types.js';
+import {
+  basePageInput,
+  textContent,
+  timeoutOption,
+  type ToolContext,
+} from './types.js';
 
 export function registerInteractionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -80,9 +85,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
         });
 
         return {
-          content: [
-            { type: 'text' as const, text: `Clicked element: ${selector}` },
-          ],
+          content: [textContent(`Clicked element: ${selector}`)],
           structuredContent: result,
         };
       },
@@ -114,12 +117,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
       });
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Filled input ${selector} with text`,
-          },
-        ],
+        content: [textContent(`Filled input ${selector} with text`)],
         structuredContent: result,
       };
     }, 'Error filling input')
@@ -147,12 +145,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
       });
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Hovered over element: ${selector}`,
-          },
-        ],
+        content: [textContent(`Hovered over element: ${selector}`)],
         structuredContent: result,
       };
     }, 'Error hovering element')
@@ -188,12 +181,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
         );
 
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Selected option(s) in ${selector}`,
-            },
-          ],
+          content: [textContent(`Selected option(s) in ${selector}`)],
           structuredContent: result,
         };
       },
@@ -242,10 +230,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: `Dragged ${sourceSelector} to ${targetSelector}`,
-            },
+            textContent(`Dragged ${sourceSelector} to ${targetSelector}`),
           ],
           structuredContent: result,
         };

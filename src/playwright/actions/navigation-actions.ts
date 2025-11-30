@@ -5,6 +5,7 @@ import { Logger } from '../../utils/logger.js';
 import { NavigationOptions } from '../../types/index.js';
 import * as pageActions from '../page-actions.js';
 import * as security from '../security.js';
+import { DialogManager } from '../dialog-manager.js';
 import { SessionManager } from '../session-manager.js';
 import { executePageOperation } from '../utils/execution-helper.js';
 
@@ -12,11 +13,7 @@ export class NavigationActions {
   constructor(
     private sessionManager: SessionManager,
     private logger: Logger,
-    private setupDialogHandler: (
-      sessionId: string,
-      pageId: string,
-      page: import('playwright').Page
-    ) => void
+    private dialogManager: DialogManager
   ) {}
 
   async navigateToPage(
@@ -30,7 +27,7 @@ export class NavigationActions {
     const page = await session.context.newPage();
     const pageId = uuidv4();
 
-    this.setupDialogHandler(sessionId, pageId, page);
+    this.dialogManager.setupDialogHandler(sessionId, pageId, page);
     this.sessionManager.addPage(sessionId, pageId, page);
 
     try {

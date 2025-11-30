@@ -1,4 +1,4 @@
-import { Dialog, Page } from 'playwright';
+import { Page } from 'playwright';
 
 import config from '../config/server-config.js';
 import {
@@ -10,27 +10,16 @@ import {
 import { ErrorCode, ErrorHandler, toError } from '../utils/error-handler.js';
 import { Logger } from '../utils/logger.js';
 import { AssertionActions } from './actions/assertion-actions.js';
+import { ClockActions } from './actions/clock-actions.js';
 import { InteractionActions } from './actions/interaction-actions.js';
 import { LocatorActions } from './actions/locator-actions.js';
 import { NavigationActions } from './actions/navigation-actions.js';
+import { NetworkActions } from './actions/network-actions.js';
 import { PageOperations } from './actions/page-operations.js';
+import { TracingActions } from './actions/tracing-actions.js';
 import * as browserLauncher from './browser-launcher.js';
+import { DialogManager } from './dialog-manager.js';
 import { SessionManager } from './session-manager.js';
-
-/**
- * Default timeout values aligned with Playwright best practices.
- * @see https://playwright.dev/docs/test-timeouts
- */
-const TIMEOUTS = {
-  /** Element actions (click, fill, hover) - 5 seconds */
-  ACTION: config.timeouts.action,
-  /** Page navigation - 30 seconds */
-  NAVIGATION: config.timeouts.navigation,
-  /** Assertions with auto-retry - 5 seconds */
-  ASSERTION: config.timeouts.assertion,
-  /** File downloads - 60 seconds */
-  DOWNLOAD: config.timeouts.download,
-} as const;
 
 /**
  * Options for launching a new browser session.
@@ -84,105 +73,47 @@ export interface BrowserLaunchOptions {
  */
 export class BrowserManager {
   private readonly sessionManager: SessionManager;
+  private readonly dialogManager: DialogManager;
   private readonly logger = new Logger('BrowserManager');
 
   // Action delegates
   private readonly assertionActions: AssertionActions;
+  private readonly clockActions: ClockActions;
   private readonly interactionActions: InteractionActions;
   private readonly locatorActions: LocatorActions;
   private readonly navigationActions: NavigationActions;
+  private readonly networkActions: NetworkActions;
   private readonly pageOperations: PageOperations;
-
-  /** Pending dialogs awaiting user action, keyed by "sessionId:pageId" */
-  private readonly pendingDialogs = new Map<string, Dialog>();
-
-  /** Auto-dismiss timeouts for dialogs */
-  private readonly dialogTimeouts = new Map<string, NodeJS.Timeout>();
-
-  /** Auto-dismiss dialogs after 2x action timeout */
-  private static readonly DIALOG_AUTO_DISMISS_TIMEOUT = TIMEOUTS.ACTION * 2;
+  private readonly tracingActions: TracingActions;
 
   constructor() {
     this.sessionManager = new SessionManager(new Logger('SessionManager'));
+    this.dialogManager = new DialogManager(new Logger('DialogManager'));
 
     // Initialize action delegates
     this.assertionActions = new AssertionActions(
       this.sessionManager,
       this.logger
     );
+    this.clockActions = new ClockActions(this.sessionManager, this.logger);
     this.interactionActions = new InteractionActions(
       this.sessionManager,
       this.logger
     );
     this.locatorActions = new LocatorActions(this.sessionManager, this.logger);
 
-    // Navigation and PageOperations need the setupDialogHandler callback
-    const dialogHandler = this.setupDialogHandler.bind(this);
     this.navigationActions = new NavigationActions(
       this.sessionManager,
       this.logger,
-      dialogHandler
+      this.dialogManager
     );
+    this.networkActions = new NetworkActions(this.sessionManager, this.logger);
     this.pageOperations = new PageOperations(
       this.sessionManager,
       this.logger,
-      dialogHandler
+      this.dialogManager
     );
-  }
-
-  // ============================================
-  // Helper Methods
-  // ============================================
-
-  private setupDialogHandler(
-    sessionId: string,
-    pageId: string,
-    page: Page
-  ): void {
-    const dialogKey = `${sessionId}:${pageId}`;
-
-    page.on('dialog', (dialog) => {
-      const existingTimeout = this.dialogTimeouts.get(dialogKey);
-      if (existingTimeout) {
-        clearTimeout(existingTimeout);
-        this.dialogTimeouts.delete(dialogKey);
-      }
-
-      this.pendingDialogs.set(dialogKey, dialog);
-      this.logger.info('Dialog detected', {
-        sessionId,
-        pageId,
-        type: dialog.type(),
-        message: dialog.message(),
-      });
-
-      const timeoutId = setTimeout(() => {
-        if (this.pendingDialogs.has(dialogKey)) {
-          dialog.dismiss().catch(() => {});
-          this.pendingDialogs.delete(dialogKey);
-          this.dialogTimeouts.delete(dialogKey);
-          this.logger.warn('Dialog auto-dismissed due to timeout', {
-            sessionId,
-            pageId,
-            timeoutMs: BrowserManager.DIALOG_AUTO_DISMISS_TIMEOUT,
-          });
-        }
-      }, BrowserManager.DIALOG_AUTO_DISMISS_TIMEOUT);
-      this.dialogTimeouts.set(dialogKey, timeoutId);
-    });
-
-    page.on('close', () => {
-      const timeoutId = this.dialogTimeouts.get(dialogKey);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        this.dialogTimeouts.delete(dialogKey);
-      }
-      this.pendingDialogs.delete(dialogKey);
-      this.logger.debug('Page closed, cleaned up dialogs and routes', {
-        sessionId,
-        pageId,
-      });
-    });
+    this.tracingActions = new TracingActions(this.sessionManager, this.logger);
   }
 
   // ============================================
@@ -215,15 +146,7 @@ export class BrowserManager {
     // Clean up dialogs and routes for all pages in the session
     if (this.sessionManager.hasSession(sessionId)) {
       const pageIds = this.sessionManager.getPageIds(sessionId);
-      for (const pageId of pageIds) {
-        const dialogKey = `${sessionId}:${pageId}`;
-        this.pendingDialogs.delete(dialogKey);
-        const timeoutId = this.dialogTimeouts.get(dialogKey);
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          this.dialogTimeouts.delete(dialogKey);
-        }
-      }
+      this.dialogManager.cleanupSession(sessionId, pageIds);
     }
 
     const session = this.sessionManager.getSession(sessionId);
@@ -247,15 +170,8 @@ export class BrowserManager {
       maxAge,
       async (sessionId, session) => {
         // Cleanup callback
-        for (const [pageId] of session.pages) {
-          const dialogKey = `${sessionId}:${pageId}`;
-          const timeoutId = this.dialogTimeouts.get(dialogKey);
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            this.dialogTimeouts.delete(dialogKey);
-          }
-          this.pendingDialogs.delete(dialogKey);
-        }
+        const pageIds = Array.from(session.pages.keys());
+        this.dialogManager.cleanupSession(sessionId, pageIds);
         await Promise.resolve();
       }
     );
@@ -679,33 +595,14 @@ export class BrowserManager {
     accept: boolean,
     promptText?: string
   ): Promise<{ success: boolean; dialogType?: string; message?: string }> {
-    const dialogKey = `${sessionId}:${pageId}`;
-    const dialog = this.pendingDialogs.get(dialogKey);
-
-    if (!dialog) {
-      throw ErrorHandler.createError(
-        ErrorCode.INTERNAL_ERROR,
-        'No pending dialog found for this page'
-      );
-    }
-
     try {
-      const dialogType = dialog.type();
-      const message = dialog.message();
+      const { dialogType, message } = await this.dialogManager.handleDialog(
+        sessionId,
+        pageId,
+        accept,
+        promptText
+      );
 
-      if (accept) {
-        await dialog.accept(promptText);
-      } else {
-        await dialog.dismiss();
-      }
-
-      const timeoutId = this.dialogTimeouts.get(dialogKey);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        this.dialogTimeouts.delete(dialogKey);
-      }
-
-      this.pendingDialogs.delete(dialogKey);
       this.sessionManager.updateActivity(sessionId);
       this.logger.info('Dialog handled', {
         sessionId,
@@ -717,6 +614,10 @@ export class BrowserManager {
       return { success: true, dialogType, message };
     } catch (error) {
       const err = toError(error);
+      // Check if it's our custom error message
+      if (err.message === 'No pending dialog found for this page') {
+        throw ErrorHandler.createError(ErrorCode.INTERNAL_ERROR, err.message);
+      }
       this.logger.error('Handle dialog failed', {
         sessionId,
         pageId,
@@ -876,10 +777,7 @@ export class BrowserManager {
       sources?: boolean;
     } = {}
   ): Promise<{ success: boolean }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.tracing.start(options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true };
+    return this.tracingActions.startTracing(sessionId, options);
   }
 
   /**
@@ -891,10 +789,7 @@ export class BrowserManager {
     sessionId: string,
     path: string
   ): Promise<{ success: boolean; path: string }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.tracing.stop({ path });
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, path };
+    return this.tracingActions.stopTracing(sessionId, path);
   }
 
   /**
@@ -912,10 +807,7 @@ export class BrowserManager {
       location?: { file: string; line?: number; column?: number };
     } = {}
   ): Promise<{ success: boolean; groupName: string }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.tracing.group(name, options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, groupName: name };
+    return this.tracingActions.startTracingGroup(sessionId, name, options);
   }
 
   /**
@@ -924,10 +816,7 @@ export class BrowserManager {
    * @see https://playwright.dev/docs/api/class-tracing#tracing-group-end
    */
   async endTracingGroup(sessionId: string): Promise<{ success: boolean }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.tracing.groupEnd();
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true };
+    return this.tracingActions.endTracingGroup(sessionId);
   }
 
   async saveStorageState(
@@ -970,14 +859,7 @@ export class BrowserManager {
     pageId: string,
     options: { time?: number | string | Date } = {}
   ): Promise<{ success: boolean; installedTime?: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    const time = options.time ? new Date(options.time) : undefined;
-    await page.clock.install({ time });
-    this.sessionManager.updateActivity(sessionId);
-    return {
-      success: true,
-      installedTime: time?.toISOString() ?? new Date().toISOString(),
-    };
+    return this.clockActions.installClock(sessionId, pageId, options);
   }
 
   /**
@@ -992,11 +874,7 @@ export class BrowserManager {
     pageId: string,
     time: number | string | Date
   ): Promise<{ success: boolean; fixedTime: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    const fixedDate = new Date(time);
-    await page.clock.setFixedTime(fixedDate);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, fixedTime: fixedDate.toISOString() };
+    return this.clockActions.setFixedTime(sessionId, pageId, time);
   }
 
   /**
@@ -1008,12 +886,7 @@ export class BrowserManager {
     sessionId: string,
     pageId: string
   ): Promise<{ success: boolean; pausedAt: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    // Get current time before pausing
-    const currentTime = await page.evaluate(() => Date.now());
-    await page.clock.pauseAt(currentTime);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, pausedAt: new Date(currentTime).toISOString() };
+    return this.clockActions.pauseClock(sessionId, pageId);
   }
 
   /**
@@ -1025,10 +898,7 @@ export class BrowserManager {
     sessionId: string,
     pageId: string
   ): Promise<{ success: boolean }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.clock.resume();
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true };
+    return this.clockActions.resumeClock(sessionId, pageId);
   }
 
   /**
@@ -1044,13 +914,7 @@ export class BrowserManager {
     pageId: string,
     duration: number | string
   ): Promise<{ success: boolean; advancedBy: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.clock.runFor(duration);
-    this.sessionManager.updateActivity(sessionId);
-    return {
-      success: true,
-      advancedBy: typeof duration === 'number' ? `${duration}ms` : duration,
-    };
+    return this.clockActions.runClockFor(sessionId, pageId, duration);
   }
 
   /**
@@ -1065,13 +929,7 @@ export class BrowserManager {
     pageId: string,
     ticks: number | string
   ): Promise<{ success: boolean; fastForwardedBy: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.clock.fastForward(ticks);
-    this.sessionManager.updateActivity(sessionId);
-    return {
-      success: true,
-      fastForwardedBy: typeof ticks === 'number' ? `${ticks}ms` : ticks,
-    };
+    return this.clockActions.fastForwardClock(sessionId, pageId, ticks);
   }
 
   /**
@@ -1084,11 +942,7 @@ export class BrowserManager {
     pageId: string,
     time: number | string | Date
   ): Promise<{ success: boolean; systemTime: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    const newTime = new Date(time);
-    await page.clock.setSystemTime(newTime);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, systemTime: newTime.toISOString() };
+    return this.clockActions.setSystemTime(sessionId, pageId, time);
   }
 
   // ============================================
@@ -1121,10 +975,12 @@ export class BrowserManager {
       updateMode?: 'full' | 'minimal';
     } = {}
   ): Promise<{ success: boolean; harPath: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.routeFromHAR(harPath, options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, harPath };
+    return this.networkActions.routeFromHAR(
+      sessionId,
+      pageId,
+      harPath,
+      options
+    );
   }
 
   /**
@@ -1145,10 +1001,7 @@ export class BrowserManager {
       updateMode?: 'full' | 'minimal';
     } = {}
   ): Promise<{ success: boolean; harPath: string }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.routeFromHAR(harPath, options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, harPath };
+    return this.networkActions.contextRouteFromHAR(sessionId, harPath, options);
   }
 
   /**
@@ -1161,10 +1014,7 @@ export class BrowserManager {
     pageId: string,
     options: { behavior?: 'wait' | 'ignoreErrors' | 'default' } = {}
   ): Promise<{ success: boolean }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.unrouteAll(options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true };
+    return this.networkActions.unrouteAll(sessionId, pageId, options);
   }
 
   // ============================================

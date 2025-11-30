@@ -21,6 +21,7 @@ import { z } from 'zod';
 import {
   baseLocatorInput,
   selectorWithTimeout,
+  textContent,
   type ToolContext,
 } from './types.js';
 
@@ -50,12 +51,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: result.success
+          textContent(
+            result.success
               ? `✓ Element ${selector} is visible`
-              : `✗ Element ${selector} is NOT visible`,
-          },
+              : `✗ Element ${selector} is NOT visible`
+          ),
         ],
         structuredContent: result,
       };
@@ -85,12 +85,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: result.success
+          textContent(
+            result.success
               ? `✓ Element ${selector} is hidden`
-              : `✗ Element ${selector} is NOT hidden`,
-          },
+              : `✗ Element ${selector} is NOT hidden`
+          ),
         ],
         structuredContent: result,
       };
@@ -129,12 +128,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: result.success
+            textContent(
+              result.success
                 ? `✓ Text assertion passed`
-                : `✗ Expected "${expectedText}", got "${result.actualText}"`,
-            },
+                : `✗ Expected "${expectedText}", got "${result.actualText}"`
+            ),
           ],
           structuredContent: result,
         };
@@ -179,12 +177,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: result.success
+            textContent(
+              result.success
                 ? `✓ Attribute ${attribute}="${expectedValue}"`
-                : `✗ Expected ${attribute}="${expectedValue}", got "${result.actualValue}"`,
-            },
+                : `✗ Expected ${attribute}="${expectedValue}", got "${result.actualValue}"`
+            ),
           ],
           structuredContent: result,
         };
@@ -220,12 +217,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: result.success
+            textContent(
+              result.success
                 ? `✓ Input value="${expectedValue}"`
-                : `✗ Expected "${expectedValue}", got "${result.actualValue}"`,
-            },
+                : `✗ Expected "${expectedValue}", got "${result.actualValue}"`
+            ),
           ],
           structuredContent: result,
         };
@@ -262,12 +258,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: result.success
+            textContent(
+              result.success
                 ? `✓ Element is ${checked ? 'checked' : 'unchecked'}`
-                : `✗ Expected ${checked ? 'checked' : 'unchecked'}, got ${result.isChecked ? 'checked' : 'unchecked'}`,
-            },
+                : `✗ Expected ${checked ? 'checked' : 'unchecked'}, got ${result.isChecked ? 'checked' : 'unchecked'}`
+            ),
           ],
           structuredContent: result,
         };
@@ -303,12 +298,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: result.success
+          textContent(
+            result.success
               ? `✓ URL matches "${expectedUrl}"`
-              : `✗ Expected URL "${expectedUrl}", got "${result.actualUrl}"`,
-          },
+              : `✗ Expected URL "${expectedUrl}", got "${result.actualUrl}"`
+          ),
         ],
         structuredContent: result,
       };
@@ -340,12 +334,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: result.success
+          textContent(
+            result.success
               ? `✓ Title matches "${expectedTitle}"`
-              : `✗ Expected title "${expectedTitle}", got "${result.actualTitle}"`,
-          },
+              : `✗ Expected title "${expectedTitle}", got "${result.actualTitle}"`
+          ),
         ],
         structuredContent: result,
       };
@@ -375,12 +368,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: result.success
+          textContent(
+            result.success
               ? `✓ Element ${selector} is enabled`
-              : `✗ Element ${selector} is NOT enabled`,
-          },
+              : `✗ Element ${selector} is NOT enabled`
+          ),
         ],
         structuredContent: result,
       };
@@ -410,12 +402,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: result.success
+          textContent(
+            result.success
               ? `✓ Element ${selector} is disabled`
-              : `✗ Element ${selector} is NOT disabled`,
-          },
+              : `✗ Element ${selector} is NOT disabled`
+          ),
         ],
         structuredContent: result,
       };
@@ -445,12 +436,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: result.success
+          textContent(
+            result.success
               ? `✓ Element ${selector} has focus`
-              : `✗ Element ${selector} does NOT have focus`,
-          },
+              : `✗ Element ${selector} does NOT have focus`
+          ),
         ],
         structuredContent: result,
       };
@@ -485,12 +475,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: result.success
+            textContent(
+              result.success
                 ? `✓ Found ${expectedCount} element(s) matching ${selector}`
-                : `✗ Expected ${expectedCount} element(s), found ${result.actualCount}`,
-            },
+                : `✗ Expected ${expectedCount} element(s), found ${result.actualCount}`
+            ),
           ],
           structuredContent: result,
         };
@@ -537,12 +526,11 @@ export function registerAssertionTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: result.success
+            textContent(
+              result.success
                 ? `✓ CSS ${property}="${expectedValue}"`
-                : `✗ Expected ${property}="${expectedValue}", got "${result.actualValue}"`,
-            },
+                : `✗ Expected ${property}="${expectedValue}", got "${result.actualValue}"`
+            ),
           ],
           structuredContent: result,
         };

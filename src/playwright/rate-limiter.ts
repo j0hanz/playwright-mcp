@@ -88,16 +88,31 @@ export class RateLimiter {
 
   /**
    * Remove expired timestamps and enforce memory bounds.
+   * Uses binary search for efficiency with sorted timestamps.
    */
   private pruneExpired(): void {
     const cutoff = Date.now() - this.windowMs;
 
-    // Filter expired timestamps
-    this.timestamps = this.timestamps.filter((ts) => ts > cutoff);
+    // Binary search to find first valid timestamp (timestamps are naturally sorted)
+    let left = 0;
+    let right = this.timestamps.length;
+    while (left < right) {
+      const mid = (left + right) >>> 1;
+      if (this.timestamps[mid] <= cutoff) {
+        left = mid + 1;
+      } else {
+        right = mid;
+      }
+    }
+
+    // Remove expired timestamps in-place (more efficient than filter)
+    if (left > 0) {
+      this.timestamps.splice(0, left);
+    }
 
     // Enforce memory bounds
     if (this.timestamps.length > this.maxTracked) {
-      this.timestamps = this.timestamps.slice(-this.maxTracked);
+      this.timestamps.splice(0, this.timestamps.length - this.maxTracked);
     }
   }
 }

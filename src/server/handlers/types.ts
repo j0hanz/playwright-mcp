@@ -560,6 +560,19 @@ export function createToolHandlerFactory(logger: Logger) {
 // ============================================
 
 /**
+ * Create a text content item for tool responses.
+ * Eliminates repeated `{ type: 'text' as const, text: ... }` pattern.
+ *
+ * @example
+ * ```typescript
+ * return { content: [textContent('Browser launched')], structuredContent: result };
+ * ```
+ */
+export function textContent(text: string): TextContent {
+  return { type: 'text', text };
+}
+
+/**
  * Check if a response is an error response.
  */
 export function isErrorResponse(

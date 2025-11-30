@@ -16,7 +16,12 @@
  */
 import { z } from 'zod';
 
-import { basePageInput, longTimeoutOption, type ToolContext } from './types.js';
+import {
+  basePageInput,
+  longTimeoutOption,
+  textContent,
+  type ToolContext,
+} from './types.js';
 
 export function registerPageTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -79,12 +84,9 @@ export function registerPageTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: path
-                ? `Screenshot saved to ${path}`
-                : 'Screenshot captured',
-            },
+            textContent(
+              path ? `Screenshot saved to ${path}` : 'Screenshot captured'
+            ),
           ],
           structuredContent: { success: true, path: result.path },
         };
@@ -118,12 +120,7 @@ export function registerPageTools(ctx: ToolContext): void {
           : result.text;
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: displayText,
-          },
-        ],
+        content: [textContent(displayText)],
         structuredContent: { success: true, ...result },
       };
     }, 'Error getting page content')
@@ -161,12 +158,11 @@ export function registerPageTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: result.found
+            textContent(
+              result.found
                 ? `Element "${selector}" is ${state}`
-                : `Element "${selector}" not found`,
-            },
+                : `Element "${selector}" not found`
+            ),
           ],
           structuredContent: { success: result.found, found: result.found },
         };
@@ -199,10 +195,7 @@ export function registerPageTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: `Download complete: ${result.suggestedFilename}`,
-          },
+          textContent(`Download complete: ${result.suggestedFilename}`),
         ],
         structuredContent: result,
       };
@@ -235,9 +228,7 @@ export function registerPageTools(ctx: ToolContext): void {
       await page.waitForLoadState(state, { timeout });
       browserManager.markSessionActive(sessionId);
       return {
-        content: [
-          { type: 'text' as const, text: `Page reached ${state} state` },
-        ],
+        content: [textContent(`Page reached ${state} state`)],
         structuredContent: { success: true },
       };
     }, 'Error waiting for load state')
@@ -263,9 +254,7 @@ export function registerPageTools(ctx: ToolContext): void {
       await page.waitForLoadState('networkidle', { timeout });
       browserManager.markSessionActive(sessionId);
       return {
-        content: [
-          { type: 'text' as const, text: 'Page reached network idle state' },
-        ],
+        content: [textContent('Page reached network idle state')],
         structuredContent: { success: true },
       };
     }, 'Error waiting for network idle')
@@ -294,12 +283,7 @@ export function registerPageTools(ctx: ToolContext): void {
       );
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Script executed successfully`,
-          },
-        ],
+        content: [textContent(`Script executed successfully`)],
         structuredContent: result,
       };
     }, 'Error evaluating script')
@@ -367,10 +351,9 @@ export function registerPageTools(ctx: ToolContext): void {
 
         return {
           content: [
-            {
-              type: 'text' as const,
-              text: `${summary} (${result.passes} passed, ${result.incomplete} incomplete, ${result.inapplicable} inapplicable)`,
-            },
+            textContent(
+              `${summary} (${result.passes} passed, ${result.incomplete} incomplete, ${result.inapplicable} inapplicable)`
+            ),
           ],
           structuredContent: result,
         };
@@ -401,12 +384,7 @@ export function registerPageTools(ctx: ToolContext): void {
       await page.emulateMedia({ reducedMotion });
       browserManager.markSessionActive(sessionId);
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Reduced motion set to: ${reducedMotion}`,
-          },
-        ],
+        content: [textContent(`Reduced motion set to: ${reducedMotion}`)],
         structuredContent: { success: true },
       };
     }, 'Error emulating reduced motion')
@@ -433,12 +411,7 @@ export function registerPageTools(ctx: ToolContext): void {
       await page.emulateMedia({ colorScheme });
       browserManager.markSessionActive(sessionId);
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Color scheme set to: ${colorScheme}`,
-          },
-        ],
+        content: [textContent(`Color scheme set to: ${colorScheme}`)],
         structuredContent: { success: true },
       };
     }, 'Error emulating color scheme')
@@ -573,10 +546,9 @@ export function registerPageTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: `Accessibility report generated: ${result.violations.length} violations found. Report saved to ${reportPath}`,
-          },
+          textContent(
+            `Accessibility report generated: ${result.violations.length} violations found. Report saved to ${reportPath}`
+          ),
         ],
         structuredContent: {
           success: true,

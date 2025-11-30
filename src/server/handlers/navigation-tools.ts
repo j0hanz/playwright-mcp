@@ -10,7 +10,7 @@
  */
 import { z } from 'zod';
 
-import { basePageInput, type ToolContext } from './types.js';
+import { basePageInput, textContent, type ToolContext } from './types.js';
 
 export function registerNavigationTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -43,12 +43,7 @@ export function registerNavigationTools(ctx: ToolContext): void {
       });
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Navigated to: ${result.title} (${result.url})`,
-          },
-        ],
+        content: [textContent(`Navigated to: ${result.title} (${result.url})`)],
         structuredContent: result,
       };
     }, 'Error navigating to URL')
@@ -71,10 +66,7 @@ export function registerNavigationTools(ctx: ToolContext): void {
 
       return {
         content: [
-          {
-            type: 'text' as const,
-            text: `Navigated back${result.url ? ` to ${result.url}` : ''}`,
-          },
+          textContent(`Navigated back${result.url ? ` to ${result.url}` : ''}`),
         ],
         structuredContent: result,
       };
