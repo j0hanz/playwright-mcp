@@ -57,7 +57,6 @@ export const contextOptions: BrowserContextOptions = {
  * Video recording options
  */
 export const videoOptions = {
-  enabled: config.video.enabled,
   dir: config.video.directory,
   size: config.defaultViewport,
 } as const;
@@ -66,10 +65,7 @@ export const videoOptions = {
  * Screenshot options
  */
 export const screenshotOptions = {
-  enabled: config.screenshot.enabled,
   quality: config.screenshot.quality,
-  fullPage: config.screenshot.fullPage,
-  directory: config.screenshot.directory,
   type: 'png' as const,
 } as const;
 
