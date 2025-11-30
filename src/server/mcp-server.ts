@@ -28,6 +28,7 @@ export class MCPPlaywrightServer {
   private logger: Logger;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private cleanupFailures = 0;
+  private readonly registeredTools = new Set<string>();
   private static readonly MAX_CLEANUP_FAILURES = 5;
 
   constructor() {
@@ -38,6 +39,7 @@ export class MCPPlaywrightServer {
 
     this.browserManager = new BrowserManager();
     this.logger = new Logger('MCPPlaywrightServer');
+    this.setupToolRegistrationGuard();
 
     this.registerTools();
     this.registerResources();
@@ -135,6 +137,20 @@ export class MCPPlaywrightServer {
         return toolErrorResponse(errorMessage, error);
       }
     };
+  }
+
+  private setupToolRegistrationGuard(): void {
+    const originalRegisterTool = this.server.registerTool.bind(this.server);
+
+    this.server.registerTool = ((name, definition, handler) => {
+      if (this.registeredTools.has(name)) {
+        this.logger.warn('Skipping duplicate tool registration', { tool: name });
+        return;
+      }
+
+      this.registeredTools.add(name);
+      return originalRegisterTool(name, definition, handler);
+    }) as typeof this.server.registerTool;
   }
 
   private registerTools(): void {
