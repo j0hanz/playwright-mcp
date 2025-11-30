@@ -55,9 +55,10 @@ export class SessionManager {
         config.limits.maxSessionsPerMinute,
     };
 
+    const windowMs = 60_000; // 1 minute
     this.rateLimiter = new RateLimiter({
       maxRequests: this.config.maxSessionsPerMinute,
-      windowMs: 60_000,
+      windowMs,
       maxTracked: this.config.maxSessionsPerMinute * 2,
     });
   }
@@ -70,9 +71,9 @@ export class SessionManager {
 
   checkCapacity(): void {
     if (this.sessions.size >= this.config.maxConcurrentSessions) {
-      throw ErrorHandler.createError(
-        ErrorCode.INTERNAL_ERROR,
-        `Maximum concurrent sessions (${this.config.maxConcurrentSessions}) reached. Close existing sessions first.`
+      throw ErrorHandler.capacityExceeded(
+        this.sessions.size,
+        this.config.maxConcurrentSessions
       );
     }
   }

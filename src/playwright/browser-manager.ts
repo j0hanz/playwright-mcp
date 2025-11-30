@@ -179,6 +179,8 @@ export class BrowserManager {
     accept: boolean,
     promptText?: string
   ): Promise<{ success: boolean; dialogType?: string; message?: string }> {
+    const NO_PENDING_DIALOG_MSG = 'No pending dialog found for this page';
+
     try {
       const { dialogType, message } = await this.dialogManager.handleDialog(
         sessionId,
@@ -198,8 +200,7 @@ export class BrowserManager {
       return { success: true, dialogType, message };
     } catch (error) {
       const err = toError(error);
-      // Check if it's our custom error message
-      if (err.message === 'No pending dialog found for this page') {
+      if (err.message === NO_PENDING_DIALOG_MSG) {
         throw ErrorHandler.createError(ErrorCode.INTERNAL_ERROR, err.message);
       }
       this.logger.error('Handle dialog failed', {

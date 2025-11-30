@@ -55,52 +55,89 @@ export class PageOperations {
   }> {
     const session = this.sessionManager.getSession(sessionId);
 
-    if (action === 'create') {
-      const newPage = await session.context.newPage();
-      const newPageId = uuidv4();
-      this.dialogManager.setupDialogHandler(sessionId, newPageId, newPage);
-      this.sessionManager.addPage(sessionId, newPageId, newPage);
+    switch (action) {
+      case 'create':
+        return this.createTab(sessionId, session, url);
+      case 'close':
+        return this.closeTab(sessionId, pageId);
+      case 'select':
+        return this.selectTab(sessionId, pageId);
+      case 'list':
+      default:
+        return this.listTabs(session);
+    }
+  }
 
-      if (url) {
-        await pageActions.navigateTo(newPage, url);
-      }
+  private async createTab(
+    sessionId: string,
+    session: { context: import('playwright').BrowserContext },
+    url?: string
+  ): Promise<{ success: boolean; newPageId: string }> {
+    const newPage = await session.context.newPage();
+    const newPageId = uuidv4();
+    this.dialogManager.setupDialogHandler(sessionId, newPageId, newPage);
+    this.sessionManager.addPage(sessionId, newPageId, newPage);
 
-      this.sessionManager.updateActivity(sessionId);
-      return { success: true, newPageId };
+    if (url) {
+      await pageActions.navigateTo(newPage, url);
     }
 
-    if (action === 'close') {
-      if (!pageId) {
-        throw ErrorHandler.createError(
-          ErrorCode.VALIDATION_FAILED,
-          'Page ID required for close action'
-        );
-      }
-      const page = this.sessionManager.getPage(sessionId, pageId);
-      await page.close();
-      this.sessionManager.removePage(sessionId, pageId);
-      this.sessionManager.updateActivity(sessionId);
-      return { success: true };
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true, newPageId };
+  }
+
+  private async closeTab(
+    sessionId: string,
+    pageId?: string
+  ): Promise<{ success: boolean }> {
+    if (!pageId) {
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        'Page ID required for close action'
+      );
     }
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    await page.close();
+    this.sessionManager.removePage(sessionId, pageId);
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true };
+  }
 
-    if (action === 'select') {
-      if (!pageId) {
-        throw ErrorHandler.createError(
-          ErrorCode.VALIDATION_FAILED,
-          'Page ID required for select action'
-        );
-      }
-      const page = this.sessionManager.getPage(sessionId, pageId);
-      await page.bringToFront();
-      this.sessionManager.updateActivity(sessionId);
-      return { success: true };
+  private async selectTab(
+    sessionId: string,
+    pageId?: string
+  ): Promise<{ success: boolean }> {
+    if (!pageId) {
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        'Page ID required for select action'
+      );
     }
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    await page.bringToFront();
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true };
+  }
 
-    // List tabs
-    const tabs = [];
-    const pages = session.pages;
+  private async listTabs(session: {
+    pages: Map<string, import('playwright').Page>;
+  }): Promise<{
+    success: boolean;
+    tabs: Array<{
+      pageId: string;
+      title: string;
+      url: string;
+      active: boolean;
+    }>;
+  }> {
+    const tabs: Array<{
+      pageId: string;
+      title: string;
+      url: string;
+      active: boolean;
+    }> = [];
 
-    for (const [pid, page] of pages) {
+    for (const [pid, page] of session.pages) {
       let title = '';
       try {
         title = await page.title();
@@ -111,7 +148,7 @@ export class PageOperations {
         pageId: pid,
         title,
         url: page.url(),
-        active: false, // TODO: Track active tab
+        active: false,
       });
     }
 

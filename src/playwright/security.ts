@@ -129,6 +129,17 @@ const SAFE_PATTERNS = [
   /^\s*window\.scrollX\s*$/,
 ];
 
+function isBlockedOperation(script: string): boolean {
+  const scriptLower = script.toLowerCase();
+  return STRICT_BLOCKLIST.some((blocked) =>
+    scriptLower.includes(blocked.toLowerCase())
+  );
+}
+
+function isSafeScript(script: string): boolean {
+  return SAFE_PATTERNS.some((pattern) => pattern.test(script.trim()));
+}
+
 const ALLOWED_UPLOAD_DIR = fileURLToPath(
   new URL('../../uploads', import.meta.url)
 );
@@ -185,22 +196,15 @@ export async function evaluateScript(
     }
   }
 
-  // For custom scripts, apply strict validation
-  const scriptLower = script.toLowerCase();
-  for (const blocked of STRICT_BLOCKLIST) {
-    if (scriptLower.includes(blocked.toLowerCase())) {
-      throw ErrorHandler.createError(
-        ErrorCode.VALIDATION_FAILED,
-        `Script contains blocked operation. Use predefined templates: ${Object.keys(SAFE_SCRIPT_TEMPLATES).join(', ')}`
-      );
-    }
+  // Validate custom scripts
+  if (isBlockedOperation(script)) {
+    throw ErrorHandler.createError(
+      ErrorCode.VALIDATION_FAILED,
+      `Script contains blocked operation. Use predefined templates: ${Object.keys(SAFE_SCRIPT_TEMPLATES).join(', ')}`
+    );
   }
 
-  const isSafeScript = SAFE_PATTERNS.some((pattern) =>
-    pattern.test(script.trim())
-  );
-
-  if (!isSafeScript) {
+  if (!isSafeScript(script)) {
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,
       `Script does not match allowed patterns. Use predefined templates: ${Object.keys(SAFE_SCRIPT_TEMPLATES).join(', ')}`

@@ -253,12 +253,18 @@ export class MCPPlaywrightServer {
   }
 
   private formatUptime(seconds: number): string {
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
+    const SECONDS_PER_DAY = 86_400;
+    const SECONDS_PER_HOUR = 3_600;
+    const SECONDS_PER_MINUTE = 60;
 
-    const parts = [];
+    const days = Math.floor(seconds / SECONDS_PER_DAY);
+    const hours = Math.floor((seconds % SECONDS_PER_DAY) / SECONDS_PER_HOUR);
+    const minutes = Math.floor(
+      (seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE
+    );
+    const secs = Math.floor(seconds % SECONDS_PER_MINUTE);
+
+    const parts: string[] = [];
     if (days > 0) parts.push(`${days}d`);
     if (hours > 0) parts.push(`${hours}h`);
     if (minutes > 0) parts.push(`${minutes}m`);

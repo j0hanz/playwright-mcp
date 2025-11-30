@@ -4,15 +4,20 @@
 import { Dialog, Page } from 'playwright';
 import { Logger } from '../utils/logger.js';
 
+const DIALOG_AUTO_DISMISS_TIMEOUT_MS = 10_000;
+
 export class DialogManager {
   private readonly pendingDialogs = new Map<string, Dialog>();
   private readonly dialogTimeouts = new Map<string, NodeJS.Timeout>();
-  private static readonly DIALOG_AUTO_DISMISS_TIMEOUT = 10000;
 
   constructor(private readonly logger: Logger) {}
 
+  private createDialogKey(sessionId: string, pageId: string): string {
+    return `${sessionId}:${pageId}`;
+  }
+
   setupDialogHandler(sessionId: string, pageId: string, page: Page): void {
-    const dialogKey = `${sessionId}:${pageId}`;
+    const dialogKey = this.createDialogKey(sessionId, pageId);
 
     page.on('dialog', (dialog) => {
       const existingTimeout = this.dialogTimeouts.get(dialogKey);
@@ -37,10 +42,10 @@ export class DialogManager {
           this.logger.warn('Dialog auto-dismissed due to timeout', {
             sessionId,
             pageId,
-            timeoutMs: DialogManager.DIALOG_AUTO_DISMISS_TIMEOUT,
+            timeoutMs: DIALOG_AUTO_DISMISS_TIMEOUT_MS,
           });
         }
-      }, DialogManager.DIALOG_AUTO_DISMISS_TIMEOUT);
+      }, DIALOG_AUTO_DISMISS_TIMEOUT_MS);
       this.dialogTimeouts.set(dialogKey, timeoutId);
     });
 
@@ -54,7 +59,7 @@ export class DialogManager {
   }
 
   cleanupPage(sessionId: string, pageId: string): void {
-    const dialogKey = `${sessionId}:${pageId}`;
+    const dialogKey = this.createDialogKey(sessionId, pageId);
     const timeoutId = this.dialogTimeouts.get(dialogKey);
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -70,7 +75,7 @@ export class DialogManager {
   }
 
   getPendingDialog(sessionId: string, pageId: string): Dialog | undefined {
-    return this.pendingDialogs.get(`${sessionId}:${pageId}`);
+    return this.pendingDialogs.get(this.createDialogKey(sessionId, pageId));
   }
 
   async handleDialog(
@@ -79,7 +84,7 @@ export class DialogManager {
     accept: boolean,
     promptText?: string
   ): Promise<{ dialogType: string; message: string }> {
-    const dialogKey = `${sessionId}:${pageId}`;
+    const dialogKey = this.createDialogKey(sessionId, pageId);
     const dialog = this.pendingDialogs.get(dialogKey);
 
     if (!dialog) {

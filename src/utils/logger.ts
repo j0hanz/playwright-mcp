@@ -8,21 +8,24 @@ import winston from 'winston';
 
 // Constants
 
-const BYTES_PER_KB = 1024;
-const BYTES_PER_MB = 1024 * BYTES_PER_KB;
-
+const BYTES_PER_MB = 1024 * 1024;
 const DEFAULT_MAX_ERROR_LOG_FILE_SIZE = 5 * BYTES_PER_MB;
 const DEFAULT_MAX_LOG_FILE_SIZE = 10 * BYTES_PER_MB;
 const DEFAULT_MAX_LOG_FILES = 10;
+
+const MAX_LOG_FILE_SIZE_CAP = 100 * BYTES_PER_MB;
+const MAX_LOG_FILES_CAP = 50;
 
 const parseLogSize = (
   value: string | undefined,
   defaultValue: number
 ): number => {
   if (!value) return defaultValue;
+
   const parsed = parseInt(value, 10);
   if (isNaN(parsed) || parsed <= 0) return defaultValue;
-  return Math.min(parsed, 100 * BYTES_PER_MB);
+
+  return Math.min(parsed, MAX_LOG_FILE_SIZE_CAP);
 };
 
 const parseMaxFiles = (
@@ -30,9 +33,11 @@ const parseMaxFiles = (
   defaultValue: number
 ): number => {
   if (!value) return defaultValue;
+
   const parsed = parseInt(value, 10);
   if (isNaN(parsed) || parsed <= 0) return defaultValue;
-  return Math.min(parsed, 50);
+
+  return Math.min(parsed, MAX_LOG_FILES_CAP);
 };
 
 const maxErrorLogFileSize = parseLogSize(

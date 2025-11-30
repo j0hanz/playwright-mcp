@@ -12,6 +12,14 @@ const TIMEOUTS = {
   ASSERTION: config.timeouts.assertion,
 } as const;
 
+/** Creates a standardized assertion result object */
+function createAssertionResult<T extends Record<string, unknown>>(
+  success: boolean,
+  result: T
+): { success: boolean } & T {
+  return { success, ...result };
+}
+
 export class AssertionActions {
   constructor(
     private sessionManager: SessionManager,
@@ -35,12 +43,11 @@ export class AssertionActions {
       async (page) => {
         const locator = page.locator(selector);
         try {
-          // Use Playwright's built-in web-first assertion with auto-retry
           await expect(locator).toBeHidden({ timeout });
-          return { success: true, hidden: true };
+          return createAssertionResult(true, { hidden: true });
         } catch {
           const isHidden = await locator.isHidden().catch(() => true);
-          return { success: false, hidden: isHidden };
+          return createAssertionResult(false, { hidden: isHidden });
         }
       },
       { selector }
@@ -64,12 +71,11 @@ export class AssertionActions {
       async (page) => {
         const locator = page.locator(selector);
         try {
-          // Use Playwright's built-in web-first assertion with auto-retry
           await expect(locator).toBeVisible({ timeout });
-          return { success: true, visible: true };
+          return createAssertionResult(true, { visible: true });
         } catch {
           const isVisible = await locator.isVisible().catch(() => false);
-          return { success: false, visible: isVisible };
+          return createAssertionResult(false, { visible: isVisible });
         }
       },
       { selector }
@@ -279,10 +285,10 @@ export class AssertionActions {
         const locator = page.locator(selector);
         try {
           await expect(locator).toBeEnabled({ timeout });
-          return { success: true, enabled: true };
+          return createAssertionResult(true, { enabled: true });
         } catch {
           const isEnabled = await locator.isEnabled().catch(() => false);
-          return { success: false, enabled: isEnabled };
+          return createAssertionResult(false, { enabled: isEnabled });
         }
       },
       { selector }
@@ -307,10 +313,10 @@ export class AssertionActions {
         const locator = page.locator(selector);
         try {
           await expect(locator).toBeDisabled({ timeout });
-          return { success: true, disabled: true };
+          return createAssertionResult(true, { disabled: true });
         } catch {
           const isDisabled = await locator.isDisabled().catch(() => false);
-          return { success: false, disabled: isDisabled };
+          return createAssertionResult(false, { disabled: isDisabled });
         }
       },
       { selector }
@@ -335,16 +341,15 @@ export class AssertionActions {
         const locator = page.locator(selector);
         try {
           await expect(locator).toBeFocused({ timeout });
-          return { success: true, focused: true };
+          return createAssertionResult(true, { focused: true });
         } catch {
-          // No direct isFocused, check via evaluate
           const focused = await page
             .evaluate(
               (sel) => document.activeElement === document.querySelector(sel),
               selector
             )
             .catch(() => false);
-          return { success: false, focused };
+          return createAssertionResult(false, { focused });
         }
       },
       { selector }

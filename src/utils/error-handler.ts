@@ -47,7 +47,10 @@ export const ErrorCode = {
   // Internal Errors
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   TOOL_NOT_FOUND: 'TOOL_NOT_FOUND',
+
+  // Capacity Errors
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  CAPACITY_EXCEEDED: 'CAPACITY_EXCEEDED',
 
   // Security Errors
   SECURITY_VIOLATION: 'SECURITY_VIOLATION',
@@ -142,73 +145,68 @@ export function isPlaywrightTimeoutError(error: unknown): boolean {
   );
 }
 
-// Error Pattern Mapping
+// Error Pattern Mapping - Grouped by category for maintainability
 
-const ERROR_PATTERNS: ReadonlyArray<{
-  pattern: string | RegExp;
-  code: ErrorCode;
-}> = [
+const STRING_ERROR_PATTERNS = new Map<string, ErrorCode>([
   // Timeout errors
-  { pattern: 'TimeoutError', code: ErrorCode.TIMEOUT_EXCEEDED },
-  { pattern: 'Timeout', code: ErrorCode.TIMEOUT_EXCEEDED },
-  { pattern: /exceeded\s+\d+ms/i, code: ErrorCode.TIMEOUT_EXCEEDED },
-
+  ['TimeoutError', ErrorCode.TIMEOUT_EXCEEDED],
+  ['Timeout', ErrorCode.TIMEOUT_EXCEEDED],
   // Navigation errors
-  { pattern: 'Navigation failed', code: ErrorCode.PAGE_NAVIGATION_FAILED },
-  { pattern: 'net::ERR_', code: ErrorCode.PAGE_NAVIGATION_FAILED },
-  { pattern: 'ERR_NAME_NOT_RESOLVED', code: ErrorCode.PAGE_NAVIGATION_FAILED },
-  { pattern: 'ERR_CONNECTION_REFUSED', code: ErrorCode.NETWORK_ERROR },
-  { pattern: 'ERR_INTERNET_DISCONNECTED', code: ErrorCode.NETWORK_ERROR },
-
+  ['Navigation failed', ErrorCode.PAGE_NAVIGATION_FAILED],
+  ['net::ERR_', ErrorCode.PAGE_NAVIGATION_FAILED],
+  ['ERR_NAME_NOT_RESOLVED', ErrorCode.PAGE_NAVIGATION_FAILED],
+  ['ERR_CONNECTION_REFUSED', ErrorCode.NETWORK_ERROR],
+  ['ERR_INTERNET_DISCONNECTED', ErrorCode.NETWORK_ERROR],
   // Element errors
-  { pattern: 'waiting for selector', code: ErrorCode.ELEMENT_NOT_FOUND },
-  { pattern: 'waiting for locator', code: ErrorCode.ELEMENT_NOT_FOUND },
-  { pattern: 'Element not found', code: ErrorCode.ELEMENT_NOT_FOUND },
-  { pattern: 'no element matches', code: ErrorCode.ELEMENT_NOT_FOUND },
-  { pattern: 'strict mode violation', code: ErrorCode.ELEMENT_NOT_FOUND },
-  { pattern: 'resolved to', code: ErrorCode.ELEMENT_NOT_FOUND },
-  { pattern: 'element is not visible', code: ErrorCode.ELEMENT_NOT_VISIBLE },
-  { pattern: 'element is not enabled', code: ErrorCode.ELEMENT_NOT_ENABLED },
-  { pattern: 'Element is detached', code: ErrorCode.ELEMENT_DETACHED },
-
+  ['waiting for selector', ErrorCode.ELEMENT_NOT_FOUND],
+  ['waiting for locator', ErrorCode.ELEMENT_NOT_FOUND],
+  ['Element not found', ErrorCode.ELEMENT_NOT_FOUND],
+  ['no element matches', ErrorCode.ELEMENT_NOT_FOUND],
+  ['strict mode violation', ErrorCode.ELEMENT_NOT_FOUND],
+  ['resolved to', ErrorCode.ELEMENT_NOT_FOUND],
+  ['element is not visible', ErrorCode.ELEMENT_NOT_VISIBLE],
+  ['element is not enabled', ErrorCode.ELEMENT_NOT_ENABLED],
+  ['Element is detached', ErrorCode.ELEMENT_DETACHED],
   // Session errors
-  { pattern: 'Session not found', code: ErrorCode.SESSION_NOT_FOUND },
-  { pattern: 'Page not found', code: ErrorCode.PAGE_NOT_FOUND },
-  { pattern: 'Browser closed', code: ErrorCode.BROWSER_CLOSED },
-  { pattern: 'Target closed', code: ErrorCode.SESSION_NOT_FOUND },
-  { pattern: 'Context destroyed', code: ErrorCode.SESSION_NOT_FOUND },
-  { pattern: 'Frame detached', code: ErrorCode.ELEMENT_DETACHED },
-  { pattern: 'Page crashed', code: ErrorCode.PAGE_CRASHED },
-
+  ['Session not found', ErrorCode.SESSION_NOT_FOUND],
+  ['Page not found', ErrorCode.PAGE_NOT_FOUND],
+  ['Browser closed', ErrorCode.BROWSER_CLOSED],
+  ['Target closed', ErrorCode.SESSION_NOT_FOUND],
+  ['Context destroyed', ErrorCode.SESSION_NOT_FOUND],
+  ['Frame detached', ErrorCode.ELEMENT_DETACHED],
+  ['Page crashed', ErrorCode.PAGE_CRASHED],
   // Execution context errors
-  {
-    pattern: 'Execution context was destroyed',
-    code: ErrorCode.PAGE_NAVIGATION_FAILED,
-  },
-  { pattern: 'Protocol error', code: ErrorCode.INTERNAL_ERROR },
-
+  ['Execution context was destroyed', ErrorCode.PAGE_NAVIGATION_FAILED],
+  ['Protocol error', ErrorCode.INTERNAL_ERROR],
   // Browser launch errors
-  { pattern: 'browserType.launch', code: ErrorCode.BROWSER_LAUNCH_FAILED },
-  { pattern: 'Failed to launch', code: ErrorCode.BROWSER_LAUNCH_FAILED },
-  { pattern: 'executable doesn', code: ErrorCode.BROWSER_LAUNCH_FAILED },
-
+  ['browserType.launch', ErrorCode.BROWSER_LAUNCH_FAILED],
+  ['Failed to launch', ErrorCode.BROWSER_LAUNCH_FAILED],
+  ['executable doesn', ErrorCode.BROWSER_LAUNCH_FAILED],
   // Selector errors
-  { pattern: 'Selector resolved to', code: ErrorCode.INVALID_SELECTOR },
-  { pattern: 'Unknown engine', code: ErrorCode.INVALID_SELECTOR },
-
+  ['Selector resolved to', ErrorCode.INVALID_SELECTOR],
+  ['Unknown engine', ErrorCode.INVALID_SELECTOR],
   // Screenshot errors
-  { pattern: 'screenshot', code: ErrorCode.SCREENSHOT_FAILED },
-];
+  ['screenshot', ErrorCode.SCREENSHOT_FAILED],
+]);
+
+const REGEX_ERROR_PATTERNS: ReadonlyArray<{
+  pattern: RegExp;
+  code: ErrorCode;
+}> = [{ pattern: /exceeded\s+\d+ms/i, code: ErrorCode.TIMEOUT_EXCEEDED }];
 
 function mapErrorToCode(error: Error): ErrorCode {
   const errorString = `${error.name} ${error.message}`;
 
-  for (const { pattern, code } of ERROR_PATTERNS) {
-    if (typeof pattern === 'string') {
-      if (errorString.includes(pattern)) {
-        return code;
-      }
-    } else if (pattern.test(errorString)) {
+  // Check string patterns first (O(n) but very fast for small strings)
+  for (const [pattern, code] of STRING_ERROR_PATTERNS) {
+    if (errorString.includes(pattern)) {
+      return code;
+    }
+  }
+
+  // Check regex patterns
+  for (const { pattern, code } of REGEX_ERROR_PATTERNS) {
+    if (pattern.test(errorString)) {
       return code;
     }
   }
@@ -300,6 +298,27 @@ export const ErrorHandler = {
       `Security violation: ${reason}`,
       { reason },
       false
+    );
+  },
+
+  capacityExceeded(current: number, max: number): MCPPlaywrightError {
+    return new MCPPlaywrightError(
+      ErrorCode.CAPACITY_EXCEEDED,
+      `Maximum capacity (${max}) reached. Current: ${current}`,
+      { current, max },
+      false
+    );
+  },
+
+  rateLimitExceeded(
+    maxRequests: number,
+    windowSeconds: number
+  ): MCPPlaywrightError {
+    return new MCPPlaywrightError(
+      ErrorCode.RATE_LIMIT_EXCEEDED,
+      `Rate limit exceeded: Maximum ${maxRequests} requests per ${windowSeconds} seconds`,
+      { maxRequests, windowSeconds },
+      true
     );
   },
 } as const;

@@ -1,6 +1,6 @@
 // Rate Limiter - Sliding window rate limiter with memory bounds
 
-import { ErrorCode, ErrorHandler } from '../utils/error-handler.js';
+import { ErrorHandler } from '../utils/error-handler.js';
 
 export interface RateLimiterConfig {
   maxRequests: number;
@@ -32,9 +32,9 @@ export class RateLimiter {
     const status = this.getStatus();
 
     if (!status.allowed) {
-      throw ErrorHandler.createError(
-        ErrorCode.VALIDATION_FAILED,
-        `Rate limit exceeded: Maximum ${this.maxRequests} requests per ${Math.round(this.windowMs / 1000)} seconds`
+      throw ErrorHandler.rateLimitExceeded(
+        this.maxRequests,
+        Math.round(this.windowMs / 1000)
       );
     }
 
@@ -89,11 +89,14 @@ export class RateLimiter {
   }
 }
 
+const MS_PER_SECOND = 1_000;
+const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+
 export const RateLimiters = {
   forSessions(maxPerMinute: number): RateLimiter {
     return new RateLimiter({
       maxRequests: maxPerMinute,
-      windowMs: 60_000,
+      windowMs: MS_PER_MINUTE,
       maxTracked: maxPerMinute * 2,
     });
   },
@@ -101,7 +104,7 @@ export const RateLimiters = {
   forRequests(maxPerSecond: number): RateLimiter {
     return new RateLimiter({
       maxRequests: maxPerSecond,
-      windowMs: 1_000,
+      windowMs: MS_PER_SECOND,
       maxTracked: maxPerSecond * 10,
     });
   },

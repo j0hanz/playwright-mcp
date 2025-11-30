@@ -12,9 +12,10 @@ import type { BrowserType, Viewport } from '../types/index.js';
 
 dotenv.config();
 
-const SECONDS = 1000;
-const MINUTES = 60 * SECONDS;
-const MB = 1024 * 1024;
+// Time and size unit constants
+const MS_PER_SECOND = 1_000;
+const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+const BYTES_PER_MB = 1024 * 1024;
 
 const parseNumber = (
   value: string | undefined,
@@ -122,47 +123,51 @@ export const config: ServerConfig = Object.freeze({
     process.env.VIEWPORT_HEIGHT,
     { width: 1366, height: 900 }
   ),
-  sessionTimeout: parseNumber(process.env.SESSION_TIMEOUT, 30 * MINUTES, {
-    min: 1 * MINUTES,
-    max: 120 * MINUTES,
+  sessionTimeout: parseNumber(process.env.SESSION_TIMEOUT, 30 * MS_PER_MINUTE, {
+    min: 1 * MS_PER_MINUTE,
+    max: 120 * MS_PER_MINUTE,
   }),
-  cleanupInterval: 1 * MINUTES,
+  cleanupInterval: 1 * MS_PER_MINUTE,
   locale: process.env.LOCALE ?? 'en-US',
   timezoneId: process.env.TIMEZONE ?? 'UTC',
   ignoreHTTPSErrors: parseBoolean(process.env.IGNORE_HTTPS_ERRORS, false),
   timeouts: Object.freeze({
-    default: parseNumber(process.env.TIMEOUT_DEFAULT, 30 * SECONDS, {
-      min: 5 * SECONDS,
-      max: 120 * SECONDS,
+    default: parseNumber(process.env.TIMEOUT_DEFAULT, 30 * MS_PER_SECOND, {
+      min: 5 * MS_PER_SECOND,
+      max: 120 * MS_PER_SECOND,
     }),
-    navigation: parseNumber(process.env.TIMEOUT_NAVIGATION, 30 * SECONDS, {
-      min: 5 * SECONDS,
-      max: 120 * SECONDS,
+    navigation: parseNumber(
+      process.env.TIMEOUT_NAVIGATION,
+      30 * MS_PER_SECOND,
+      {
+        min: 5 * MS_PER_SECOND,
+        max: 120 * MS_PER_SECOND,
+      }
+    ),
+    action: parseNumber(process.env.TIMEOUT_ACTION, 5 * MS_PER_SECOND, {
+      min: 1 * MS_PER_SECOND,
+      max: 60 * MS_PER_SECOND,
     }),
-    action: parseNumber(process.env.TIMEOUT_ACTION, 5 * SECONDS, {
-      min: 1 * SECONDS,
-      max: 60 * SECONDS,
+    assertion: parseNumber(process.env.TIMEOUT_ASSERTION, 5 * MS_PER_SECOND, {
+      min: 1 * MS_PER_SECOND,
+      max: 60 * MS_PER_SECOND,
     }),
-    assertion: parseNumber(process.env.TIMEOUT_ASSERTION, 5 * SECONDS, {
-      min: 1 * SECONDS,
-      max: 60 * SECONDS,
-    }),
-    download: parseNumber(process.env.TIMEOUT_DOWNLOAD, 60 * SECONDS, {
-      min: 10 * SECONDS,
-      max: 300 * SECONDS,
+    download: parseNumber(process.env.TIMEOUT_DOWNLOAD, 60 * MS_PER_SECOND, {
+      min: 10 * MS_PER_SECOND,
+      max: 300 * MS_PER_SECOND,
     }),
   }),
   limits: Object.freeze({
-    maxScriptLength: 5000,
-    maxLogFileSize: 10 * MB,
-    maxErrorLogFileSize: 5 * MB,
+    maxScriptLength: 5_000,
+    maxLogFileSize: 10 * BYTES_PER_MB,
+    maxErrorLogFileSize: 5 * BYTES_PER_MB,
     maxLogFiles: 10,
-    maxFileSizeForUpload: 50 * MB,
+    maxFileSizeForUpload: 50 * BYTES_PER_MB,
     maxSessionsPerMinute: parseNumber(process.env.MAX_SESSIONS_PER_MINUTE, 10, {
       min: 1,
       max: 60,
     }),
-    maxResponseBodySize: 50 * MB,
+    maxResponseBodySize: 50 * BYTES_PER_MB,
   }),
   screenshot: Object.freeze({
     quality: parseNumber(process.env.SCREENSHOT_QUALITY, 80, {

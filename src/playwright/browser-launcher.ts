@@ -48,16 +48,15 @@ export interface BrowserLaunchOptions {
   storageState?: string;
 }
 
-function validateOutputPath(filePath: string): string {
-  const ALLOWED_LOG_OUTPUT_DIR = path.resolve(process.cwd(), 'logs');
-  const resolved = path.resolve(filePath);
+function isPathWithinDirectory(filePath: string, allowedDir: string): boolean {
+  return filePath.startsWith(allowedDir);
+}
 
-  const cwdLogs = path.resolve(process.cwd(), 'logs');
-  if (
-    !resolved.startsWith(ALLOWED_LOG_OUTPUT_DIR) &&
-    !resolved.startsWith(cwdLogs) &&
-    !resolved.startsWith(process.cwd())
-  ) {
+function validateOutputPath(filePath: string): string {
+  const resolved = path.resolve(filePath);
+  const projectRoot = process.cwd();
+
+  if (!isPathWithinDirectory(resolved, projectRoot)) {
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,
       `Output path must be within the project directory: ${filePath}`

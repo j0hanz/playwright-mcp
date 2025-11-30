@@ -3,6 +3,11 @@
 import { Logger } from '../../utils/logger.js';
 import { SessionManager } from '../session-manager.js';
 
+/** Converts various time inputs to ISO string */
+function toISOString(time: number | string | Date): string {
+  return new Date(time).toISOString();
+}
+
 export class ClockActions {
   constructor(
     private sessionManager: SessionManager,
@@ -20,7 +25,7 @@ export class ClockActions {
     this.sessionManager.updateActivity(sessionId);
     return {
       success: true,
-      installedTime: time?.toISOString() ?? new Date().toISOString(),
+      installedTime: time ? toISOString(time) : toISOString(new Date()),
     };
   }
 
@@ -33,7 +38,7 @@ export class ClockActions {
     const fixedDate = new Date(time);
     await page.clock.setFixedTime(fixedDate);
     this.sessionManager.updateActivity(sessionId);
-    return { success: true, fixedTime: fixedDate.toISOString() };
+    return { success: true, fixedTime: toISOString(fixedDate) };
   }
 
   async pauseClock(
@@ -44,7 +49,7 @@ export class ClockActions {
     const currentTime = await page.evaluate(() => Date.now());
     await page.clock.pauseAt(currentTime);
     this.sessionManager.updateActivity(sessionId);
-    return { success: true, pausedAt: new Date(currentTime).toISOString() };
+    return { success: true, pausedAt: toISOString(currentTime) };
   }
 
   async resumeClock(
@@ -94,6 +99,6 @@ export class ClockActions {
     const newTime = new Date(time);
     await page.clock.setSystemTime(newTime);
     this.sessionManager.updateActivity(sessionId);
-    return { success: true, systemTime: newTime.toISOString() };
+    return { success: true, systemTime: toISOString(newTime) };
   }
 }

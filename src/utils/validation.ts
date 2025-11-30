@@ -14,14 +14,14 @@ export const viewportSchema = z.object({
     .number()
     .int('Width must be an integer')
     .min(320, 'Width must be at least 320px')
-    .max(3840, 'Width must not exceed 3840px')
-    .default(1920),
+    .max(3_840, 'Width must not exceed 3840px')
+    .default(1_920),
   height: z
     .number()
     .int('Height must be an integer')
     .min(240, 'Height must be at least 240px')
-    .max(2160, 'Height must not exceed 2160px')
-    .default(1080),
+    .max(2_160, 'Height must not exceed 2160px')
+    .default(1_080),
 });
 
 export const positionSchema = z.object({
@@ -29,7 +29,7 @@ export const positionSchema = z.object({
   y: z.number(),
 });
 
-export const timeoutSchema = z.number().min(100).max(120000);
+export const timeoutSchema = z.number().min(100).max(120_000);
 
 export const sessionIdSchema = z.string().uuid();
 export const pageIdSchema = z.string().uuid();

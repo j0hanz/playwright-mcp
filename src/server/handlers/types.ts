@@ -66,6 +66,8 @@ const RETRY_HINTS: Readonly<Record<ErrorCode, string>> = {
     'Tool not found. Use sessions_list to see available tools.',
   [ErrorCode.RATE_LIMIT_EXCEEDED]:
     'Rate limit exceeded. Wait a moment and retry. Consider batching operations.',
+  [ErrorCode.CAPACITY_EXCEEDED]:
+    'Maximum session capacity reached. Close unused sessions with browser_close before launching new ones.',
   [ErrorCode.SECURITY_VIOLATION]:
     'Security policy violation. This operation is not permitted for security reasons.',
 };
@@ -129,12 +131,28 @@ export interface PaginatedResponse<T> {
   pagination: PaginationMeta;
 }
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
+function normalizePageParams(params: PaginationParams): {
+  page: number;
+  pageSize: number;
+} {
+  return {
+    page: Math.max(DEFAULT_PAGE, params.page ?? DEFAULT_PAGE),
+    pageSize: Math.min(
+      MAX_PAGE_SIZE,
+      Math.max(DEFAULT_PAGE, params.pageSize ?? DEFAULT_PAGE_SIZE)
+    ),
+  };
+}
+
 export function createPaginationMeta(
   params: PaginationParams,
   totalItems: number
 ): PaginationMeta {
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+  const { page, pageSize } = normalizePageParams(params);
   const totalPages = Math.ceil(totalItems / pageSize);
 
   return {
@@ -143,7 +161,7 @@ export function createPaginationMeta(
     totalItems,
     totalPages,
     hasNextPage: page < totalPages,
-    hasPreviousPage: page > 1,
+    hasPreviousPage: page > DEFAULT_PAGE,
   };
 }
 
@@ -151,8 +169,7 @@ export function paginate<T>(
   items: T[],
   params: PaginationParams
 ): PaginatedResponse<T> {
-  const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+  const { page, pageSize } = normalizePageParams(params);
   const startIndex = (page - 1) * pageSize;
   const paginatedItems = items.slice(startIndex, startIndex + pageSize);
 
