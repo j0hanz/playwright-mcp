@@ -104,36 +104,11 @@ export const ARIA_ROLES = [
   'treegrid',
 ] as const;
 
-// Error Codes
-
-export const ErrorCode = {
-  BROWSER_LAUNCH_FAILED: 'BROWSER_LAUNCH_FAILED',
-  BROWSER_CLOSED: 'BROWSER_CLOSED',
-  PAGE_NAVIGATION_FAILED: 'PAGE_NAVIGATION_FAILED',
-  PAGE_CRASHED: 'PAGE_CRASHED',
-  ELEMENT_NOT_FOUND: 'ELEMENT_NOT_FOUND',
-  ELEMENT_NOT_VISIBLE: 'ELEMENT_NOT_VISIBLE',
-  ELEMENT_NOT_ENABLED: 'ELEMENT_NOT_ENABLED',
-  ELEMENT_DETACHED: 'ELEMENT_DETACHED',
-  TIMEOUT_EXCEEDED: 'TIMEOUT_EXCEEDED',
-  NAVIGATION_TIMEOUT: 'NAVIGATION_TIMEOUT',
-  SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
-  SESSION_EXPIRED: 'SESSION_EXPIRED',
-  PAGE_NOT_FOUND: 'PAGE_NOT_FOUND',
-  VALIDATION_FAILED: 'VALIDATION_FAILED',
-  INVALID_SELECTOR: 'INVALID_SELECTOR',
-  INVALID_URL: 'INVALID_URL',
-  ASSERTION_FAILED: 'ASSERTION_FAILED',
-  SCREENSHOT_FAILED: 'SCREENSHOT_FAILED',
-  NETWORK_ERROR: 'NETWORK_ERROR',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
-  TOOL_NOT_FOUND: 'TOOL_NOT_FOUND',
-  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
-  CAPACITY_EXCEEDED: 'CAPACITY_EXCEEDED',
-  SECURITY_VIOLATION: 'SECURITY_VIOLATION',
-} as const;
-
-export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
+// Error Codes - Re-exported from error-handler for single source of truth
+export {
+  ErrorCode,
+  type ErrorCode as ErrorCodeType,
+} from '../utils/error-handler.js';
 
 // Browser Channels
 
@@ -529,47 +504,8 @@ export interface NetworkRouteOptions extends SessionPageRef {
   };
 }
 
-// Server Configuration
-
-export interface ServerConfig {
-  readonly logLevel: string;
-  readonly maxConcurrentSessions: number;
-  readonly defaultBrowser: BrowserType;
-  readonly headless: boolean;
-  readonly defaultViewport: Viewport;
-  readonly sessionTimeout: number;
-  readonly cleanupInterval: number;
-  readonly locale: string;
-  readonly timezoneId: string;
-  readonly ignoreHTTPSErrors: boolean;
-  readonly timeouts: {
-    readonly default: number;
-    readonly navigation: number;
-    readonly action: number;
-    readonly assertion: number;
-    readonly download: number;
-  };
-  readonly limits: {
-    readonly maxScriptLength: number;
-    readonly maxLogFileSize: number;
-    readonly maxErrorLogFileSize: number;
-    readonly maxLogFiles: number;
-    readonly maxFileSizeForUpload: number;
-    readonly maxSessionsPerMinute: number;
-    readonly maxResponseBodySize: number;
-  };
-  readonly screenshot: {
-    readonly quality: number;
-    readonly type: 'png' | 'jpeg';
-  };
-  readonly video: {
-    readonly directory: string;
-  };
-  readonly accessibility: {
-    readonly defaultTags: readonly string[];
-  };
-  readonly testIdAttribute: string;
-}
+// Server Configuration - Re-exported from server-config for single source of truth
+export type { ServerConfig } from './server-config.js';
 
 // Tool Handler Response Types
 

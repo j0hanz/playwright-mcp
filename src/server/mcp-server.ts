@@ -8,6 +8,12 @@ import { Logger } from '../utils/logger.js';
 import { registerAllHandlers } from './handlers/index.js';
 
 export class MCPPlaywrightServer {
+  // Resource URI constants
+  private static readonly RESOURCE_URIS = {
+    STATUS: 'playwright://status',
+    HEALTH: 'playwright://health',
+  } as const;
+
   private server: McpServer;
   protected browserManager: BrowserManager;
   private logger: Logger;
@@ -118,10 +124,12 @@ export class MCPPlaywrightServer {
   }
 
   private registerResources(): void {
+    const { STATUS, HEALTH } = MCPPlaywrightServer.RESOURCE_URIS;
+
     // Server status resource with capacity info
     this.server.registerResource(
       'server-status',
-      'playwright://status',
+      STATUS,
       {
         title: 'Server Status',
         description:
@@ -136,7 +144,7 @@ export class MCPPlaywrightServer {
           return {
             contents: [
               {
-                uri: 'playwright://status',
+                uri: STATUS,
                 mimeType: 'application/json',
                 text: JSON.stringify({
                   status: 'running',
@@ -167,7 +175,7 @@ export class MCPPlaywrightServer {
           return {
             contents: [
               {
-                uri: 'playwright://status',
+                uri: STATUS,
                 mimeType: 'application/json',
                 text: JSON.stringify({
                   status: 'error',
@@ -183,7 +191,7 @@ export class MCPPlaywrightServer {
     // Health check resource with detailed metrics
     this.server.registerResource(
       'health',
-      'playwright://health',
+      HEALTH,
       {
         title: 'Health Check',
         description: 'Server health status with performance metrics',
@@ -198,7 +206,7 @@ export class MCPPlaywrightServer {
           return {
             contents: [
               {
-                uri: 'playwright://health',
+                uri: HEALTH,
                 mimeType: 'application/json',
                 text: JSON.stringify({
                   status: 'healthy',
@@ -236,7 +244,7 @@ export class MCPPlaywrightServer {
           return {
             contents: [
               {
-                uri: 'playwright://health',
+                uri: HEALTH,
                 mimeType: 'application/json',
                 text: JSON.stringify({
                   status: 'unhealthy',

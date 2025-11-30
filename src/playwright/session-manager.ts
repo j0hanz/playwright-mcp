@@ -1,41 +1,20 @@
 /**
  * Session Manager - Manages browser session lifecycle
  */
-import type { Browser, BrowserContext, Page } from 'playwright';
+import type { Page } from 'playwright';
 import { v4 as uuidv4 } from 'uuid';
 
 import config from '../config/server-config.js';
-import type { BrowserSession, BrowserType, Viewport } from '../config/types.js';
+import type {
+  BrowserSession,
+  SessionCleanupCallback,
+  SessionCreateOptions,
+  SessionInfo,
+  SessionManagerConfig,
+} from '../config/types.js';
 import { ErrorCode, ErrorHandler, toError } from '../utils/error-handler.js';
 import type { Logger } from '../utils/logger.js';
 import { RateLimiter } from './rate-limiter.js';
-
-export interface SessionCreateOptions {
-  browser: Browser;
-  context: BrowserContext;
-  browserType: BrowserType;
-  headless: boolean;
-  viewport?: Viewport;
-}
-
-export interface SessionInfo {
-  id: string;
-  browserType: string;
-  pageCount: number;
-  lastActivity: Date;
-  idleMs?: number;
-  headless?: boolean;
-}
-
-export interface SessionManagerConfig {
-  maxConcurrentSessions: number;
-  maxSessionsPerMinute: number;
-}
-
-export type SessionCleanupCallback = (
-  sessionId: string,
-  session: BrowserSession
-) => Promise<void>;
 
 export class SessionManager {
   private readonly sessions = new Map<string, BrowserSession>();

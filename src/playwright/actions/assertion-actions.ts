@@ -108,10 +108,12 @@ export class AssertionActions {
             await expect(locator).toContainText(expectedText, { timeout });
           }
           const actualText = (await locator.textContent()) ?? '';
-          return { success: true, actualText: actualText.trim() };
+          return createAssertionResult(true, { actualText: actualText.trim() });
         } catch {
           const actualText = await locator.textContent().catch(() => undefined);
-          return { success: false, actualText: actualText?.trim() };
+          return createAssertionResult(false, {
+            actualText: actualText?.trim(),
+          });
         }
       },
       { selector, expectedText }
@@ -141,12 +143,14 @@ export class AssertionActions {
           await expect(locator).toHaveAttribute(attribute, expectedValue, {
             timeout,
           });
-          return { success: true, actualValue: expectedValue };
+          return createAssertionResult(true, { actualValue: expectedValue });
         } catch {
           const actualValue = await locator
             .getAttribute(attribute)
             .catch(() => null);
-          return { success: false, actualValue: actualValue ?? undefined };
+          return createAssertionResult(false, {
+            actualValue: actualValue ?? undefined,
+          });
         }
       },
       { selector, attribute, expectedValue }
@@ -173,10 +177,10 @@ export class AssertionActions {
         try {
           // Use Playwright's built-in web-first assertion
           await expect(locator).toHaveValue(expectedValue, { timeout });
-          return { success: true, actualValue: expectedValue };
+          return createAssertionResult(true, { actualValue: expectedValue });
         } catch {
           const actualValue = await locator.inputValue().catch(() => undefined);
-          return { success: false, actualValue };
+          return createAssertionResult(false, { actualValue });
         }
       },
       { selector, expectedValue }
@@ -203,10 +207,10 @@ export class AssertionActions {
         try {
           // Use Playwright's built-in web-first assertion
           await expect(locator).toBeChecked({ checked, timeout });
-          return { success: true, isChecked: checked };
+          return createAssertionResult(true, { isChecked: checked });
         } catch {
           const isChecked = await locator.isChecked().catch(() => undefined);
-          return { success: false, isChecked };
+          return createAssertionResult(false, { isChecked });
         }
       },
       { selector, checked }
@@ -231,9 +235,9 @@ export class AssertionActions {
         try {
           // Use Playwright's built-in web-first page assertion
           await expect(page).toHaveURL(expectedUrl, { timeout });
-          return { success: true, actualUrl: page.url() };
+          return createAssertionResult(true, { actualUrl: page.url() });
         } catch {
-          return { success: false, actualUrl: page.url() };
+          return createAssertionResult(false, { actualUrl: page.url() });
         }
       },
       { expectedUrl }
@@ -258,9 +262,11 @@ export class AssertionActions {
         try {
           // Use Playwright's built-in web-first page assertion
           await expect(page).toHaveTitle(expectedTitle, { timeout });
-          return { success: true, actualTitle: expectedTitle };
+          return createAssertionResult(true, { actualTitle: expectedTitle });
         } catch {
-          return { success: false, actualTitle: await page.title() };
+          return createAssertionResult(false, {
+            actualTitle: await page.title(),
+          });
         }
       },
       { expectedTitle }
@@ -375,10 +381,10 @@ export class AssertionActions {
         const locator = page.locator(selector);
         try {
           await expect(locator).toHaveCount(expectedCount, { timeout });
-          return { success: true, actualCount: expectedCount };
+          return createAssertionResult(true, { actualCount: expectedCount });
         } catch {
           const actualCount = await locator.count();
-          return { success: false, actualCount };
+          return createAssertionResult(false, { actualCount });
         }
       },
       { selector, expectedCount }
@@ -405,7 +411,7 @@ export class AssertionActions {
         const locator = page.locator(selector);
         try {
           await expect(locator).toHaveCSS(property, expectedValue, { timeout });
-          return { success: true, actualValue: expectedValue };
+          return createAssertionResult(true, { actualValue: expectedValue });
         } catch {
           const actualValue = await locator
             .evaluate(
@@ -413,7 +419,7 @@ export class AssertionActions {
               property
             )
             .catch(() => undefined);
-          return { success: false, actualValue };
+          return createAssertionResult(false, { actualValue });
         }
       },
       { selector, property, expectedValue }
