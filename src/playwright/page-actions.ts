@@ -474,7 +474,12 @@ export async function dragAndDrop(
 // ============================================
 
 /**
- * Wait for a selector to be in a specific state
+ * Wait for a selector to be in a specific state using locator.waitFor().
+ *
+ * **Best Practice**: Use locator.waitFor() instead of page.waitForSelector()
+ * as it's the recommended approach and handles auto-retry better.
+ *
+ * @see https://playwright.dev/docs/api/class-locator#locator-wait-for
  */
 export async function waitForSelector(
   page: Page,
@@ -487,7 +492,8 @@ export async function waitForSelector(
   const { state = 'visible', timeout = timeoutOptions.action } = options;
 
   try {
-    await page.waitForSelector(selector, { state, timeout });
+    // Use locator.waitFor() as recommended by Playwright docs
+    await page.locator(selector).waitFor({ state, timeout });
     return { found: true };
   } catch {
     return { found: false };

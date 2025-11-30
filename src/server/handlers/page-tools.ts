@@ -5,20 +5,18 @@
  * - page_screenshot: Capture page screenshot
  * - page_content: Get page HTML/text content
  * - wait_for_selector: Wait for element to appear
+ * - wait_for_download: Wait for file download
+ * - page_wait_for_load_state: Wait for page load state
+ * - wait_for_network_idle: Wait for network idle
+ * - page_evaluate: Execute JavaScript
+ * - accessibility_scan: Run axe-core accessibility scan
+ * - accessibility_report: Generate HTML accessibility report
+ * - emulate_reduced_motion: Emulate reduced motion preference
+ * - emulate_color_scheme: Emulate color scheme preference
  */
 import { z } from 'zod';
 
-import type { ToolContext } from './types.js';
-
-// Shared page input schemas
-const basePageInput = {
-  sessionId: z.string().describe('Browser session ID'),
-  pageId: z.string().describe('Page ID'),
-};
-
-const timeoutOption = {
-  timeout: z.number().default(30000).describe('Timeout in milliseconds'),
-};
+import { basePageInput, longTimeoutOption, type ToolContext } from './types.js';
 
 export function registerPageTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -145,7 +143,7 @@ export function registerPageTools(ctx: ToolContext): void {
           .enum(['attached', 'detached', 'visible', 'hidden'])
           .default('visible')
           .describe('Expected element state'),
-        ...timeoutOption,
+        ...longTimeoutOption,
       },
       outputSchema: {
         success: z.boolean(),
@@ -186,7 +184,7 @@ export function registerPageTools(ctx: ToolContext): void {
         'Wait for a file download to complete after triggering an action',
       inputSchema: {
         ...basePageInput,
-        ...timeoutOption,
+        ...longTimeoutOption,
       },
       outputSchema: {
         success: z.boolean(),
@@ -226,7 +224,7 @@ export function registerPageTools(ctx: ToolContext): void {
           .describe(
             'Load state to wait for: load (all resources), domcontentloaded (DOM ready), networkidle (no network requests for 500ms)'
           ),
-        ...timeoutOption,
+        ...longTimeoutOption,
       },
       outputSchema: {
         success: z.boolean(),
@@ -254,7 +252,7 @@ export function registerPageTools(ctx: ToolContext): void {
         'Wait until there are no network connections for at least 500ms. Useful for pages with async data loading.',
       inputSchema: {
         ...basePageInput,
-        ...timeoutOption,
+        ...longTimeoutOption,
       },
       outputSchema: {
         success: z.boolean(),

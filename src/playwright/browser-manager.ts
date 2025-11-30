@@ -538,6 +538,107 @@ export class BrowserManager {
     );
   }
 
+  /**
+   * Assert that an element is enabled.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-enabled
+   */
+  async assertEnabled(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; enabled: boolean }> {
+    return this.assertionActions.assertEnabled(
+      sessionId,
+      pageId,
+      selector,
+      options
+    );
+  }
+
+  /**
+   * Assert that an element is disabled.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-disabled
+   */
+  async assertDisabled(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; disabled: boolean }> {
+    return this.assertionActions.assertDisabled(
+      sessionId,
+      pageId,
+      selector,
+      options
+    );
+  }
+
+  /**
+   * Assert that an element has focus.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-focused
+   */
+  async assertFocused(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; focused: boolean }> {
+    return this.assertionActions.assertFocused(
+      sessionId,
+      pageId,
+      selector,
+      options
+    );
+  }
+
+  /**
+   * Assert element count for a selector.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-count
+   */
+  async assertCount(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    expectedCount: number,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; actualCount: number }> {
+    return this.assertionActions.assertCount(
+      sessionId,
+      pageId,
+      selector,
+      expectedCount,
+      options
+    );
+  }
+
+  /**
+   * Assert that an element has a specific CSS property value.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-css
+   */
+  async assertCss(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    property: string,
+    expectedValue: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; actualValue?: string }> {
+    return this.assertionActions.assertCss(
+      sessionId,
+      pageId,
+      selector,
+      property,
+      expectedValue,
+      options
+    );
+  }
+
   // ============================================
   // Security / Scripts
   // ============================================
@@ -762,9 +863,18 @@ export class BrowserManager {
   // Tracing & Storage
   // ============================================
 
+  /**
+   * Start tracing for a session.
+   *
+   * @see https://playwright.dev/docs/trace-viewer
+   */
   async startTracing(
     sessionId: string,
-    options: { screenshots?: boolean; snapshots?: boolean } = {}
+    options: {
+      screenshots?: boolean;
+      snapshots?: boolean;
+      sources?: boolean;
+    } = {}
   ): Promise<{ success: boolean }> {
     const session = this.sessionManager.getSession(sessionId);
     await session.context.tracing.start(options);
@@ -772,6 +882,11 @@ export class BrowserManager {
     return { success: true };
   }
 
+  /**
+   * Stop tracing and save to a file.
+   *
+   * @see https://playwright.dev/docs/trace-viewer
+   */
   async stopTracing(
     sessionId: string,
     path: string
@@ -780,6 +895,39 @@ export class BrowserManager {
     await session.context.tracing.stop({ path });
     this.sessionManager.updateActivity(sessionId);
     return { success: true, path };
+  }
+
+  /**
+   * Start a named group in tracing for better organization in Trace Viewer.
+   *
+   * Groups help organize related actions in the trace viewer, making it easier
+   * to navigate and understand complex test flows.
+   *
+   * @see https://playwright.dev/docs/api/class-tracing#tracing-group
+   */
+  async startTracingGroup(
+    sessionId: string,
+    name: string,
+    options: {
+      location?: { file: string; line?: number; column?: number };
+    } = {}
+  ): Promise<{ success: boolean; groupName: string }> {
+    const session = this.sessionManager.getSession(sessionId);
+    await session.context.tracing.group(name, options);
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true, groupName: name };
+  }
+
+  /**
+   * End the current tracing group.
+   *
+   * @see https://playwright.dev/docs/api/class-tracing#tracing-group-end
+   */
+  async endTracingGroup(sessionId: string): Promise<{ success: boolean }> {
+    const session = this.sessionManager.getSession(sessionId);
+    await session.context.tracing.groupEnd();
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true };
   }
 
   async saveStorageState(
@@ -801,6 +949,222 @@ export class BrowserManager {
       sessionId: result.sessionId,
       browserType: result.browserType,
     };
+  }
+
+  // ============================================
+  // Clock Mocking
+  // ============================================
+
+  /**
+   * Install fake clock on a page for time-dependent testing.
+   *
+   * This allows controlling time in the page, which is useful for testing:
+   * - Animations and transitions
+   * - Timeouts and intervals
+   * - Date-dependent functionality
+   *
+   * @see https://playwright.dev/docs/clock
+   */
+  async installClock(
+    sessionId: string,
+    pageId: string,
+    options: { time?: number | string | Date } = {}
+  ): Promise<{ success: boolean; installedTime?: string }> {
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    const time = options.time ? new Date(options.time) : undefined;
+    await page.clock.install({ time });
+    this.sessionManager.updateActivity(sessionId);
+    return {
+      success: true,
+      installedTime: time?.toISOString() ?? new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Set the clock to a fixed time and freeze it.
+   *
+   * Time will not progress until you call resumeClock() or runClockFor().
+   *
+   * @see https://playwright.dev/docs/api/class-clock#clock-set-fixed-time
+   */
+  async setFixedTime(
+    sessionId: string,
+    pageId: string,
+    time: number | string | Date
+  ): Promise<{ success: boolean; fixedTime: string }> {
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    const fixedDate = new Date(time);
+    await page.clock.setFixedTime(fixedDate);
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true, fixedTime: fixedDate.toISOString() };
+  }
+
+  /**
+   * Pause the clock at its current time.
+   *
+   * @see https://playwright.dev/docs/api/class-clock#clock-pause-at
+   */
+  async pauseClock(
+    sessionId: string,
+    pageId: string
+  ): Promise<{ success: boolean; pausedAt: string }> {
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    // Get current time before pausing
+    const currentTime = await page.evaluate(() => Date.now());
+    await page.clock.pauseAt(currentTime);
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true, pausedAt: new Date(currentTime).toISOString() };
+  }
+
+  /**
+   * Resume the clock from its current paused state.
+   *
+   * @see https://playwright.dev/docs/api/class-clock#clock-resume
+   */
+  async resumeClock(
+    sessionId: string,
+    pageId: string
+  ): Promise<{ success: boolean }> {
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    await page.clock.resume();
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true };
+  }
+
+  /**
+   * Advance the clock by a specified duration.
+   *
+   * This triggers all pending timers scheduled within that time range.
+   *
+   * @param duration - Time to advance in milliseconds or human-readable string (e.g., '1:30:00')
+   * @see https://playwright.dev/docs/api/class-clock#clock-run-for
+   */
+  async runClockFor(
+    sessionId: string,
+    pageId: string,
+    duration: number | string
+  ): Promise<{ success: boolean; advancedBy: string }> {
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    await page.clock.runFor(duration);
+    this.sessionManager.updateActivity(sessionId);
+    return {
+      success: true,
+      advancedBy: typeof duration === 'number' ? `${duration}ms` : duration,
+    };
+  }
+
+  /**
+   * Fast-forward time by jumping to a specific point.
+   *
+   * Unlike runClockFor, this does NOT fire any intermediate timers.
+   *
+   * @see https://playwright.dev/docs/api/class-clock#clock-fast-forward
+   */
+  async fastForwardClock(
+    sessionId: string,
+    pageId: string,
+    ticks: number | string
+  ): Promise<{ success: boolean; fastForwardedBy: string }> {
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    await page.clock.fastForward(ticks);
+    this.sessionManager.updateActivity(sessionId);
+    return {
+      success: true,
+      fastForwardedBy: typeof ticks === 'number' ? `${ticks}ms` : ticks,
+    };
+  }
+
+  /**
+   * Set the system time without affecting timer execution.
+   *
+   * @see https://playwright.dev/docs/api/class-clock#clock-set-system-time
+   */
+  async setSystemTime(
+    sessionId: string,
+    pageId: string,
+    time: number | string | Date
+  ): Promise<{ success: boolean; systemTime: string }> {
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    const newTime = new Date(time);
+    await page.clock.setSystemTime(newTime);
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true, systemTime: newTime.toISOString() };
+  }
+
+  // ============================================
+  // HAR Mocking
+  // ============================================
+
+  /**
+   * Route network requests using a HAR file for mock responses.
+   *
+   * HAR (HTTP Archive) files record network traffic and can be used to:
+   * - Replay recorded network responses for consistent testing
+   * - Mock API responses without hitting real servers
+   * - Test offline scenarios
+   *
+   * You can record HAR files using:
+   * - Browser DevTools (Network tab > Export HAR)
+   * - Playwright's recordHar context option
+   *
+   * @see https://playwright.dev/docs/mock#mocking-with-har-files
+   */
+  async routeFromHAR(
+    sessionId: string,
+    pageId: string,
+    harPath: string,
+    options: {
+      url?: string | RegExp;
+      notFound?: 'abort' | 'fallback';
+      update?: boolean;
+      updateContent?: 'embed' | 'attach';
+      updateMode?: 'full' | 'minimal';
+    } = {}
+  ): Promise<{ success: boolean; harPath: string }> {
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    await page.routeFromHAR(harPath, options);
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true, harPath };
+  }
+
+  /**
+   * Route network requests at the context level using a HAR file.
+   *
+   * This applies the HAR mocking to ALL pages in the browser context.
+   *
+   * @see https://playwright.dev/docs/mock#mocking-with-har-files
+   */
+  async contextRouteFromHAR(
+    sessionId: string,
+    harPath: string,
+    options: {
+      url?: string | RegExp;
+      notFound?: 'abort' | 'fallback';
+      update?: boolean;
+      updateContent?: 'embed' | 'attach';
+      updateMode?: 'full' | 'minimal';
+    } = {}
+  ): Promise<{ success: boolean; harPath: string }> {
+    const session = this.sessionManager.getSession(sessionId);
+    await session.context.routeFromHAR(harPath, options);
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true, harPath };
+  }
+
+  /**
+   * Unroute all HAR-based routes for a page.
+   *
+   * @see https://playwright.dev/docs/api/class-page#page-unroute-all
+   */
+  async unrouteAll(
+    sessionId: string,
+    pageId: string,
+    options: { behavior?: 'wait' | 'ignoreErrors' | 'default' } = {}
+  ): Promise<{ success: boolean }> {
+    const page = this.sessionManager.getPage(sessionId, pageId);
+    await page.unrouteAll(options);
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true };
   }
 
   // ============================================

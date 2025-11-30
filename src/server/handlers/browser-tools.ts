@@ -7,10 +7,14 @@
  * - browser_resize: Resize viewport
  * - browser_tabs: Manage browser tabs
  * - sessions_list: List active sessions
+ * - save_storage_state: Save auth state
+ * - launch_with_auth: Launch with saved auth
+ * - session_reset_state: Clear session state
+ * - page_prepare: Configure page settings
  */
 import { z } from 'zod';
 
-import type { ToolContext } from './types.js';
+import { basePageInput, type ToolContext } from './types.js';
 
 export function registerBrowserTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -148,8 +152,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       title: 'Resize Browser',
       description: 'Resize the browser viewport',
       inputSchema: {
-        sessionId: z.string().describe('Browser session ID'),
-        pageId: z.string().describe('Page ID'),
+        ...basePageInput,
         width: z.number().min(320).max(3840).describe('Viewport width'),
         height: z.number().min(240).max(2160).describe('Viewport height'),
       },
@@ -391,8 +394,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       description:
         'Configure page settings for testing (viewport, geolocation, permissions, color scheme, etc.)',
       inputSchema: {
-        sessionId: z.string().describe('Browser session ID'),
-        pageId: z.string().describe('Page ID'),
+        ...basePageInput,
         viewport: z
           .object({
             width: z.number().min(320).max(3840),

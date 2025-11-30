@@ -13,25 +13,12 @@
 import { z } from 'zod';
 
 import { ARIA_ROLES } from '../../types/index.js';
-import type { ToolContext } from './types.js';
-
-// Shared locator input schemas
-const baseLocatorInput = {
-  sessionId: z.string().describe('Browser session ID'),
-  pageId: z.string().describe('Page ID'),
-  timeout: z.number().default(5000).describe('Timeout in milliseconds'),
-};
-
-const clickOptions = {
-  force: z
-    .boolean()
-    .default(false)
-    .describe('Force click even if not actionable'),
-};
-
-const exactMatchOption = {
-  exact: z.boolean().default(false).describe('Whether match should be exact'),
-};
+import {
+  baseLocatorInput,
+  exactMatchOption,
+  forceOption,
+  type ToolContext,
+} from './types.js';
 
 export function registerLocatorTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -53,7 +40,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
             'Accessible name to filter by (button text, link text, etc.)'
           ),
         ...exactMatchOption,
-        ...clickOptions,
+        ...forceOption,
       },
       outputSchema: {
         success: z.boolean(),
@@ -133,7 +120,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
         ...baseLocatorInput,
         text: z.string().describe('Text content to find'),
         ...exactMatchOption,
-        ...clickOptions,
+        ...forceOption,
       },
       outputSchema: {
         success: z.boolean(),
@@ -211,7 +198,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
       inputSchema: {
         ...baseLocatorInput,
         testId: z.string().describe('Test ID (data-testid value)'),
-        ...clickOptions,
+        ...forceOption,
       },
       outputSchema: {
         success: z.boolean(),
@@ -284,7 +271,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
         ...baseLocatorInput,
         altText: z.string().describe('Alt text of the image'),
         ...exactMatchOption,
-        ...clickOptions,
+        ...forceOption,
       },
       outputSchema: {
         success: z.boolean(),

@@ -40,6 +40,16 @@ export { registerTestTools } from './test-tools.js';
 
 // Re-export types and utilities
 export {
+  // Shared Zod schemas for DRY tool definitions
+  baseLocatorInput,
+  basePageInput,
+  exactMatchOption,
+  forceOption,
+  longTimeoutOption,
+  selectorInput,
+  selectorWithTimeout,
+  timeoutOption,
+  // Response builders and utilities
   createToolHandlerFactory,
   imageResponse,
   successResponse,

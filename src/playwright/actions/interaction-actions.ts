@@ -5,33 +5,60 @@ import * as security from '../security.js';
 import { SessionManager } from '../session-manager.js';
 import { executePageOperation } from '../utils/execution-helper.js';
 
+/**
+ * Interaction Actions Module
+ *
+ * Handles element interactions with Playwright's actionability checks.
+ *
+ * **Trial Mode (trial: true)**:
+ * When trial is set to true, Playwright performs all actionability checks
+ * without actually executing the action. This is useful for:
+ * - Validating that an element is clickable before clicking
+ * - Debugging why an action might fail
+ * - Dry-run scenarios
+ *
+ * @see https://playwright.dev/docs/actionability
+ */
 export class InteractionActions {
   constructor(
     private sessionManager: SessionManager,
     private logger: Logger
   ) {}
 
+  /**
+   * Click on an element with optional trial mode for dry-run validation.
+   *
+   * @param options.trial - When true, performs actionability checks without clicking
+   * @see https://playwright.dev/docs/api/class-locator#locator-click-option-trial
+   */
   async clickElement(options: ElementInteractionOptions): Promise<{
     success: boolean;
     elementInfo?: Record<string, unknown> | null;
+    trialRun?: boolean;
   }> {
-    const { sessionId, pageId, selector, timeout, force } = options;
+    const { sessionId, pageId, selector, timeout, force, trial } = options;
 
     return executePageOperation(
       this.sessionManager,
       this.logger,
       sessionId,
       pageId,
-      'Click element',
+      trial ? 'Trial click element' : 'Click element',
       async (page) => {
         const elementInfo = await pageActions.getElementInfo(page, selector);
-        await pageActions.clickElement(page, selector, { force, timeout });
-        return { success: true, elementInfo };
+        // Use locator.click with trial option for dry-run validation
+        await page.locator(selector).click({ force, timeout, trial });
+        return { success: true, elementInfo, trialRun: trial ?? false };
       },
-      { selector }
+      { selector, trial }
     );
   }
 
+  /**
+   * Fill an input with text.
+   *
+   * @see https://playwright.dev/docs/api/class-locator#locator-fill
+   */
   async fillInput(
     options: ElementInteractionOptions & { text: string }
   ): Promise<{ success: boolean }> {
@@ -50,21 +77,28 @@ export class InteractionActions {
     );
   }
 
+  /**
+   * Hover over an element with optional trial mode.
+   *
+   * @param options.trial - When true, performs actionability checks without hovering
+   * @see https://playwright.dev/docs/api/class-locator#locator-hover-option-trial
+   */
   async hoverElement(
     options: ElementInteractionOptions
-  ): Promise<{ success: boolean }> {
-    const { sessionId, pageId, selector, timeout } = options;
+  ): Promise<{ success: boolean; trialRun?: boolean }> {
+    const { sessionId, pageId, selector, timeout, trial } = options;
     return executePageOperation(
       this.sessionManager,
       this.logger,
       sessionId,
       pageId,
-      'Hover element',
+      trial ? 'Trial hover element' : 'Hover element',
       async (page) => {
-        await pageActions.hoverElement(page, selector, { timeout });
-        return { success: true };
+        // Use locator.hover with trial option
+        await page.locator(selector).hover({ timeout, trial });
+        return { success: true, trialRun: trial ?? false };
       },
-      { selector }
+      { selector, trial }
     );
   }
 
@@ -199,6 +233,106 @@ export class InteractionActions {
         return pageActions.clickAt(page, x, y, options);
       },
       { x, y, ...options }
+    );
+  }
+
+  /**
+   * Double-click on an element with optional trial mode.
+   *
+   * @param options.trial - When true, performs actionability checks without double-clicking
+   * @see https://playwright.dev/docs/api/class-locator#locator-dblclick
+   */
+  async doubleClickElement(
+    options: ElementInteractionOptions
+  ): Promise<{ success: boolean; trialRun?: boolean }> {
+    const { sessionId, pageId, selector, timeout, force, trial } = options;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      trial ? 'Trial double-click element' : 'Double-click element',
+      async (page) => {
+        await page.locator(selector).dblclick({ force, timeout, trial });
+        return { success: true, trialRun: trial ?? false };
+      },
+      { selector, trial }
+    );
+  }
+
+  /**
+   * Focus on an element.
+   *
+   * @see https://playwright.dev/docs/api/class-locator#locator-focus
+   */
+  async focusElement(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean }> {
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Focus element',
+      async (page) => {
+        await page.locator(selector).focus({ timeout: options.timeout });
+        return { success: true };
+      },
+      { selector }
+    );
+  }
+
+  /**
+   * Blur (unfocus) an element.
+   *
+   * @see https://playwright.dev/docs/api/class-locator#locator-blur
+   */
+  async blurElement(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean }> {
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Blur element',
+      async (page) => {
+        await page.locator(selector).blur({ timeout: options.timeout });
+        return { success: true };
+      },
+      { selector }
+    );
+  }
+
+  /**
+   * Clear input field content.
+   *
+   * @see https://playwright.dev/docs/api/class-locator#locator-clear
+   */
+  async clearInput(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean }> {
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Clear input',
+      async (page) => {
+        await page.locator(selector).clear({ timeout: options.timeout });
+        return { success: true };
+      },
+      { selector }
     );
   }
 

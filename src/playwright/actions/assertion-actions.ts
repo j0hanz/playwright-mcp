@@ -1,3 +1,18 @@
+/**
+ * Assertion Actions Module
+ *
+ * Uses Playwright's web-first assertions with auto-retry capability.
+ * These assertions wait until the expected condition is met or timeout.
+ *
+ * **Best Practices Applied:**
+ * - Use expect() assertions instead of manual waitFor + check pattern
+ * - Auto-retry eliminates flakiness from timing issues
+ * - Clear error messages with expected vs actual values
+ *
+ * @see https://playwright.dev/docs/test-assertions
+ */
+import { expect } from '@playwright/test';
+
 import config from '../../config/server-config.js';
 import { Logger } from '../../utils/logger.js';
 import { SessionManager } from '../session-manager.js';
@@ -13,6 +28,11 @@ export class AssertionActions {
     private logger: Logger
   ) {}
 
+  /**
+   * Assert that an element is hidden using Playwright's toBeHidden() assertion.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-hidden
+   */
   async assertHidden(
     sessionId: string,
     pageId: string,
@@ -30,7 +50,8 @@ export class AssertionActions {
       async (page) => {
         const locator = page.locator(selector);
         try {
-          await locator.waitFor({ state: 'hidden', timeout });
+          // Use Playwright's built-in web-first assertion with auto-retry
+          await expect(locator).toBeHidden({ timeout });
           return { success: true, hidden: true };
         } catch {
           const isHidden = await locator.isHidden().catch(() => true);
@@ -41,6 +62,11 @@ export class AssertionActions {
     );
   }
 
+  /**
+   * Assert that an element is visible using Playwright's toBeVisible() assertion.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-visible
+   */
   async assertVisible(
     sessionId: string,
     pageId: string,
@@ -58,7 +84,8 @@ export class AssertionActions {
       async (page) => {
         const locator = page.locator(selector);
         try {
-          await locator.waitFor({ state: 'visible', timeout });
+          // Use Playwright's built-in web-first assertion with auto-retry
+          await expect(locator).toBeVisible({ timeout });
           return { success: true, visible: true };
         } catch {
           const isVisible = await locator.isVisible().catch(() => false);
@@ -69,6 +96,12 @@ export class AssertionActions {
     );
   }
 
+  /**
+   * Assert element text using Playwright's toHaveText() or toContainText() assertions.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-text
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-contain-text
+   */
   async assertText(
     sessionId: string,
     pageId: string,
@@ -88,21 +121,14 @@ export class AssertionActions {
         const locator = page.locator(selector);
 
         try {
-          await locator.waitFor({ state: 'visible', timeout });
-
-          const actualText = (await locator.textContent({ timeout })) ?? '';
-          const trimmedActual = actualText.trim();
-          const trimmedExpected = expectedText.trim();
-
-          const matches = exact
-            ? trimmedActual === trimmedExpected
-            : trimmedActual.includes(trimmedExpected);
-
-          if (matches) {
-            return { success: true, actualText: trimmedActual };
+          // Use Playwright's built-in web-first assertions
+          if (exact) {
+            await expect(locator).toHaveText(expectedText, { timeout });
+          } else {
+            await expect(locator).toContainText(expectedText, { timeout });
           }
-
-          return { success: false, actualText: trimmedActual };
+          const actualText = (await locator.textContent()) ?? '';
+          return { success: true, actualText: actualText.trim() };
         } catch {
           const actualText = await locator.textContent().catch(() => undefined);
           return { success: false, actualText: actualText?.trim() };
@@ -112,6 +138,11 @@ export class AssertionActions {
     );
   }
 
+  /**
+   * Assert element attribute using Playwright's toHaveAttribute() assertion.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-attribute
+   */
   async assertAttribute(
     sessionId: string,
     pageId: string,
@@ -120,6 +151,8 @@ export class AssertionActions {
     expectedValue: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualValue?: string }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
     return executePageOperation(
       this.sessionManager,
       this.logger,
@@ -127,21 +160,16 @@ export class AssertionActions {
       pageId,
       'Assert attribute',
       async (page) => {
-        const { timeout } = options;
+        const locator = page.locator(selector);
         try {
-          await page.waitForSelector(selector, { state: 'attached', timeout });
-          await page.waitForFunction(
-            ({ selector, attribute, expectedValue }) => {
-              const el = document.querySelector(selector);
-              return el?.getAttribute(attribute) === expectedValue;
-            },
-            { selector, attribute, expectedValue },
-            { timeout }
-          );
+          // Use Playwright's built-in web-first assertion
+          await expect(locator).toHaveAttribute(attribute, expectedValue, {
+            timeout,
+          });
           return { success: true, actualValue: expectedValue };
         } catch {
-          const actualValue = await page
-            .getAttribute(selector, attribute)
+          const actualValue = await locator
+            .getAttribute(attribute)
             .catch(() => null);
           return { success: false, actualValue: actualValue ?? undefined };
         }
@@ -150,6 +178,11 @@ export class AssertionActions {
     );
   }
 
+  /**
+   * Assert input value using Playwright's toHaveValue() assertion.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-value
+   */
   async assertValue(
     sessionId: string,
     pageId: string,
@@ -157,6 +190,8 @@ export class AssertionActions {
     expectedValue: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualValue?: string }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
     return executePageOperation(
       this.sessionManager,
       this.logger,
@@ -164,24 +199,13 @@ export class AssertionActions {
       pageId,
       'Assert value',
       async (page) => {
-        const { timeout } = options;
+        const locator = page.locator(selector);
         try {
-          await page.waitForSelector(selector, { state: 'attached', timeout });
-          await page.waitForFunction(
-            ({ selector, expectedValue }) => {
-              const el = document.querySelector(
-                selector
-              ) as unknown as HTMLInputElement | null;
-              return el?.value === expectedValue;
-            },
-            { selector, expectedValue },
-            { timeout }
-          );
+          // Use Playwright's built-in web-first assertion
+          await expect(locator).toHaveValue(expectedValue, { timeout });
           return { success: true, actualValue: expectedValue };
         } catch {
-          const actualValue = await page
-            .inputValue(selector)
-            .catch(() => undefined);
+          const actualValue = await locator.inputValue().catch(() => undefined);
           return { success: false, actualValue };
         }
       },
@@ -189,6 +213,11 @@ export class AssertionActions {
     );
   }
 
+  /**
+   * Assert checkbox/radio state using Playwright's toBeChecked() assertion.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-checked
+   */
   async assertChecked(
     sessionId: string,
     pageId: string,
@@ -196,6 +225,8 @@ export class AssertionActions {
     checked: boolean,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; isChecked?: boolean }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
     return executePageOperation(
       this.sessionManager,
       this.logger,
@@ -203,24 +234,13 @@ export class AssertionActions {
       pageId,
       'Assert checked',
       async (page) => {
-        const { timeout } = options;
+        const locator = page.locator(selector);
         try {
-          await page.waitForSelector(selector, { state: 'attached', timeout });
-          await page.waitForFunction(
-            ({ selector, checked }) => {
-              const el = document.querySelector(
-                selector
-              ) as unknown as HTMLInputElement | null;
-              return el?.checked === checked;
-            },
-            { selector, checked },
-            { timeout }
-          );
+          // Use Playwright's built-in web-first assertion
+          await expect(locator).toBeChecked({ checked, timeout });
           return { success: true, isChecked: checked };
         } catch {
-          const isChecked = await page
-            .isChecked(selector)
-            .catch(() => undefined);
+          const isChecked = await locator.isChecked().catch(() => undefined);
           return { success: false, isChecked };
         }
       },
@@ -228,12 +248,19 @@ export class AssertionActions {
     );
   }
 
+  /**
+   * Assert page URL using Playwright's toHaveURL() assertion.
+   *
+   * @see https://playwright.dev/docs/test-assertions#page-assertions-to-have-url
+   */
   async assertUrl(
     sessionId: string,
     pageId: string,
     expectedUrl: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualUrl?: string }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
     return executePageOperation(
       this.sessionManager,
       this.logger,
@@ -242,7 +269,8 @@ export class AssertionActions {
       'Assert URL',
       async (page) => {
         try {
-          await page.waitForURL(expectedUrl, { timeout: options.timeout });
+          // Use Playwright's built-in web-first page assertion
+          await expect(page).toHaveURL(expectedUrl, { timeout });
           return { success: true, actualUrl: page.url() };
         } catch {
           return { success: false, actualUrl: page.url() };
@@ -252,12 +280,19 @@ export class AssertionActions {
     );
   }
 
+  /**
+   * Assert page title using Playwright's toHaveTitle() assertion.
+   *
+   * @see https://playwright.dev/docs/test-assertions#page-assertions-to-have-title
+   */
   async assertTitle(
     sessionId: string,
     pageId: string,
     expectedTitle: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualTitle?: string }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
     return executePageOperation(
       this.sessionManager,
       this.logger,
@@ -266,17 +301,193 @@ export class AssertionActions {
       'Assert title',
       async (page) => {
         try {
-          await page.waitForFunction(
-            (title) => document.title === title,
-            expectedTitle,
-            { timeout: options.timeout }
-          );
+          // Use Playwright's built-in web-first page assertion
+          await expect(page).toHaveTitle(expectedTitle, { timeout });
           return { success: true, actualTitle: expectedTitle };
         } catch {
           return { success: false, actualTitle: await page.title() };
         }
       },
       { expectedTitle }
+    );
+  }
+
+  /**
+   * Assert that an element is enabled.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-enabled
+   */
+  async assertEnabled(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; enabled: boolean }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Assert enabled',
+      async (page) => {
+        const locator = page.locator(selector);
+        try {
+          await expect(locator).toBeEnabled({ timeout });
+          return { success: true, enabled: true };
+        } catch {
+          const isEnabled = await locator.isEnabled().catch(() => false);
+          return { success: false, enabled: isEnabled };
+        }
+      },
+      { selector }
+    );
+  }
+
+  /**
+   * Assert that an element is disabled.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-disabled
+   */
+  async assertDisabled(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; disabled: boolean }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Assert disabled',
+      async (page) => {
+        const locator = page.locator(selector);
+        try {
+          await expect(locator).toBeDisabled({ timeout });
+          return { success: true, disabled: true };
+        } catch {
+          const isDisabled = await locator.isDisabled().catch(() => false);
+          return { success: false, disabled: isDisabled };
+        }
+      },
+      { selector }
+    );
+  }
+
+  /**
+   * Assert that an element has focus.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-focused
+   */
+  async assertFocused(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; focused: boolean }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Assert focused',
+      async (page) => {
+        const locator = page.locator(selector);
+        try {
+          await expect(locator).toBeFocused({ timeout });
+          return { success: true, focused: true };
+        } catch {
+          // No direct isFocused, check via evaluate
+          const focused = await page
+            .evaluate(
+              (sel) => document.activeElement === document.querySelector(sel),
+              selector
+            )
+            .catch(() => false);
+          return { success: false, focused };
+        }
+      },
+      { selector }
+    );
+  }
+
+  /**
+   * Assert element count for a selector.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-count
+   */
+  async assertCount(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    expectedCount: number,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; actualCount: number }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Assert count',
+      async (page) => {
+        const locator = page.locator(selector);
+        try {
+          await expect(locator).toHaveCount(expectedCount, { timeout });
+          return { success: true, actualCount: expectedCount };
+        } catch {
+          const actualCount = await locator.count();
+          return { success: false, actualCount };
+        }
+      },
+      { selector, expectedCount }
+    );
+  }
+
+  /**
+   * Assert that an element has a specific CSS property value.
+   *
+   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-css
+   */
+  async assertCss(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    property: string,
+    expectedValue: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean; actualValue?: string }> {
+    const timeout = options.timeout ?? TIMEOUTS.ASSERTION;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Assert CSS',
+      async (page) => {
+        const locator = page.locator(selector);
+        try {
+          await expect(locator).toHaveCSS(property, expectedValue, { timeout });
+          return { success: true, actualValue: expectedValue };
+        } catch {
+          const actualValue = await locator
+            .evaluate(
+              (el, prop) => getComputedStyle(el).getPropertyValue(prop),
+              property
+            )
+            .catch(() => undefined);
+          return { success: false, actualValue };
+        }
+      },
+      { selector, property, expectedValue }
     );
   }
 }

@@ -4,13 +4,13 @@
  * Handles page navigation operations:
  * - browser_navigate: Navigate to URL
  * - browser_navigate_back: Go back in history
- * - wait_for_selector: Wait for element
- * - wait_for_url: Wait for URL change
- * - wait_for_load_state: Wait for page load
+ *
+ * Note: wait_for_selector, wait_for_url, wait_for_load_state tools
+ * are in page-tools.ts to follow DRY principle.
  */
 import { z } from 'zod';
 
-import type { ToolContext } from './types.js';
+import { basePageInput, type ToolContext } from './types.js';
 
 export function registerNavigationTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -60,10 +60,7 @@ export function registerNavigationTools(ctx: ToolContext): void {
     {
       title: 'Navigate Back',
       description: 'Go back to the previous page in browser history',
-      inputSchema: {
-        sessionId: z.string().describe('Browser session ID'),
-        pageId: z.string().describe('Page ID'),
-      },
+      inputSchema: basePageInput,
       outputSchema: {
         success: z.boolean(),
         url: z.string().optional(),
@@ -83,53 +80,4 @@ export function registerNavigationTools(ctx: ToolContext): void {
       };
     }, 'Error navigating back')
   );
-
-  // Wait for Selector Tool
-  server.registerTool(
-    'wait_for_selector',
-    {
-      title: 'Wait for Selector',
-      description: 'Wait for an element to appear or disappear',
-      inputSchema: {
-        sessionId: z.string().describe('Browser session ID'),
-        pageId: z.string().describe('Page ID'),
-        selector: z.string().describe('CSS selector'),
-        state: z
-          .enum(['visible', 'hidden', 'attached', 'detached'])
-          .default('visible')
-          .describe('State to wait for'),
-        timeout: z.number().default(5000).describe('Timeout in milliseconds'),
-      },
-      outputSchema: {
-        found: z.boolean(),
-      },
-    },
-    createToolHandler(
-      async ({ sessionId, pageId, selector, state, timeout }) => {
-        const result = await browserManager.waitForSelector(
-          sessionId,
-          pageId,
-          selector,
-          { state, timeout }
-        );
-
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: result.found
-                ? `Element ${selector} is ${state}`
-                : `Element ${selector} not found`,
-            },
-          ],
-          structuredContent: result,
-        };
-      },
-      'Error waiting for selector'
-    )
-  );
-
-  // Note: Additional wait tools (wait_for_url, wait_for_load_state, wait_for_network_idle)
-  // can be added once the corresponding methods are implemented in BrowserManager.
-  // The page-actions.ts module provides the underlying functionality.
 }

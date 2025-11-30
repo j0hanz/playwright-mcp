@@ -37,6 +37,7 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 
 import type { BrowserManager } from '../../playwright/browser-manager.js';
 import {
@@ -590,3 +591,72 @@ export function createResponseBuilder(requestId?: string) {
       paginatedResponse(message, items, params),
   };
 }
+
+// ============================================
+// Shared Zod Schemas
+// ============================================
+
+/**
+ * Base page input schema - sessionId and pageId required for most page operations.
+ * @example { ...basePageInput, selector: z.string() }
+ */
+export const basePageInput = {
+  sessionId: z.string().describe('Browser session ID'),
+  pageId: z.string().describe('Page ID'),
+} as const;
+
+/**
+ * Timeout option schema - configurable timeout with sensible default.
+ * @example { ...basePageInput, ...timeoutOption }
+ */
+export const timeoutOption = {
+  timeout: z.number().default(5000).describe('Timeout in milliseconds'),
+} as const;
+
+/**
+ * Extended timeout option for navigation/loading operations.
+ */
+export const longTimeoutOption = {
+  timeout: z.number().default(30000).describe('Timeout in milliseconds'),
+} as const;
+
+/**
+ * Force click option - bypass actionability checks.
+ */
+export const forceOption = {
+  force: z
+    .boolean()
+    .default(false)
+    .describe('Force action even if element is not actionable'),
+} as const;
+
+/**
+ * Exact match option for text/label matching.
+ */
+export const exactMatchOption = {
+  exact: z.boolean().default(false).describe('Whether match should be exact'),
+} as const;
+
+/**
+ * Selector input schema - CSS selector with session/page context.
+ */
+export const selectorInput = {
+  ...basePageInput,
+  selector: z.string().describe('CSS selector for the element'),
+} as const;
+
+/**
+ * Base locator input - session, page, and timeout for locator operations.
+ */
+export const baseLocatorInput = {
+  ...basePageInput,
+  ...timeoutOption,
+} as const;
+
+/**
+ * Combined selector with timeout - common pattern for element operations.
+ */
+export const selectorWithTimeout = {
+  ...selectorInput,
+  ...timeoutOption,
+} as const;

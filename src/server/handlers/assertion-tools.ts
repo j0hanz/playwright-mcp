@@ -10,22 +10,19 @@
  * - assert_checked: Assert checkbox/radio state
  * - assert_url: Assert page URL
  * - assert_title: Assert page title
+ * - assert_enabled: Assert element is enabled
+ * - assert_disabled: Assert element is disabled
+ * - assert_focused: Assert element has focus
+ * - assert_count: Assert element count
+ * - assert_css: Assert CSS property value
  */
 import { z } from 'zod';
 
-import type { ToolContext } from './types.js';
-
-// Shared assertion input schemas
-const baseAssertionInput = {
-  sessionId: z.string().describe('Browser session ID'),
-  pageId: z.string().describe('Page ID'),
-  timeout: z.number().default(5000).describe('Timeout in milliseconds'),
-};
-
-const selectorAssertionInput = {
-  ...baseAssertionInput,
-  selector: z.string().describe('CSS selector for the element'),
-};
+import {
+  baseLocatorInput,
+  selectorWithTimeout,
+  type ToolContext,
+} from './types.js';
 
 export function registerAssertionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -37,7 +34,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       title: 'Assert Element Visible',
       description:
         'Assert that an element is visible on the page (web-first assertion with auto-waiting)',
-      inputSchema: selectorAssertionInput,
+      inputSchema: selectorWithTimeout,
       outputSchema: {
         success: z.boolean(),
         visible: z.boolean(),
@@ -72,7 +69,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       title: 'Assert Element Hidden',
       description:
         'Assert that an element is hidden or not present (web-first assertion with auto-waiting)',
-      inputSchema: selectorAssertionInput,
+      inputSchema: selectorWithTimeout,
       outputSchema: {
         success: z.boolean(),
         hidden: z.boolean(),
@@ -108,7 +105,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       description:
         'Assert that an element has or contains specific text (web-first assertion)',
       inputSchema: {
-        ...selectorAssertionInput,
+        ...selectorWithTimeout,
         expectedText: z.string().describe('Expected text content'),
         exact: z
           .boolean()
@@ -153,7 +150,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       title: 'Assert Element Attribute',
       description: 'Assert that an element has a specific attribute value',
       inputSchema: {
-        ...selectorAssertionInput,
+        ...selectorWithTimeout,
         attribute: z.string().describe('Attribute name'),
         expectedValue: z.string().describe('Expected attribute value'),
       },
@@ -203,7 +200,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       title: 'Assert Input Value',
       description: 'Assert that an input element has a specific value',
       inputSchema: {
-        ...selectorAssertionInput,
+        ...selectorWithTimeout,
         expectedValue: z.string().describe('Expected input value'),
       },
       outputSchema: {
@@ -245,7 +242,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       description:
         'Assert that a checkbox or radio button is checked or unchecked',
       inputSchema: {
-        ...selectorAssertionInput,
+        ...selectorWithTimeout,
         checked: z.boolean().default(true).describe('Expected checked state'),
       },
       outputSchema: {
@@ -286,7 +283,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       title: 'Assert Page URL',
       description: 'Assert that the page has a specific URL',
       inputSchema: {
-        ...baseAssertionInput,
+        ...baseLocatorInput,
         expectedUrl: z
           .string()
           .describe('Expected URL (string or regex pattern)'),
@@ -325,7 +322,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       title: 'Assert Page Title',
       description: 'Assert that the page has a specific title',
       inputSchema: {
-        ...baseAssertionInput,
+        ...baseLocatorInput,
         expectedTitle: z.string().describe('Expected page title'),
       },
       outputSchema: {
@@ -353,5 +350,204 @@ export function registerAssertionTools(ctx: ToolContext): void {
         structuredContent: result,
       };
     }, 'Error asserting title')
+  );
+
+  // Assert Enabled Tool
+  server.registerTool(
+    'assert_enabled',
+    {
+      title: 'Assert Element Enabled',
+      description:
+        'Assert that an element is enabled (web-first assertion with auto-waiting)',
+      inputSchema: selectorWithTimeout,
+      outputSchema: {
+        success: z.boolean(),
+        enabled: z.boolean(),
+      },
+    },
+    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
+      const result = await browserManager.assertEnabled(
+        sessionId,
+        pageId,
+        selector,
+        { timeout }
+      );
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: result.success
+              ? `✓ Element ${selector} is enabled`
+              : `✗ Element ${selector} is NOT enabled`,
+          },
+        ],
+        structuredContent: result,
+      };
+    }, 'Error asserting enabled')
+  );
+
+  // Assert Disabled Tool
+  server.registerTool(
+    'assert_disabled',
+    {
+      title: 'Assert Element Disabled',
+      description:
+        'Assert that an element is disabled (web-first assertion with auto-waiting)',
+      inputSchema: selectorWithTimeout,
+      outputSchema: {
+        success: z.boolean(),
+        disabled: z.boolean(),
+      },
+    },
+    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
+      const result = await browserManager.assertDisabled(
+        sessionId,
+        pageId,
+        selector,
+        { timeout }
+      );
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: result.success
+              ? `✓ Element ${selector} is disabled`
+              : `✗ Element ${selector} is NOT disabled`,
+          },
+        ],
+        structuredContent: result,
+      };
+    }, 'Error asserting disabled')
+  );
+
+  // Assert Focused Tool
+  server.registerTool(
+    'assert_focused',
+    {
+      title: 'Assert Element Focused',
+      description:
+        'Assert that an element has focus (web-first assertion with auto-waiting)',
+      inputSchema: selectorWithTimeout,
+      outputSchema: {
+        success: z.boolean(),
+        focused: z.boolean(),
+      },
+    },
+    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
+      const result = await browserManager.assertFocused(
+        sessionId,
+        pageId,
+        selector,
+        { timeout }
+      );
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: result.success
+              ? `✓ Element ${selector} has focus`
+              : `✗ Element ${selector} does NOT have focus`,
+          },
+        ],
+        structuredContent: result,
+      };
+    }, 'Error asserting focused')
+  );
+
+  // Assert Count Tool
+  server.registerTool(
+    'assert_count',
+    {
+      title: 'Assert Element Count',
+      description:
+        'Assert that the number of elements matching the selector equals expected count',
+      inputSchema: {
+        ...selectorWithTimeout,
+        expectedCount: z.number().describe('Expected number of elements'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        actualCount: z.number(),
+      },
+    },
+    createToolHandler(
+      async ({ sessionId, pageId, selector, expectedCount, timeout }) => {
+        const result = await browserManager.assertCount(
+          sessionId,
+          pageId,
+          selector,
+          expectedCount,
+          { timeout }
+        );
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: result.success
+                ? `✓ Found ${expectedCount} element(s) matching ${selector}`
+                : `✗ Expected ${expectedCount} element(s), found ${result.actualCount}`,
+            },
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error asserting count'
+    )
+  );
+
+  // Assert CSS Tool
+  server.registerTool(
+    'assert_css',
+    {
+      title: 'Assert CSS Property',
+      description: 'Assert that an element has a specific CSS property value',
+      inputSchema: {
+        ...selectorWithTimeout,
+        property: z
+          .string()
+          .describe('CSS property name (e.g., "color", "display")'),
+        expectedValue: z.string().describe('Expected CSS property value'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        actualValue: z.string().optional(),
+      },
+    },
+    createToolHandler(
+      async ({
+        sessionId,
+        pageId,
+        selector,
+        property,
+        expectedValue,
+        timeout,
+      }) => {
+        const result = await browserManager.assertCss(
+          sessionId,
+          pageId,
+          selector,
+          property,
+          expectedValue,
+          { timeout }
+        );
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: result.success
+                ? `✓ CSS ${property}="${expectedValue}"`
+                : `✗ Expected ${property}="${expectedValue}", got "${result.actualValue}"`,
+            },
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error asserting CSS'
+    )
   );
 }
