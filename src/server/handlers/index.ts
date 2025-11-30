@@ -3,8 +3,12 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { BrowserManager } from '../../playwright/browser-manager.js';
 import { Logger } from '../../utils/logger.js';
 import { registerAssertionTools } from './assertion-tools.js';
+import { registerBrowserTools } from './browser-tools.js';
+import { registerInteractionTools } from './interaction-tools.js';
 import { registerLocatorTools } from './locator-tools.js';
+import { registerNavigationTools } from './navigation-tools.js';
 import { registerPageTools } from './page-tools.js';
+import { registerTestTools } from './test-tools.js';
 import { createToolHandlerFactory, type ToolContext } from './types.js';
 
 /**
@@ -20,28 +24,30 @@ import { createToolHandlerFactory, type ToolContext } from './types.js';
  * - Browser Tools: Session management (launch, close, navigate)
  * - Navigation Tools: URL navigation and history
  * - Interaction Tools: Element interactions (click, fill, hover)
+ * - Test Tools: Test planning and generation
  */
 
 // Re-export existing handlers for backward compatibility
 export { registerBrowserTools } from './browser-tools.js';
-export { registerNavigationTools } from './navigation-tools.js';
 export { registerInteractionTools } from './interaction-tools.js';
+export { registerNavigationTools } from './navigation-tools.js';
 
 // Re-export new modular handlers
 export { registerAssertionTools } from './assertion-tools.js';
 export { registerLocatorTools } from './locator-tools.js';
 export { registerPageTools } from './page-tools.js';
+export { registerTestTools } from './test-tools.js';
 
 // Re-export types and utilities
 export {
-  toolErrorResponse,
   createToolHandlerFactory,
-  successResponse,
   imageResponse,
-  type ToolContext,
-  type ToolResponse,
+  successResponse,
+  toolErrorResponse,
   type ErrorResponse,
+  type ToolContext,
   type ToolRegistrationFn,
+  type ToolResponse,
 } from './types.js';
 
 /**
@@ -72,9 +78,13 @@ export function registerAllHandlers(
 
   // Register all tool categories
   const registrations = [
+    { name: 'browser', register: registerBrowserTools },
+    { name: 'navigation', register: registerNavigationTools },
+    { name: 'interaction', register: registerInteractionTools },
     { name: 'assertion', register: registerAssertionTools },
     { name: 'locator', register: registerLocatorTools },
     { name: 'page', register: registerPageTools },
+    { name: 'test', register: registerTestTools },
   ];
 
   for (const { name, register } of registrations) {
