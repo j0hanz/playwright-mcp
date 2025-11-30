@@ -10,21 +10,5 @@
   "arrowParens": "always",
   "endOfLine": "lf",
   "jsxSingleQuote": false,
-  "quoteProps": "as-needed",
-  "plugins": ["@trivago/prettier-plugin-sort-imports"],
-  "importOrder": [
-    "^react$",
-    "^react-dom$",
-    "^react(.*)$",
-    "<THIRD_PARTY_MODULES>",
-    "^@/(?!.*\\.css$).*$",
-    "^@components/(?!.*\\.css$).*$",
-    "^@utils/(?!.*\\.css$).*$",
-    "^[./](?!.*\\.css$).*$",
-    "^(.*)\\.css$"
-  ],
-  "importOrderSeparation": true,
-  "importOrderSortSpecifiers": true,
-  "importOrderGroupNamespaceSpecifiers": true,
-  "importOrderCaseInsensitive": true
+  "quoteProps": "as-needed"
 }
