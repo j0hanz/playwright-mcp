@@ -1,6 +1,28 @@
+import path from 'path';
 import { z } from 'zod';
 
+import { ErrorCode, ErrorHandler } from '../../utils/error-handler.js';
 import type { ToolContext } from './types.js';
+
+/**
+ * Validate that a file path is within allowed directories.
+ * Prevents path traversal attacks.
+ */
+function validateArtifactPath(filePath: string): void {
+  const normalizedPath = path.normalize(filePath);
+  const allowedDirs = ['specs', 'tests'];
+  const isAllowed = allowedDirs.some(
+    (dir) =>
+      normalizedPath.startsWith(dir + path.sep) ||
+      normalizedPath.startsWith(dir + '/')
+  );
+  if (!isAllowed) {
+    throw ErrorHandler.createError(
+      ErrorCode.VALIDATION_FAILED,
+      `Path must be within ${allowedDirs.join(' or ')} directory: ${filePath}`
+    );
+  }
+}
 
 export function registerTestTools(ctx: ToolContext): void {
   const { server, createToolHandler, logger } = ctx;
@@ -18,7 +40,9 @@ export function registerTestTools(ctx: ToolContext): void {
           .describe(
             'Test plan name (e.g., Authentication Flow, Shopping Cart)'
           ),
-        description: z.string().describe('High-level description of the test plan'),
+        description: z
+          .string()
+          .describe('High-level description of the test plan'),
         scenarios: z
           .array(
             z.object({
@@ -154,6 +178,9 @@ ${s.expected}
     createToolHandler(async ({ path: filePath, content, reason }) => {
       const { promises: fs } = await import('fs');
 
+      // Validate path is within allowed directories
+      validateArtifactPath(filePath);
+
       await fs.writeFile(filePath, content, 'utf-8');
 
       logger.info('Test file updated', {
@@ -200,6 +227,9 @@ ${s.expected}
     },
     createToolHandler(async ({ path: filePath }) => {
       const { promises: fs } = await import('fs');
+
+      // Validate path is within allowed directories
+      validateArtifactPath(filePath);
 
       const content = await fs.readFile(filePath, 'utf-8');
       const lines = content.split('\n').length;

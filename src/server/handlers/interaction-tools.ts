@@ -14,7 +14,7 @@
 import { z } from 'zod';
 
 import { ARIA_ROLES, type AriaRole } from '../../types/index.js';
-import { type ToolContext, toolErrorResponse } from './types.js';
+import { type ToolContext } from './types.js';
 
 // Helper to create non-empty tuple for zod enum
 function toNonEmptyTuple<T extends readonly [string, ...string[]]>(arr: T): T {
@@ -64,17 +64,17 @@ export function registerInteractionTools(ctx: ToolContext): void {
         elementInfo: z.record(z.string(), z.unknown()).optional(),
       },
     },
-    async ({
-      sessionId,
-      pageId,
-      selector,
-      force,
-      button,
-      clickCount,
-      modifiers,
-      delay,
-    }) => {
-      try {
+    createToolHandler(
+      async ({
+        sessionId,
+        pageId,
+        selector,
+        force,
+        button,
+        clickCount,
+        modifiers,
+        delay,
+      }) => {
         const result = await browserManager.clickElement({
           sessionId,
           pageId,
@@ -92,10 +92,9 @@ export function registerInteractionTools(ctx: ToolContext): void {
           ],
           structuredContent: result,
         };
-      } catch (error) {
-        return toolErrorResponse(`Error clicking element ${selector}`, error);
-      }
-    }
+      },
+      'Error clicking element'
+    )
   );
 
   // Fill Input Tool
@@ -114,28 +113,24 @@ export function registerInteractionTools(ctx: ToolContext): void {
         success: z.boolean(),
       },
     },
-    async ({ sessionId, pageId, selector, text }) => {
-      try {
-        const result = await browserManager.fillInput({
-          sessionId,
-          pageId,
-          selector,
-          text,
-        });
+    createToolHandler(async ({ sessionId, pageId, selector, text }) => {
+      const result = await browserManager.fillInput({
+        sessionId,
+        pageId,
+        selector,
+        text,
+      });
 
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Filled input ${selector} with text`,
-            },
-          ],
-          structuredContent: result,
-        };
-      } catch (error) {
-        return toolErrorResponse(`Error filling input ${selector}`, error);
-      }
-    }
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Filled input ${selector} with text`,
+          },
+        ],
+        structuredContent: result,
+      };
+    }, 'Error filling input')
   );
 
   // Hover Element Tool
@@ -153,27 +148,23 @@ export function registerInteractionTools(ctx: ToolContext): void {
         success: z.boolean(),
       },
     },
-    async ({ sessionId, pageId, selector }) => {
-      try {
-        const result = await browserManager.hoverElement({
-          sessionId,
-          pageId,
-          selector,
-        });
+    createToolHandler(async ({ sessionId, pageId, selector }) => {
+      const result = await browserManager.hoverElement({
+        sessionId,
+        pageId,
+        selector,
+      });
 
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Hovered over element: ${selector}`,
-            },
-          ],
-          structuredContent: result,
-        };
-      } catch (error) {
-        return toolErrorResponse(`Error hovering element ${selector}`, error);
-      }
-    }
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Hovered over element: ${selector}`,
+          },
+        ],
+        structuredContent: result,
+      };
+    }, 'Error hovering element')
   );
 
   // Click by Role Tool (Playwright Best Practice)
@@ -209,8 +200,8 @@ export function registerInteractionTools(ctx: ToolContext): void {
         success: z.boolean(),
       },
     },
-    async ({ sessionId, pageId, role, name, exact, force, timeout }) => {
-      try {
+    createToolHandler(
+      async ({ sessionId, pageId, role, name, exact, force, timeout }) => {
         const result = await browserManager.clickByRole(
           sessionId,
           pageId,
@@ -227,10 +218,9 @@ export function registerInteractionTools(ctx: ToolContext): void {
           ],
           structuredContent: result,
         };
-      } catch (error) {
-        return toolErrorResponse(`Error clicking ${role}`, error);
-      }
-    }
+      },
+      'Error clicking by role'
+    )
   );
 
   // Click by Text Tool
@@ -257,8 +247,8 @@ export function registerInteractionTools(ctx: ToolContext): void {
         success: z.boolean(),
       },
     },
-    async ({ sessionId, pageId, text, exact, force, timeout }) => {
-      try {
+    createToolHandler(
+      async ({ sessionId, pageId, text, exact, force, timeout }) => {
         const result = await browserManager.clickByText(
           sessionId,
           pageId,
@@ -275,10 +265,9 @@ export function registerInteractionTools(ctx: ToolContext): void {
           ],
           structuredContent: result,
         };
-      } catch (error) {
-        return toolErrorResponse('Error clicking by text', error);
-      }
-    }
+      },
+      'Error clicking by text'
+    )
   );
 
   // Click by TestId Tool
@@ -301,28 +290,24 @@ export function registerInteractionTools(ctx: ToolContext): void {
         success: z.boolean(),
       },
     },
-    async ({ sessionId, pageId, testId, force, timeout }) => {
-      try {
-        const result = await browserManager.clickByTestId(
-          sessionId,
-          pageId,
-          testId,
-          { force, timeout }
-        );
+    createToolHandler(async ({ sessionId, pageId, testId, force, timeout }) => {
+      const result = await browserManager.clickByTestId(
+        sessionId,
+        pageId,
+        testId,
+        { force, timeout }
+      );
 
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Clicked element with testId "${testId}"`,
-            },
-          ],
-          structuredContent: result,
-        };
-      } catch (error) {
-        return toolErrorResponse('Error clicking by testId', error);
-      }
-    }
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Clicked element with testId "${testId}"`,
+          },
+        ],
+        structuredContent: result,
+      };
+    }, 'Error clicking by testId')
   );
 
   // Fill by Label Tool
