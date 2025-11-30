@@ -1,13 +1,6 @@
-/**
- * Navigation Tool Handlers
- *
- * Handles page navigation operations:
- * - browser_navigate: Navigate to URL
- * - browser_navigate_back: Go back in history
- *
- * Note: wait_for_selector, wait_for_url, wait_for_load_state tools
- * are in page-tools.ts to follow DRY principle.
- */
+// Navigation Tool Handlers - Page navigation and history operations
+// @see https://playwright.dev/docs/api/class-page#page-goto
+
 import { z } from 'zod';
 
 import { basePageInput, textContent, type ToolContext } from './types.js';

@@ -1,17 +1,6 @@
-/**
- * Browser Tool Handlers
- *
- * Handles browser lifecycle operations:
- * - browser_launch: Launch new browser instances
- * - browser_close: Close browser sessions
- * - browser_resize: Resize viewport
- * - browser_tabs: Manage browser tabs
- * - sessions_list: List active sessions
- * - save_storage_state: Save auth state
- * - launch_with_auth: Launch with saved auth
- * - session_reset_state: Clear session state
- * - page_prepare: Configure page settings
- */
+// Browser Tool Handlers - Browser lifecycle and session management
+// @see https://playwright.dev/docs/api/class-browser
+
 import { z } from 'zod';
 
 import { basePageInput, textContent, type ToolContext } from './types.js';

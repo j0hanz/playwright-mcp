@@ -1,33 +1,6 @@
-/**
- * Page Actions - Wrapper functions around Playwright API
- *
- * This module provides high-level wrapper functions that abstract
- * common Playwright operations. Following MCP best practices for
- * separating browser logic from transport/tool definitions.
- *
- * **Design Principles:**
- * - Use Playwright's recommended locator strategies
- * - Auto-waiting is built into all interactions
- * - Consistent error propagation for upstream handling
- * - Single responsibility - each function does one thing well
- *
- * **Locator Priority (Playwright Best Practices):**
- * 1. getByRole() - Best for interactive elements, reflects accessibility
- * 2. getByLabel() - Best for form inputs with labels
- * 3. getByPlaceholder() - For inputs without visible labels
- * 4. getByText() - For elements identified by text content
- * 5. getByTestId() - For stable test automation selectors
- * 6. CSS/XPath - Last resort, avoid when possible
- *
- * **Benefits:**
- * - Consistent error handling across all operations
- * - Reusable across different MCP tools
- * - Easy to test in isolation
- * - Single point for adding logging, metrics, etc.
- *
- * @see https://playwright.dev/docs/locators
- * @see https://playwright.dev/docs/best-practices
- */
+// Page Actions - High-level Playwright wrapper functions
+// @see https://playwright.dev/docs/locators, https://playwright.dev/docs/best-practices
+
 import type { Page } from 'playwright';
 
 import { timeoutOptions } from '../config/playwright-config.js';
@@ -38,13 +11,8 @@ import type {
   WaitUntilState,
 } from '../types/index.js';
 
-// ============================================
 // Navigation Actions
-// ============================================
 
-/**
- * Navigate to a URL with configurable wait conditions
- */
 export async function navigateTo(
   page: Page,
   url: string,
@@ -60,9 +28,6 @@ export async function navigateTo(
   };
 }
 
-/**
- * Navigate back in browser history
- */
 export async function navigateBack(
   page: Page,
   options: { timeout?: number } = {}
@@ -74,9 +39,6 @@ export async function navigateBack(
   return { url: page.url() };
 }
 
-/**
- * Navigate forward in browser history
- */
 export async function navigateForward(
   page: Page,
   options: { timeout?: number } = {}
@@ -88,9 +50,6 @@ export async function navigateForward(
   return { url: page.url() };
 }
 
-/**
- * Reload the current page
- */
 export async function reload(
   page: Page,
   options: { waitUntil?: WaitUntilState; timeout?: number } = {}
@@ -105,13 +64,8 @@ export async function reload(
   };
 }
 
-// ============================================
 // Element Interaction Actions
-// ============================================
 
-/**
- * Click on an element using a CSS selector
- */
 export async function clickElement(
   page: Page,
   selector: string,
@@ -131,29 +85,6 @@ export async function clickElement(
   return { success: true };
 }
 
-/**
- * Click on an element by its ARIA role.
- *
- * **This is the most recommended locator strategy by Playwright.**
- *
- * Role-based locators are resilient to DOM changes and ensure accessibility.
- * They reflect how users and assistive technologies perceive the page.
- *
- * @see https://playwright.dev/docs/locators#locate-by-role
- *
- * @param page - Playwright Page instance
- * @param role - ARIA role (button, link, checkbox, textbox, etc.)
- * @param options - Locator and click options
- *
- * @example
- * ```typescript
- * // Click submit button
- * await clickByRole(page, 'button', { name: 'Submit' });
- *
- * // Click link with exact text
- * await clickByRole(page, 'link', { name: 'Learn more', exact: true });
- * ```
- */
 export async function clickByRole(
   page: Page,
   role: AriaRole,
@@ -172,27 +103,6 @@ export async function clickByRole(
   return { success: true };
 }
 
-/**
- * Click on an element by its text content.
- *
- * Uses Playwright's getByText() locator which finds elements containing
- * the specified text. By default, it matches substrings case-sensitively.
- *
- * @see https://playwright.dev/docs/locators#locate-by-text
- *
- * @param page - Playwright Page instance
- * @param text - Text content to search for
- * @param options - Match and click options
- *
- * @example
- * ```typescript
- * // Click element containing "Welcome"
- * await clickByText(page, 'Welcome');
- *
- * // Click with exact text match
- * await clickByText(page, 'Click me', { exact: true });
- * ```
- */
 export async function clickByText(
   page: Page,
   text: string,
@@ -210,24 +120,6 @@ export async function clickByText(
   return { success: true };
 }
 
-/**
- * Click on an element by data-testid.
- *
- * **Use when semantic locators aren't suitable.**
- * Test IDs provide stable selectors independent of implementation.
- *
- * @see https://playwright.dev/docs/locators#locate-by-test-id
- *
- * @param page - Playwright Page instance
- * @param testId - Value of the data-testid attribute
- * @param options - Click options
- *
- * @example
- * ```typescript
- * // HTML: <button data-testid="submit-btn">Submit</button>
- * await clickByTestId(page, 'submit-btn');
- * ```
- */
 export async function clickByTestId(
   page: Page,
   testId: string,
@@ -244,9 +136,6 @@ export async function clickByTestId(
   return { success: true };
 }
 
-/**
- * Fill an input field with text
- */
 export async function fillInput(
   page: Page,
   selector: string,
@@ -260,33 +149,6 @@ export async function fillInput(
   return { success: true };
 }
 
-/**
- * Fill an input by its label.
- *
- * **Recommended for form inputs** - matches how users identify form fields.
- *
- * Works with:
- * - <label for="id"> associations
- * - Inputs nested inside <label>
- * - aria-labelledby references
- * - aria-label attributes
- *
- * @see https://playwright.dev/docs/locators#locate-by-label
- *
- * @param page - Playwright Page instance
- * @param label - Label text to match
- * @param text - Text to fill into the input
- * @param options - Match and fill options
- *
- * @example
- * ```typescript
- * // Fill input labeled "Email"
- * await fillByLabel(page, 'Email', 'user@example.com');
- *
- * // With exact matching
- * await fillByLabel(page, 'Password', 'secret', { exact: true });
- * ```
- */
 export async function fillByLabel(
   page: Page,
   label: string,
@@ -304,25 +166,6 @@ export async function fillByLabel(
   return { success: true };
 }
 
-/**
- * Fill an input by its placeholder.
- *
- * **Use when labels aren't available.**
- * Placeholder text provides a reasonable fallback for identifying inputs.
- *
- * @see https://playwright.dev/docs/locators#locate-by-placeholder
- *
- * @param page - Playwright Page instance
- * @param placeholder - Placeholder attribute text
- * @param text - Text to fill into the input
- * @param options - Match and fill options
- *
- * @example
- * ```typescript
- * // Fill input with placeholder "Enter email..."
- * await fillByPlaceholder(page, 'Enter email...', 'user@example.com');
- * ```
- */
 export async function fillByPlaceholder(
   page: Page,
   placeholder: string,
@@ -340,9 +183,6 @@ export async function fillByPlaceholder(
   return { success: true };
 }
 
-/**
- * Hover over an element
- */
 export async function hoverElement(
   page: Page,
   selector: string,
@@ -355,9 +195,6 @@ export async function hoverElement(
   return { success: true };
 }
 
-/**
- * Select an option from a dropdown
- */
 export async function selectOption(
   page: Page,
   selector: string,
@@ -371,9 +208,6 @@ export async function selectOption(
   return { success: true, selected };
 }
 
-/**
- * Check or uncheck a checkbox/radio
- */
 export async function setChecked(
   page: Page,
   selector: string,
@@ -387,13 +221,8 @@ export async function setChecked(
   return { success: true };
 }
 
-// ============================================
 // Keyboard Actions
-// ============================================
 
-/**
- * Press a key or key combination
- */
 export async function pressKey(
   page: Page,
   key: string,
@@ -404,9 +233,6 @@ export async function pressKey(
   return { success: true };
 }
 
-/**
- * Type text character by character
- */
 export async function typeText(
   page: Page,
   text: string,
@@ -417,13 +243,8 @@ export async function typeText(
   return { success: true };
 }
 
-// ============================================
 // Mouse Actions
-// ============================================
 
-/**
- * Move mouse to coordinates
- */
 export async function moveMouse(
   page: Page,
   x: number,
@@ -435,9 +256,6 @@ export async function moveMouse(
   return { success: true };
 }
 
-/**
- * Click at coordinates
- */
 export async function clickAt(
   page: Page,
   x: number,
@@ -453,9 +271,6 @@ export async function clickAt(
   return { success: true };
 }
 
-/**
- * Drag and drop from source to target
- */
 export async function dragAndDrop(
   page: Page,
   source: string,
@@ -469,18 +284,8 @@ export async function dragAndDrop(
   return { success: true };
 }
 
-// ============================================
 // Wait Actions
-// ============================================
 
-/**
- * Wait for a selector to be in a specific state using locator.waitFor().
- *
- * **Best Practice**: Use locator.waitFor() instead of page.waitForSelector()
- * as it's the recommended approach and handles auto-retry better.
- *
- * @see https://playwright.dev/docs/api/class-locator#locator-wait-for
- */
 export async function waitForSelector(
   page: Page,
   selector: string,
@@ -500,9 +305,6 @@ export async function waitForSelector(
   }
 }
 
-/**
- * Wait for navigation to complete
- */
 export async function waitForNavigation(
   page: Page,
   options: {
@@ -518,9 +320,6 @@ export async function waitForNavigation(
   return { url: page.url() };
 }
 
-/**
- * Wait for page load state
- */
 export async function waitForLoadState(
   page: Page,
   state: 'load' | 'domcontentloaded' | 'networkidle' = 'load',
@@ -533,13 +332,8 @@ export async function waitForLoadState(
   return { success: true };
 }
 
-// ============================================
 // Page Content Actions
-// ============================================
 
-/**
- * Get page HTML content
- */
 export async function getContent(
   page: Page
 ): Promise<{ html: string; text: string }> {
@@ -551,9 +345,6 @@ export async function getContent(
   return { html, text };
 }
 
-/**
- * Take a screenshot
- */
 export async function takeScreenshot(
   page: Page,
   options: {
@@ -571,9 +362,6 @@ export async function takeScreenshot(
   };
 }
 
-/**
- * Generate PDF (Chromium only)
- */
 export async function generatePdf(
   page: Page,
   options: {
@@ -591,9 +379,6 @@ export async function generatePdf(
   };
 }
 
-/**
- * Execute JavaScript in page context
- */
 export async function evaluate<T>(
   page: Page,
   script: string | ((arg: unknown) => T),
@@ -604,13 +389,8 @@ export async function evaluate<T>(
   return { result };
 }
 
-// ============================================
 // Element Info Actions
-// ============================================
 
-/**
- * Get element information
- */
 export async function getElementInfo(
   page: Page,
   selector: string
@@ -648,9 +428,6 @@ export async function getElementInfo(
   };
 }
 
-/**
- * Get all matching elements count
- */
 export async function getElementCount(
   page: Page,
   selector: string

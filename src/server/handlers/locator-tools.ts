@@ -1,15 +1,6 @@
-/**
- * Locator Tool Handlers
- *
- * Role-based and semantic locator tools following Playwright best practices:
- * - click_by_role: Click using ARIA role (recommended)
- * - fill_by_label: Fill input by label text
- * - click_by_text: Click by visible text
- * - fill_by_placeholder: Fill by placeholder text
- * - click_by_testid: Click by data-testid
- * - fill_by_testid: Fill by data-testid
- * - click_by_alt_text: Click image by alt text
- */
+// Locator Tool Handlers - Role-based and semantic locators (recommended approach)
+// @see https://playwright.dev/docs/locators
+
 import { z } from 'zod';
 
 import { ARIA_ROLES } from '../../types/index.js';

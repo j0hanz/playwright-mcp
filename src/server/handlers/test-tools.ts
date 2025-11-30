@@ -1,13 +1,12 @@
+// Test Tool Handlers - Test planning and file management for Playwright agents
+// @see specs/ for test plans, tests/ for generated tests
+
 import path from 'path';
 import { z } from 'zod';
 
 import { ErrorCode, ErrorHandler } from '../../utils/error-handler.js';
 import { textContent, type ToolContext } from './types.js';
 
-/**
- * Validate that a file path is within allowed directories.
- * Prevents path traversal attacks.
- */
 function validateArtifactPath(filePath: string): void {
   const normalizedPath = path.normalize(filePath);
   const allowedDirs = ['specs', 'tests'];

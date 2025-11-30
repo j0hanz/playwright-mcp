@@ -1,3 +1,10 @@
+/**
+ * Browser Manager - Core browser automation for MCP Playwright Server
+ *
+ * @see https://playwright.dev/docs/locators
+ * @see https://playwright.dev/docs/test-assertions
+ * @see https://playwright.dev/docs/browser-contexts
+ */
 import { Page } from 'playwright';
 
 import config from '../config/server-config.js';
@@ -21,62 +28,32 @@ import * as browserLauncher from './browser-launcher.js';
 import { DialogManager } from './dialog-manager.js';
 import { SessionManager } from './session-manager.js';
 
-/**
- * Options for launching a new browser session.
- *
- * @see https://playwright.dev/docs/api/class-browsertype#browser-type-launch
- * @see https://playwright.dev/docs/browser-contexts
- */
 export interface BrowserLaunchOptions {
-  /** Browser engine: 'chromium' (default), 'firefox', or 'webkit' */
   browserType?: BrowserType;
-  /** Run browser in headless mode (default: true) */
   headless?: boolean;
-  /** Default viewport size for new pages */
   viewport?: Viewport;
-  /** Custom user agent string */
   userAgent?: string;
-  /** Browser launch timeout in milliseconds */
   timeout?: number;
-  /** Browser channel: 'chrome', 'chrome-beta', 'msedge', etc. */
   channel?: string;
-  /** Slow down operations by specified milliseconds (useful for debugging) */
   slowMo?: number;
-  /** Proxy configuration for network requests */
   proxy?: {
     server: string;
     bypass?: string;
     username?: string;
     password?: string;
   };
-  /** Video recording configuration */
   recordVideo?: {
     dir: string;
     size?: Viewport;
   };
-  /** Path to storage state file for authentication reuse */
   storageState?: string;
 }
 
-/**
- * Core browser automation manager for the MCP Playwright server.
- *
- * This class orchestrates all browser operations following Playwright best practices:
- * - **Locator-based interactions**: Uses Playwright's recommended locator strategies
- * - **Web-first assertions**: Auto-retrying assertions that wait for conditions
- * - **Session isolation**: Each session has its own browser context
- * - **Automatic cleanup**: Dialog handling, resource cleanup on close
- *
- * @see https://playwright.dev/docs/locators
- * @see https://playwright.dev/docs/test-assertions
- * @see https://playwright.dev/docs/browser-contexts
- */
 export class BrowserManager {
   private readonly sessionManager: SessionManager;
   private readonly dialogManager: DialogManager;
   private readonly logger = new Logger('BrowserManager');
 
-  // Action delegates
   private readonly assertionActions: AssertionActions;
   private readonly clockActions: ClockActions;
   private readonly interactionActions: InteractionActions;
@@ -90,7 +67,6 @@ export class BrowserManager {
     this.sessionManager = new SessionManager(new Logger('SessionManager'));
     this.dialogManager = new DialogManager(new Logger('DialogManager'));
 
-    // Initialize action delegates
     this.assertionActions = new AssertionActions(
       this.sessionManager,
       this.logger
@@ -116,9 +92,7 @@ export class BrowserManager {
     this.tracingActions = new TracingActions(this.sessionManager, this.logger);
   }
 
-  // ============================================
   // Browser Lifecycle
-  // ============================================
 
   async launchBrowser(options: BrowserLaunchOptions = {}): Promise<{
     sessionId: string;
@@ -203,9 +177,7 @@ export class BrowserManager {
     };
   }
 
-  // ============================================
   // Navigation
-  // ============================================
 
   async navigateToPage(
     options: NavigationOptions
@@ -220,9 +192,7 @@ export class BrowserManager {
     return this.navigationActions.navigateBack(sessionId, pageId);
   }
 
-  // ============================================
   // Interactions
-  // ============================================
 
   async clickElement(options: ElementInteractionOptions): Promise<{
     success: boolean;
@@ -275,24 +245,8 @@ export class BrowserManager {
     );
   }
 
-  // ============================================
   // Assertions
-  // ============================================
 
-  /**
-   * Assert that an element is hidden or not in the DOM.
-   *
-   * Uses Playwright's web-first assertion pattern with auto-waiting.
-   * The assertion will retry until the element is hidden or timeout.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-hidden
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param selector - CSS selector for the element
-   * @param options - Optional timeout configuration
-   * @returns Object indicating success and hidden state
-   */
   async assertHidden(
     sessionId: string,
     pageId: string,
@@ -307,29 +261,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Assert that an element is visible on the page.
-   *
-   * Uses Playwright's web-first assertion pattern with auto-waiting.
-   * The assertion will retry until the element becomes visible or timeout.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-visible
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param selector - CSS selector, text selector, or locator string
-   * @param options - Optional timeout configuration
-   * @returns Object indicating success and visibility state
-   *
-   * @example
-   * ```typescript
-   * // Using CSS selector
-   * await browserManager.assertVisible(sessionId, pageId, '#submit-btn');
-   *
-   * // Using text selector
-   * await browserManager.assertVisible(sessionId, pageId, 'text=Submit');
-   * ```
-   */
   async assertVisible(
     sessionId: string,
     pageId: string,
@@ -344,22 +275,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Assert that an element contains or matches specific text.
-   *
-   * Uses Playwright's locator-based text retrieval with auto-waiting.
-   * Supports both exact matching and substring matching.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-text
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-contain-text
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param selector - CSS selector for the element
-   * @param expectedText - Text to match against
-   * @param options - Match options (exact: true for exact match, false for contains)
-   * @returns Object with success status and actual text found
-   */
   async assertText(
     sessionId: string,
     pageId: string,
@@ -454,11 +369,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Assert that an element is enabled.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-enabled
-   */
   async assertEnabled(
     sessionId: string,
     pageId: string,
@@ -473,11 +383,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Assert that an element is disabled.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-disabled
-   */
   async assertDisabled(
     sessionId: string,
     pageId: string,
@@ -492,11 +397,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Assert that an element has focus.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-focused
-   */
   async assertFocused(
     sessionId: string,
     pageId: string,
@@ -511,11 +411,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Assert element count for a selector.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-count
-   */
   async assertCount(
     sessionId: string,
     pageId: string,
@@ -532,11 +427,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Assert that an element has a specific CSS property value.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-css
-   */
   async assertCss(
     sessionId: string,
     pageId: string,
@@ -555,9 +445,7 @@ export class BrowserManager {
     );
   }
 
-  // ============================================
   // Security / Scripts
-  // ============================================
 
   async evaluateScript(
     sessionId: string,
@@ -567,9 +455,7 @@ export class BrowserManager {
     return this.pageOperations.evaluateScript(sessionId, pageId, script);
   }
 
-  // ============================================
   // File Upload
-  // ============================================
 
   async uploadFiles(
     sessionId: string,
@@ -585,9 +471,7 @@ export class BrowserManager {
     );
   }
 
-  // ============================================
   // Dialogs
-  // ============================================
 
   async handleDialog(
     sessionId: string,
@@ -627,9 +511,7 @@ export class BrowserManager {
     }
   }
 
-  // ============================================
   // Viewport & Tabs
-  // ============================================
 
   async resizeViewport(
     sessionId: string,
@@ -657,9 +539,7 @@ export class BrowserManager {
     return this.pageOperations.manageTabs(sessionId, action, pageId, url);
   }
 
-  // ============================================
   // Page Content & Screenshots
-  // ============================================
 
   async takeScreenshot(options: {
     sessionId: string;
@@ -704,9 +584,7 @@ export class BrowserManager {
     this.sessionManager.updateActivity(sessionId);
   }
 
-  // ============================================
   // Keyboard & Mouse
-  // ============================================
 
   async keyboardPress(
     sessionId: string,
@@ -760,15 +638,8 @@ export class BrowserManager {
     return this.interactionActions.mouseClick(sessionId, pageId, x, y, options);
   }
 
-  // ============================================
   // Tracing & Storage
-  // ============================================
 
-  /**
-   * Start tracing for a session.
-   *
-   * @see https://playwright.dev/docs/trace-viewer
-   */
   async startTracing(
     sessionId: string,
     options: {
@@ -780,11 +651,6 @@ export class BrowserManager {
     return this.tracingActions.startTracing(sessionId, options);
   }
 
-  /**
-   * Stop tracing and save to a file.
-   *
-   * @see https://playwright.dev/docs/trace-viewer
-   */
   async stopTracing(
     sessionId: string,
     path: string
@@ -792,14 +658,6 @@ export class BrowserManager {
     return this.tracingActions.stopTracing(sessionId, path);
   }
 
-  /**
-   * Start a named group in tracing for better organization in Trace Viewer.
-   *
-   * Groups help organize related actions in the trace viewer, making it easier
-   * to navigate and understand complex test flows.
-   *
-   * @see https://playwright.dev/docs/api/class-tracing#tracing-group
-   */
   async startTracingGroup(
     sessionId: string,
     name: string,
@@ -810,11 +668,6 @@ export class BrowserManager {
     return this.tracingActions.startTracingGroup(sessionId, name, options);
   }
 
-  /**
-   * End the current tracing group.
-   *
-   * @see https://playwright.dev/docs/api/class-tracing#tracing-group-end
-   */
   async endTracingGroup(sessionId: string): Promise<{ success: boolean }> {
     return this.tracingActions.endTracingGroup(sessionId);
   }
@@ -840,20 +693,8 @@ export class BrowserManager {
     };
   }
 
-  // ============================================
   // Clock Mocking
-  // ============================================
 
-  /**
-   * Install fake clock on a page for time-dependent testing.
-   *
-   * This allows controlling time in the page, which is useful for testing:
-   * - Animations and transitions
-   * - Timeouts and intervals
-   * - Date-dependent functionality
-   *
-   * @see https://playwright.dev/docs/clock
-   */
   async installClock(
     sessionId: string,
     pageId: string,
@@ -862,13 +703,6 @@ export class BrowserManager {
     return this.clockActions.installClock(sessionId, pageId, options);
   }
 
-  /**
-   * Set the clock to a fixed time and freeze it.
-   *
-   * Time will not progress until you call resumeClock() or runClockFor().
-   *
-   * @see https://playwright.dev/docs/api/class-clock#clock-set-fixed-time
-   */
   async setFixedTime(
     sessionId: string,
     pageId: string,
@@ -877,11 +711,6 @@ export class BrowserManager {
     return this.clockActions.setFixedTime(sessionId, pageId, time);
   }
 
-  /**
-   * Pause the clock at its current time.
-   *
-   * @see https://playwright.dev/docs/api/class-clock#clock-pause-at
-   */
   async pauseClock(
     sessionId: string,
     pageId: string
@@ -889,11 +718,6 @@ export class BrowserManager {
     return this.clockActions.pauseClock(sessionId, pageId);
   }
 
-  /**
-   * Resume the clock from its current paused state.
-   *
-   * @see https://playwright.dev/docs/api/class-clock#clock-resume
-   */
   async resumeClock(
     sessionId: string,
     pageId: string
@@ -901,14 +725,6 @@ export class BrowserManager {
     return this.clockActions.resumeClock(sessionId, pageId);
   }
 
-  /**
-   * Advance the clock by a specified duration.
-   *
-   * This triggers all pending timers scheduled within that time range.
-   *
-   * @param duration - Time to advance in milliseconds or human-readable string (e.g., '1:30:00')
-   * @see https://playwright.dev/docs/api/class-clock#clock-run-for
-   */
   async runClockFor(
     sessionId: string,
     pageId: string,
@@ -917,13 +733,6 @@ export class BrowserManager {
     return this.clockActions.runClockFor(sessionId, pageId, duration);
   }
 
-  /**
-   * Fast-forward time by jumping to a specific point.
-   *
-   * Unlike runClockFor, this does NOT fire any intermediate timers.
-   *
-   * @see https://playwright.dev/docs/api/class-clock#clock-fast-forward
-   */
   async fastForwardClock(
     sessionId: string,
     pageId: string,
@@ -932,11 +741,6 @@ export class BrowserManager {
     return this.clockActions.fastForwardClock(sessionId, pageId, ticks);
   }
 
-  /**
-   * Set the system time without affecting timer execution.
-   *
-   * @see https://playwright.dev/docs/api/class-clock#clock-set-system-time
-   */
   async setSystemTime(
     sessionId: string,
     pageId: string,
@@ -945,24 +749,8 @@ export class BrowserManager {
     return this.clockActions.setSystemTime(sessionId, pageId, time);
   }
 
-  // ============================================
   // HAR Mocking
-  // ============================================
 
-  /**
-   * Route network requests using a HAR file for mock responses.
-   *
-   * HAR (HTTP Archive) files record network traffic and can be used to:
-   * - Replay recorded network responses for consistent testing
-   * - Mock API responses without hitting real servers
-   * - Test offline scenarios
-   *
-   * You can record HAR files using:
-   * - Browser DevTools (Network tab > Export HAR)
-   * - Playwright's recordHar context option
-   *
-   * @see https://playwright.dev/docs/mock#mocking-with-har-files
-   */
   async routeFromHAR(
     sessionId: string,
     pageId: string,
@@ -983,13 +771,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Route network requests at the context level using a HAR file.
-   *
-   * This applies the HAR mocking to ALL pages in the browser context.
-   *
-   * @see https://playwright.dev/docs/mock#mocking-with-har-files
-   */
   async contextRouteFromHAR(
     sessionId: string,
     harPath: string,
@@ -1004,11 +785,6 @@ export class BrowserManager {
     return this.networkActions.contextRouteFromHAR(sessionId, harPath, options);
   }
 
-  /**
-   * Unroute all HAR-based routes for a page.
-   *
-   * @see https://playwright.dev/docs/api/class-page#page-unroute-all
-   */
   async unrouteAll(
     sessionId: string,
     pageId: string,
@@ -1017,34 +793,8 @@ export class BrowserManager {
     return this.networkActions.unrouteAll(sessionId, pageId, options);
   }
 
-  // ============================================
   // Role-based Locators
-  // ============================================
 
-  /**
-   * Click an element by its ARIA role.
-   *
-   * **This is the recommended locator strategy by Playwright.**
-   * Role-based locators are resilient to DOM changes and ensure accessibility.
-   *
-   * @see https://playwright.dev/docs/locators#locate-by-role
-   * @see https://www.w3.org/TR/wai-aria-1.2/#roles
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param role - ARIA role (button, link, checkbox, textbox, etc.)
-   * @param options - Locator options (name, exact, force, timeout)
-   * @returns Success status
-   *
-   * @example
-   * ```typescript
-   * // Click a button by its accessible name
-   * await browserManager.clickByRole(sessionId, pageId, 'button', { name: 'Submit' });
-   *
-   * // Click a link with exact text match
-   * await browserManager.clickByRole(sessionId, pageId, 'link', { name: 'Learn more', exact: true });
-   * ```
-   */
   async clickByRole(
     sessionId: string,
     pageId: string,
@@ -1059,30 +809,6 @@ export class BrowserManager {
     return this.locatorActions.clickByRole(sessionId, pageId, role, options);
   }
 
-  /**
-   * Fill an input field by its associated label text.
-   *
-   * **Recommended for form inputs** - matches how users identify form fields.
-   * Works with <label> elements, aria-labelledby, and aria-label.
-   *
-   * @see https://playwright.dev/docs/locators#locate-by-label
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param label - Label text to match (case-insensitive by default)
-   * @param text - Text to fill into the input
-   * @param options - Options for matching and timeout
-   * @returns Success status
-   *
-   * @example
-   * ```typescript
-   * // Fill input associated with "Email" label
-   * await browserManager.fillByLabel(sessionId, pageId, 'Email', 'user@example.com');
-   *
-   * // With exact matching for ambiguous labels
-   * await browserManager.fillByLabel(sessionId, pageId, 'Password', 'secret', { exact: true });
-   * ```
-   */
   async fillByLabel(
     sessionId: string,
     pageId: string,
@@ -1099,28 +825,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Click an element containing specific text.
-   *
-   * Uses Playwright's getByText() locator for text-based element selection.
-   *
-   * @see https://playwright.dev/docs/locators#locate-by-text
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param text - Text content to search for
-   * @param options - Options for matching behavior and timeout
-   * @returns Success status
-   *
-   * @example
-   * ```typescript
-   * // Click element containing "Welcome"
-   * await browserManager.clickByText(sessionId, pageId, 'Welcome');
-   *
-   * // Exact text match
-   * await browserManager.clickByText(sessionId, pageId, 'Click here', { exact: true });
-   * ```
-   */
   async clickByText(
     sessionId: string,
     pageId: string,
@@ -1130,26 +834,6 @@ export class BrowserManager {
     return this.locatorActions.clickByText(sessionId, pageId, text, options);
   }
 
-  /**
-   * Fill an input field by its placeholder text.
-   *
-   * **Use when labels aren't available.** Placeholder text provides
-   * a reasonable fallback for identifying inputs.
-   *
-   * @see https://playwright.dev/docs/locators#locate-by-placeholder
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param placeholder - Placeholder attribute text
-   * @param text - Text to fill into the input
-   * @param options - Matching and timeout options
-   * @returns Success status
-   *
-   * @example
-   * ```typescript
-   * await browserManager.fillByPlaceholder(sessionId, pageId, 'Enter email...', 'user@example.com');
-   * ```
-   */
   async fillByPlaceholder(
     sessionId: string,
     pageId: string,
@@ -1166,26 +850,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Click an element using its data-testid attribute.
-   *
-   * **Use when semantic locators aren't suitable.**
-   * Test IDs provide stable selectors independent of implementation.
-   *
-   * @see https://playwright.dev/docs/locators#locate-by-test-id
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param testId - Value of the data-testid attribute
-   * @param options - Force click and timeout options
-   * @returns Success status
-   *
-   * @example
-   * ```typescript
-   * // HTML: <button data-testid="submit-btn">Submit</button>
-   * await browserManager.clickByTestId(sessionId, pageId, 'submit-btn');
-   * ```
-   */
   async clickByTestId(
     sessionId: string,
     pageId: string,
@@ -1200,18 +864,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Fill an input field using its data-testid attribute.
-   *
-   * @see https://playwright.dev/docs/locators#locate-by-test-id
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param testId - Value of the data-testid attribute
-   * @param text - Text to fill into the input
-   * @param options - Timeout options
-   * @returns Success status
-   */
   async fillByTestId(
     sessionId: string,
     pageId: string,
@@ -1228,25 +880,6 @@ export class BrowserManager {
     );
   }
 
-  /**
-   * Click an image element by its alt text.
-   *
-   * Useful for image-based navigation and accessibility testing.
-   *
-   * @see https://playwright.dev/docs/locators#locate-by-alt-text
-   *
-   * @param sessionId - Browser session ID
-   * @param pageId - Page ID within the session
-   * @param altText - Alt text attribute value
-   * @param options - Matching and interaction options
-   * @returns Success status
-   *
-   * @example
-   * ```typescript
-   * // Click an image with alt="Company Logo"
-   * await browserManager.clickByAltText(sessionId, pageId, 'Company Logo');
-   * ```
-   */
   async clickByAltText(
     sessionId: string,
     pageId: string,
@@ -1261,9 +894,7 @@ export class BrowserManager {
     );
   }
 
-  // ============================================
   // Advanced Features
-  // ============================================
 
   async waitForDownload(
     sessionId: string,

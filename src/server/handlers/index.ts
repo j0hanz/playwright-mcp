@@ -1,3 +1,6 @@
+// Handler Index - Central registration for all modular tool handlers
+// @see handlers/ for individual tool implementations
+
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import type { BrowserManager } from '../../playwright/browser-manager.js';
@@ -10,22 +13,6 @@ import { registerNavigationTools } from './navigation-tools.js';
 import { registerPageTools } from './page-tools.js';
 import { registerTestTools } from './test-tools.js';
 import { createToolHandlerFactory, type ToolContext } from './types.js';
-
-/**
- * Handler Index - Central registration for all modular tool handlers
- *
- * This module provides the main registration function that wires up
- * all categorized tool handlers with the MCP server.
- *
- * Tool Categories:
- * - Assertion Tools: Web-first assertions (assert_visible, assert_text, etc.)
- * - Locator Tools: Semantic locators (click_by_role, fill_by_label, etc.)
- * - Page Tools: Page operations (screenshot, content, wait tools)
- * - Browser Tools: Session management (launch, close, navigate)
- * - Navigation Tools: URL navigation and history
- * - Interaction Tools: Element interactions (click, fill, hover)
- * - Test Tools: Test planning and generation
- */
 
 // Re-export existing handlers for backward compatibility
 export { registerBrowserTools } from './browser-tools.js';
@@ -61,17 +48,6 @@ export {
   type ToolResponse,
 } from './types.js';
 
-/**
- * Register all modular tool handlers with the MCP server.
- *
- * This function creates the shared ToolContext and registers all
- * categorized tool handlers. Call this from mcp-server.ts instead
- * of inline tool definitions.
- *
- * @param server - MCP server instance
- * @param browserManager - Browser manager for Playwright operations
- * @param logger - Logger instance for diagnostics
- */
 export function registerAllHandlers(
   server: McpServer,
   browserManager: BrowserManager,

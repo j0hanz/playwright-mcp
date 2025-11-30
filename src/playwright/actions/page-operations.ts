@@ -1,3 +1,5 @@
+// Page Operations - Viewport, tabs, screenshots, accessibility scans
+
 import { v4 as uuidv4 } from 'uuid';
 import AxeBuilder from '@axe-core/playwright';
 

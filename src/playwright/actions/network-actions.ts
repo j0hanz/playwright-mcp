@@ -1,3 +1,5 @@
+// Network Actions - HAR routing and network interception
+
 import { Logger } from '../../utils/logger.js';
 import { SessionManager } from '../session-manager.js';
 

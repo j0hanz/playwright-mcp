@@ -1,19 +1,6 @@
-/**
- * Page Tool Handlers
- *
- * Tools for page inspection, screenshots, and waiting:
- * - page_screenshot: Capture page screenshot
- * - page_content: Get page HTML/text content
- * - wait_for_selector: Wait for element to appear
- * - wait_for_download: Wait for file download
- * - page_wait_for_load_state: Wait for page load state
- * - wait_for_network_idle: Wait for network idle
- * - page_evaluate: Execute JavaScript
- * - accessibility_scan: Run axe-core accessibility scan
- * - accessibility_report: Generate HTML accessibility report
- * - emulate_reduced_motion: Emulate reduced motion preference
- * - emulate_color_scheme: Emulate color scheme preference
- */
+// Page Tool Handlers - Screenshots, content, waiting, and accessibility tools
+// @see https://playwright.dev/docs/api/class-page
+
 import { z } from 'zod';
 
 import {

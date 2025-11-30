@@ -1,21 +1,6 @@
-/**
- * Assertion Tool Handlers
- *
- * Web-first assertion tools following Playwright best practices:
- * - assert_visible: Assert element is visible
- * - assert_hidden: Assert element is hidden
- * - assert_text: Assert element has specific text
- * - assert_attribute: Assert element has attribute value
- * - assert_value: Assert input has specific value
- * - assert_checked: Assert checkbox/radio state
- * - assert_url: Assert page URL
- * - assert_title: Assert page title
- * - assert_enabled: Assert element is enabled
- * - assert_disabled: Assert element is disabled
- * - assert_focused: Assert element has focus
- * - assert_count: Assert element count
- * - assert_css: Assert CSS property value
- */
+// Assertion Tool Handlers - Web-first assertions following Playwright best practices
+// @see https://playwright.dev/docs/test-assertions
+
 import { z } from 'zod';
 
 import {

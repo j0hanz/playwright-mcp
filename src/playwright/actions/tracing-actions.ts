@@ -1,3 +1,5 @@
+// Tracing Actions - Playwright trace recording and grouping
+
 import { Logger } from '../../utils/logger.js';
 import { SessionManager } from '../session-manager.js';
 

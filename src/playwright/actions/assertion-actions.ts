@@ -1,16 +1,6 @@
-/**
- * Assertion Actions Module
- *
- * Uses Playwright's web-first assertions with auto-retry capability.
- * These assertions wait until the expected condition is met or timeout.
- *
- * **Best Practices Applied:**
- * - Use expect() assertions instead of manual waitFor + check pattern
- * - Auto-retry eliminates flakiness from timing issues
- * - Clear error messages with expected vs actual values
- *
- * @see https://playwright.dev/docs/test-assertions
- */
+// Assertion Actions - Web-first assertions with auto-retry
+// @see https://playwright.dev/docs/test-assertions
+
 import { expect } from '@playwright/test';
 
 import config from '../../config/server-config.js';
@@ -28,11 +18,6 @@ export class AssertionActions {
     private logger: Logger
   ) {}
 
-  /**
-   * Assert that an element is hidden using Playwright's toBeHidden() assertion.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-hidden
-   */
   async assertHidden(
     sessionId: string,
     pageId: string,
@@ -62,11 +47,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert that an element is visible using Playwright's toBeVisible() assertion.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-visible
-   */
   async assertVisible(
     sessionId: string,
     pageId: string,
@@ -96,12 +76,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert element text using Playwright's toHaveText() or toContainText() assertions.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-text
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-contain-text
-   */
   async assertText(
     sessionId: string,
     pageId: string,
@@ -138,11 +112,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert element attribute using Playwright's toHaveAttribute() assertion.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-attribute
-   */
   async assertAttribute(
     sessionId: string,
     pageId: string,
@@ -178,11 +147,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert input value using Playwright's toHaveValue() assertion.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-value
-   */
   async assertValue(
     sessionId: string,
     pageId: string,
@@ -213,11 +177,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert checkbox/radio state using Playwright's toBeChecked() assertion.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-checked
-   */
   async assertChecked(
     sessionId: string,
     pageId: string,
@@ -248,11 +207,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert page URL using Playwright's toHaveURL() assertion.
-   *
-   * @see https://playwright.dev/docs/test-assertions#page-assertions-to-have-url
-   */
   async assertUrl(
     sessionId: string,
     pageId: string,
@@ -280,11 +234,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert page title using Playwright's toHaveTitle() assertion.
-   *
-   * @see https://playwright.dev/docs/test-assertions#page-assertions-to-have-title
-   */
   async assertTitle(
     sessionId: string,
     pageId: string,
@@ -312,11 +261,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert that an element is enabled.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-enabled
-   */
   async assertEnabled(
     sessionId: string,
     pageId: string,
@@ -345,11 +289,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert that an element is disabled.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-disabled
-   */
   async assertDisabled(
     sessionId: string,
     pageId: string,
@@ -378,11 +317,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert that an element has focus.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-be-focused
-   */
   async assertFocused(
     sessionId: string,
     pageId: string,
@@ -417,11 +351,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert element count for a selector.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-count
-   */
   async assertCount(
     sessionId: string,
     pageId: string,
@@ -451,11 +380,6 @@ export class AssertionActions {
     );
   }
 
-  /**
-   * Assert that an element has a specific CSS property value.
-   *
-   * @see https://playwright.dev/docs/test-assertions#locator-assertions-to-have-css
-   */
   async assertCss(
     sessionId: string,
     pageId: string,

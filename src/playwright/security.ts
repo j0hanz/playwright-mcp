@@ -1,3 +1,5 @@
+// Security - URL validation, script evaluation, and file upload security
+
 import config from '../config/server-config.js';
 import {
   ErrorCode,
@@ -13,15 +15,8 @@ import { fileURLToPath } from 'url';
 
 const logger = new Logger('Security');
 
-/**
- * Allowed URL protocols for navigation.
- * Prevents javascript:, file:, and data: URL attacks.
- */
 export const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
 
-/**
- * Predefined safe scripts (preferred approach)
- */
 export const SAFE_SCRIPT_TEMPLATES: Record<string, string> = {
   getTitle: 'document.title',
   getURL: 'window.location.href',
@@ -32,10 +27,6 @@ export const SAFE_SCRIPT_TEMPLATES: Record<string, string> = {
   getDocumentReadyState: 'document.readyState',
 };
 
-/**
- * Strict blocklist - these are always rejected regardless of pattern match
- * Security: Comprehensive list covering XSS, prototype pollution, and code injection vectors
- */
 const STRICT_BLOCKLIST = [
   // Code execution
   'eval',
@@ -125,9 +116,6 @@ const STRICT_BLOCKLIST = [
   'history.replaceState',
 ];
 
-/**
- * Allowlist of safe operations - only permit these patterns at start of script
- */
 const SAFE_PATTERNS = [
   /^\s*document\.querySelector\s*\(/,
   /^\s*document\.querySelectorAll\s*\(/,
@@ -141,17 +129,10 @@ const SAFE_PATTERNS = [
   /^\s*window\.scrollX\s*$/,
 ];
 
-/**
- * Allowed upload directory for file input operations.
- * Files must be within this directory to be uploaded.
- */
 const ALLOWED_UPLOAD_DIR = fileURLToPath(
   new URL('../../uploads', import.meta.url)
 );
 
-/**
- * Validates a URL protocol.
- */
 export function validateUrlProtocol(url: string): void {
   try {
     const parsedUrl = new URL(url);
@@ -172,9 +153,6 @@ export function validateUrlProtocol(url: string): void {
   }
 }
 
-/**
- * Execute JavaScript code in the page context with strict security controls.
- */
 export async function evaluateScript(
   page: Page,
   script: string,
@@ -244,9 +222,6 @@ export async function evaluateScript(
   }
 }
 
-/**
- * Validates a file path for upload.
- */
 export async function validateUploadPath(filePath: string): Promise<string> {
   try {
     // First check: resolve path before symlink resolution

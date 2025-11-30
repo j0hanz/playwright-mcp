@@ -1,3 +1,5 @@
+// Clock Actions - Time manipulation for testing
+
 import { Logger } from '../../utils/logger.js';
 import { SessionManager } from '../session-manager.js';
 

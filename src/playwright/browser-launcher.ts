@@ -1,3 +1,6 @@
+/**
+ * Browser Launcher - Launches Playwright browser instances
+ */
 import { promises as fs } from 'fs';
 import path from 'path';
 import {
@@ -16,9 +19,6 @@ import { Logger } from '../utils/logger.js';
 
 const logger = new Logger('BrowserLauncher');
 
-/**
- * Browser launcher map for type-safe browser instantiation.
- */
 const BROWSER_LAUNCHERS: Readonly<
   Record<BrowserType, (options?: LaunchOptions) => Promise<Browser>>
 > = {
@@ -48,15 +48,10 @@ export interface BrowserLaunchOptions {
   storageState?: string;
 }
 
-/**
- * Validates that a file path is within the allowed output directory.
- */
 function validateOutputPath(filePath: string): string {
-  // This should ideally be in a shared utility or config
   const ALLOWED_LOG_OUTPUT_DIR = path.resolve(process.cwd(), 'logs');
   const resolved = path.resolve(filePath);
 
-  // Allow paths in the logs directory or current working directory logs
   const cwdLogs = path.resolve(process.cwd(), 'logs');
   if (
     !resolved.startsWith(ALLOWED_LOG_OUTPUT_DIR) &&

@@ -1,3 +1,6 @@
+// Interaction Actions - Element interactions with Playwright actionability checks
+// @see https://playwright.dev/docs/actionability
+
 import { ElementInteractionOptions } from '../../types/index.js';
 import { Logger } from '../../utils/logger.js';
 import * as pageActions from '../page-actions.js';
@@ -5,32 +8,12 @@ import * as security from '../security.js';
 import { SessionManager } from '../session-manager.js';
 import { executePageOperation } from '../utils/execution-helper.js';
 
-/**
- * Interaction Actions Module
- *
- * Handles element interactions with Playwright's actionability checks.
- *
- * **Trial Mode (trial: true)**:
- * When trial is set to true, Playwright performs all actionability checks
- * without actually executing the action. This is useful for:
- * - Validating that an element is clickable before clicking
- * - Debugging why an action might fail
- * - Dry-run scenarios
- *
- * @see https://playwright.dev/docs/actionability
- */
 export class InteractionActions {
   constructor(
     private sessionManager: SessionManager,
     private logger: Logger
   ) {}
 
-  /**
-   * Click on an element with optional trial mode for dry-run validation.
-   *
-   * @param options.trial - When true, performs actionability checks without clicking
-   * @see https://playwright.dev/docs/api/class-locator#locator-click-option-trial
-   */
   async clickElement(options: ElementInteractionOptions): Promise<{
     success: boolean;
     elementInfo?: Record<string, unknown> | null;
@@ -54,11 +37,6 @@ export class InteractionActions {
     );
   }
 
-  /**
-   * Fill an input with text.
-   *
-   * @see https://playwright.dev/docs/api/class-locator#locator-fill
-   */
   async fillInput(
     options: ElementInteractionOptions & { text: string }
   ): Promise<{ success: boolean }> {
@@ -77,12 +55,6 @@ export class InteractionActions {
     );
   }
 
-  /**
-   * Hover over an element with optional trial mode.
-   *
-   * @param options.trial - When true, performs actionability checks without hovering
-   * @see https://playwright.dev/docs/api/class-locator#locator-hover-option-trial
-   */
   async hoverElement(
     options: ElementInteractionOptions
   ): Promise<{ success: boolean; trialRun?: boolean }> {
@@ -236,12 +208,6 @@ export class InteractionActions {
     );
   }
 
-  /**
-   * Double-click on an element with optional trial mode.
-   *
-   * @param options.trial - When true, performs actionability checks without double-clicking
-   * @see https://playwright.dev/docs/api/class-locator#locator-dblclick
-   */
   async doubleClickElement(
     options: ElementInteractionOptions
   ): Promise<{ success: boolean; trialRun?: boolean }> {
@@ -261,11 +227,6 @@ export class InteractionActions {
     );
   }
 
-  /**
-   * Focus on an element.
-   *
-   * @see https://playwright.dev/docs/api/class-locator#locator-focus
-   */
   async focusElement(
     sessionId: string,
     pageId: string,
@@ -286,11 +247,6 @@ export class InteractionActions {
     );
   }
 
-  /**
-   * Blur (unfocus) an element.
-   *
-   * @see https://playwright.dev/docs/api/class-locator#locator-blur
-   */
   async blurElement(
     sessionId: string,
     pageId: string,
@@ -311,11 +267,6 @@ export class InteractionActions {
     );
   }
 
-  /**
-   * Clear input field content.
-   *
-   * @see https://playwright.dev/docs/api/class-locator#locator-clear
-   */
   async clearInput(
     sessionId: string,
     pageId: string,

@@ -1,310 +1,107 @@
 /**
  * Core Types for MCP Playwright Server
  *
- * This module provides comprehensive type definitions following Playwright best practices:
- *
- * **Locator Strategy Types** (Priority Order - Playwright Recommended):
- * 1. `RoleLocatorOptions` - getByRole() - Most recommended, reflects user perception
- * 2. `LabelLocatorOptions` - getByLabel() - Best for form inputs
- * 3. `PlaceholderLocatorOptions` - getByPlaceholder() - For inputs without labels
- * 4. `TextLocatorOptions` - getByText() - For visible text content
- * 5. `TestIdLocatorOptions` - getByTestId() - For data-testid attributes
- * 6. `AltTextLocatorOptions` - getByAltText() - For images
- *
- * **Web-First Assertion Types**:
- * - Auto-retrying assertions that wait for conditions
- * - Eliminates flakiness from timing issues
- *
- * **Session Management Types**:
- * - Browser session lifecycle
- * - Page and context management
- *
- * **Best Practice Guidelines**:
- * - Prefer semantic locators (role, label, text) over CSS/XPath
- * - Use web-first assertions that auto-retry
- * - Keep sessions isolated with separate contexts
- * - Clean up resources properly on close
- *
  * @see https://playwright.dev/docs/locators#quick-guide
  * @see https://playwright.dev/docs/best-practices
  * @see https://playwright.dev/docs/test-assertions
+ * @see https://www.w3.org/TR/wai-aria-1.2/#roles
  */
 import type { Browser, BrowserContext, Page } from 'playwright';
 
-// ============================================
 // Standard Response Types
-// ============================================
 
-/**
- * Standard response type for tool results with structured output.
- * Follows MCP best practices for consistent, predictable responses.
- *
- * **Design Principles:**
- * - Always include success flag for programmatic checking
- * - Provide error details with actionable information
- * - Include metadata for debugging and tracing
- * - Keep response structure consistent across all tools
- *
- * @template T - The type of data returned on success
- *
- * @example
- * ```typescript
- * // Success response
- * const response: StandardResponse<{ pageId: string }> = {
- *   success: true,
- *   data: { pageId: 'abc-123' },
- *   metadata: {
- *     timestamp: new Date().toISOString(),
- *     executionTime: 150,
- *     sessionId: 'session-456',
- *   },
- * };
- *
- * // Error response
- * const errorResponse: StandardResponse<never> = {
- *   success: false,
- *   error: {
- *     code: 'ELEMENT_NOT_FOUND',
- *     message: 'Button "Submit" not found',
- *     retryable: true,
- *   },
- *   metadata: { timestamp: new Date().toISOString() },
- * };
- * ```
- */
 export interface StandardResponse<T = unknown> {
-  /** Whether the operation succeeded */
   success: boolean;
-  /** Response data on success */
   data?: T;
-  /** Error details on failure */
   error?: {
-    /** Error code for programmatic handling */
     code: string;
-    /** Human-readable error message */
     message: string;
-    /** Additional error context */
     details?: unknown;
-    /** Whether the operation can be retried */
     retryable?: boolean;
   };
-  /** Response metadata for tracing and debugging */
   metadata: {
-    /** ISO timestamp of response */
     timestamp: string;
-    /** Execution time in milliseconds */
     executionTime?: number;
-    /** Request ID for tracing */
     requestId?: string;
-    /** Session ID if applicable */
     sessionId?: string;
-    /** Page ID if applicable */
     pageId?: string;
   };
 }
 
-/**
- * Result type for web-first assertions.
- * Captures both expected and actual values for clear failure messages.
- *
- * @template T - The type of values being compared
- *
- * @example
- * ```typescript
- * const result: AssertionResult<string> = {
- *   success: false,
- *   expected: 'Welcome, User!',
- *   actual: 'Loading...',
- *   message: 'Text content did not match within 5000ms',
- * };
- * ```
- */
 export interface AssertionResult<T> {
-  /** Whether the assertion passed */
   success: boolean;
-  /** Expected value (for failure messages) */
   expected?: T;
-  /** Actual value found (for failure messages) */
   actual?: T;
-  /** Descriptive message about the assertion */
   message?: string;
 }
 
-// ============================================
 // Shared Primitive Types
-// ============================================
 
-/**
- * Supported browser engines.
- * Playwright supports all major browser engines for cross-browser testing.
- *
- * @see https://playwright.dev/docs/browsers
- */
 export type BrowserType = 'chromium' | 'firefox' | 'webkit';
-
-/**
- * Mouse button options for click operations.
- * Maps to standard DOM mouse button values.
- */
 export type MouseButton = 'left' | 'middle' | 'right';
-
-/**
- * Keyboard modifiers for combined key presses.
- * Used with click and keyboard operations for modifier keys.
- */
 export type KeyModifier = 'Alt' | 'Control' | 'Meta' | 'Shift';
-
-/**
- * Navigation wait conditions.
- * Determines when navigation is considered complete.
- *
- * **Choosing the Right Condition:**
- * - `'load'` - Wait for the load event (all resources loaded). Best for traditional sites.
- * - `'domcontentloaded'` - Wait for DOMContentLoaded event (DOM ready). Best for SPAs.
- * - `'networkidle'` - Wait until no network requests for 500ms. Best for async data loading.
- * - `'commit'` - Wait for navigation to be committed. Fastest, minimal waiting.
- *
- * @see https://playwright.dev/docs/navigations#navigation-lifecycle
- */
 export type WaitUntilState =
   | 'load'
   | 'domcontentloaded'
   | 'networkidle'
   | 'commit';
-
-/**
- * Element visibility states for waitForSelector.
- * Controls what state the element must be in.
- *
- * - `'visible'` - Element is visible (has bounding box, not hidden)
- * - `'hidden'` - Element is hidden or not in DOM
- * - `'attached'` - Element exists in DOM (may be hidden)
- * - `'detached'` - Element does not exist in DOM
- */
 export type ElementState = 'visible' | 'hidden' | 'attached' | 'detached';
-
-/**
- * Color scheme options for emulateMedia.
- * Used for testing dark/light mode styles.
- *
- * @see https://playwright.dev/docs/emulation#color-scheme-and-media
- */
 export type ColorScheme = 'light' | 'dark' | 'no-preference';
-
-/**
- * Reduced motion options for accessibility testing.
- * Important for testing with users who have vestibular disorders.
- *
- * @see https://playwright.dev/docs/emulation#color-scheme-and-media
- */
 export type ReducedMotion = 'reduce' | 'no-preference';
-
-/**
- * Forced colors options for accessibility testing.
- * Tests high contrast mode compatibility.
- */
 export type ForcedColors = 'active' | 'none';
 
-// ============================================
 // Browser Session Types
-// ============================================
 
-/**
- * Browser session with context and pages.
- * Sessions are isolated browser instances managed by the server.
- *
- * **Isolation Model:**
- * - Each session has its own browser instance
- * - Each session has one BrowserContext for state isolation
- * - Multiple pages (tabs) can exist within a session
- * - Sessions are identified by UUID
- *
- * @see https://playwright.dev/docs/browser-contexts
- */
 export interface BrowserSession {
-  /** Unique session identifier (UUID) */
   id: string;
-  /** Playwright Browser instance */
   browser: Browser;
-  /** Browser context for this session (cookies, storage, etc.) */
   context: BrowserContext;
-  /** Map of page IDs to Page instances */
   pages: Map<string, Page>;
-  /** Session metadata for management and monitoring */
   metadata: SessionMetadata;
 }
 
-/**
- * Session metadata for tracking, monitoring, and management.
- * Updated on every session activity for timeout tracking.
- */
 export interface SessionMetadata {
-  /** Browser engine type (chromium, firefox, webkit) */
   browserType: BrowserType;
-  /** When the session was created */
   launchTime: Date;
-  /** Last activity timestamp (updated on every operation) */
   lastActivity: Date;
-  /** Whether browser is running headless */
   headless: boolean;
-  /** Currently active page ID (for tab management) */
   activePageId?: string;
-  /** Custom user agent if set */
   userAgent?: string;
-  /** Current viewport dimensions */
   viewport?: Viewport;
 }
 
-// ============================================
 // Viewport and Position Types
-// ============================================
 
-/** Viewport dimensions */
 export interface Viewport {
   width: number;
   height: number;
 }
 
-/** Coordinate position */
 export interface Position {
   x: number;
   y: number;
 }
 
-/** Clip region for screenshots */
 export interface ClipRegion extends Position {
   width: number;
   height: number;
 }
 
-/** Bounding box with all dimensions (x, y, width, height) */
 export type BoundingBox = ClipRegion;
 
-// ============================================
 // Common Reference Types
-// ============================================
 
-/**
- * Common session-page identifier used by most operations.
- * Export for use in handler modules.
- */
 export interface SessionPageRef {
   sessionId: string;
   pageId: string;
 }
 
-/**
- * Base options for locator operations.
- */
 export interface BaseLocatorOptions extends SessionPageRef {
   timeout?: number;
 }
 
-// ============================================
 // Navigation Options
-// ============================================
 
-/** Options for page navigation */
 export interface NavigationOptions {
   sessionId: string;
   url: string;
@@ -313,7 +110,6 @@ export interface NavigationOptions {
   referer?: string;
 }
 
-/** Options for waiting on elements */
 export interface WaitForSelectorOptions extends SessionPageRef {
   selector: string;
   state?: ElementState;
@@ -321,11 +117,8 @@ export interface WaitForSelectorOptions extends SessionPageRef {
   strict?: boolean;
 }
 
-// ============================================
 // Element Interaction Options
-// ============================================
 
-/** Options for element click operations */
 export interface ElementInteractionOptions extends SessionPageRef {
   selector: string;
   timeout?: number;
@@ -339,7 +132,6 @@ export interface ElementInteractionOptions extends SessionPageRef {
   trial?: boolean;
 }
 
-/** Options for element fill operations */
 export interface FillOptions extends SessionPageRef {
   selector: string;
   text: string;
@@ -348,7 +140,6 @@ export interface FillOptions extends SessionPageRef {
   noWaitAfter?: boolean;
 }
 
-/** Options for element hover operations */
 export interface HoverOptions extends SessionPageRef {
   selector: string;
   timeout?: number;
@@ -358,11 +149,8 @@ export interface HoverOptions extends SessionPageRef {
   trial?: boolean;
 }
 
-// ============================================
 // Screenshot Options
-// ============================================
 
-/** Options for taking screenshots */
 export interface ScreenshotOptions extends SessionPageRef {
   fullPage?: boolean;
   path?: string;
@@ -376,52 +164,10 @@ export interface ScreenshotOptions extends SessionPageRef {
   caret?: 'hide' | 'initial';
 }
 
-// ============================================
-// ARIA Roles - Comprehensive List for Accessibility
-// ============================================
+// ARIA Roles
 
-/**
- * Complete list of ARIA roles for semantic locators.
- * Organized by category following WAI-ARIA specification.
- *
- * **Role Categories:**
- *
- * **Widget Roles** (Interactive elements):
- * - `button`, `checkbox`, `link`, `textbox`, `radio`, `slider`, `switch`, `tab`
- * - Used for interactive UI components
- *
- * **Document Structure Roles**:
- * - `heading`, `article`, `list`, `listitem`, `table`, `row`, `cell`
- * - Used for content organization
- *
- * **Landmark Roles**:
- * - `banner`, `main`, `navigation`, `complementary`, `contentinfo`, `search`
- * - Used for page regions (accessibility navigation)
- *
- * **Live Region Roles**:
- * - `alert`, `status`, `log`, `timer`
- * - Used for dynamic content updates
- *
- * @see https://www.w3.org/TR/wai-aria-1.2/#roles
- * @see https://playwright.dev/docs/api/class-locator#locator-get-by-role
- *
- * @example
- * ```typescript
- * // Click a button by role and accessible name
- * await page.getByRole('button', { name: 'Submit' }).click();
- *
- * // Fill a textbox
- * await page.getByRole('textbox', { name: 'Email' }).fill('user@example.com');
- *
- * // Check a checkbox
- * await page.getByRole('checkbox', { name: 'Accept terms' }).check();
- *
- * // Click a specific heading level
- * await page.getByRole('heading', { level: 2, name: 'Features' }).click();
- * ```
- */
 export const ARIA_ROLES = [
-  // Widget roles (interactive elements)
+  // Widget roles
   'button',
   'checkbox',
   'combobox',
@@ -482,7 +228,7 @@ export const ARIA_ROLES = [
   'table',
   'term',
   'time',
-  // Landmark roles (page regions)
+  // Landmark roles
   'application',
   'banner',
   'complementary',
@@ -492,7 +238,7 @@ export const ARIA_ROLES = [
   'navigation',
   'region',
   'search',
-  // Live region roles (dynamic content)
+  // Live region roles
   'alert',
   'alertdialog',
   'dialog',
@@ -500,7 +246,7 @@ export const ARIA_ROLES = [
   'marquee',
   'status',
   'timer',
-  // Composite roles (containers)
+  // Composite roles
   'grid',
   'radiogroup',
   'tablist',
@@ -510,7 +256,6 @@ export const ARIA_ROLES = [
   'treegrid',
 ] as const;
 
-/** Type for valid ARIA roles */
 export type AriaRole = (typeof ARIA_ROLES)[number];
 
 // ============================================

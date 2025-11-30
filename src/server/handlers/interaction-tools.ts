@@ -1,16 +1,6 @@
-/**
- * Interaction Tool Handlers
- *
- * Handles element interaction operations using CSS selectors:
- * - element_click: Click element by selector
- * - element_fill: Fill input by selector
- * - element_hover: Hover over element
- * - select_option: Select dropdown option
- * - drag_and_drop: Drag element to target
- *
- * Note: Role-based and semantic locator tools (click_by_role, fill_by_label, etc.)
- * are in locator-tools.ts to follow DRY principle.
- */
+// Interaction Tool Handlers - Element interactions using CSS selectors
+// @see https://playwright.dev/docs/api/class-locator
+
 import { z } from 'zod';
 
 import {

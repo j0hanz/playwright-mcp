@@ -1,11 +1,10 @@
+// Execution Helper - Standardized page operation wrapper with logging and error handling
+
 import { Page } from 'playwright';
 import { ErrorHandler, toError } from '../../utils/error-handler.js';
 import { Logger } from '../../utils/logger.js';
 import { SessionManager } from '../session-manager.js';
 
-/**
- * Helper to execute a page operation with standardized logging, error handling, and session activity tracking.
- */
 export async function executePageOperation<T>(
   sessionManager: SessionManager,
   logger: Logger,

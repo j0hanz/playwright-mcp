@@ -31,10 +31,6 @@ export class MCPPlaywrightServer {
     this.startSessionCleanup();
   }
 
-  /**
-   * Performs session cleanup with proper error handling.
-   * Separated from setInterval to avoid floating promise anti-pattern.
-   */
   private async performSessionCleanup(): Promise<void> {
     try {
       const { cleaned } = await this.browserManager.cleanupExpiredSessions(

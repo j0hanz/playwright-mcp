@@ -1,3 +1,5 @@
+// Navigation Actions - Page navigation with URL validation
+
 import { v4 as uuidv4 } from 'uuid';
 
 import { ErrorHandler, toError } from '../../utils/error-handler.js';
