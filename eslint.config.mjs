@@ -40,6 +40,7 @@ export default defineConfig(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
+      '@typescript-eslint/no-require-imports': 'off',
 
       // Allow floating promises in specific patterns (IIFE in setInterval)
       '@typescript-eslint/no-floating-promises': [
