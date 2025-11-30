@@ -267,4 +267,200 @@ export function registerBrowserTools(ctx: ToolContext): void {
       };
     }
   );
+
+  // Save Storage State Tool
+  server.registerTool(
+    'save_storage_state',
+    {
+      title: 'Save Storage State',
+      description:
+        'Save browser storage state (cookies, localStorage) for authentication reuse',
+      inputSchema: {
+        sessionId: z.string().describe('Browser session ID'),
+        path: z
+          .string()
+          .optional()
+          .describe('Path to save the storage state file'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        path: z.string(),
+      },
+    },
+    createToolHandler(async ({ sessionId, path }) => {
+      const result = await browserManager.saveStorageState(sessionId, path);
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Storage state saved to ${result.path}`,
+          },
+        ],
+        structuredContent: result,
+      };
+    }, 'Error saving storage state')
+  );
+
+  // Launch with Auth Tool
+  server.registerTool(
+    'launch_with_auth',
+    {
+      title: 'Launch Browser with Auth',
+      description:
+        'Launch a new browser session with saved authentication state',
+      inputSchema: {
+        browserType: z
+          .enum(['chromium', 'firefox', 'webkit'])
+          .default('chromium'),
+        headless: z.boolean().default(true),
+        storageState: z.string().describe('Path to storage state file'),
+        viewportWidth: z.number().default(1920),
+        viewportHeight: z.number().default(1080),
+      },
+      outputSchema: {
+        sessionId: z.string(),
+        browserType: z.string(),
+      },
+    },
+    createToolHandler(
+      async ({
+        browserType,
+        headless,
+        storageState,
+        viewportWidth,
+        viewportHeight,
+      }) => {
+        const result = await browserManager.launchWithStorageState({
+          browserType,
+          headless,
+          storageState,
+          viewport: { width: viewportWidth, height: viewportHeight },
+        });
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Browser launched with auth from ${storageState}`,
+            },
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error launching with auth'
+    )
+  );
+
+  // Session Reset State Tool
+  server.registerTool(
+    'session_reset_state',
+    {
+      title: 'Reset Session State',
+      description:
+        'Clear cookies, localStorage, and sessionStorage for a browser session (useful for test isolation)',
+      inputSchema: {
+        sessionId: z.string().describe('Browser session ID'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        clearedCookies: z.boolean(),
+        clearedStorage: z.boolean(),
+      },
+    },
+    createToolHandler(async ({ sessionId }) => {
+      const result = await browserManager.resetSessionState(sessionId);
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Session state cleared (cookies, localStorage, sessionStorage)',
+          },
+        ],
+        structuredContent: result,
+      };
+    }, 'Error resetting session state')
+  );
+
+  // Page Prepare Tool
+  server.registerTool(
+    'page_prepare',
+    {
+      title: 'Prepare Page',
+      description:
+        'Configure page settings for testing (viewport, geolocation, permissions, color scheme, etc.)',
+      inputSchema: {
+        sessionId: z.string().describe('Browser session ID'),
+        pageId: z.string().describe('Page ID'),
+        viewport: z
+          .object({
+            width: z.number().min(320).max(3840),
+            height: z.number().min(240).max(2160),
+          })
+          .optional()
+          .describe('Viewport size'),
+        extraHTTPHeaders: z
+          .record(z.string(), z.string())
+          .optional()
+          .describe('Extra HTTP headers to send'),
+        geolocation: z
+          .object({
+            latitude: z.number().min(-90).max(90),
+            longitude: z.number().min(-180).max(180),
+            accuracy: z.number().optional(),
+          })
+          .optional()
+          .describe('Geolocation override'),
+        permissions: z
+          .array(z.string())
+          .optional()
+          .describe('Permissions to grant (e.g., geolocation, notifications)'),
+        colorScheme: z
+          .enum(['light', 'dark', 'no-preference'])
+          .optional()
+          .describe('Color scheme preference'),
+        reducedMotion: z
+          .enum(['reduce', 'no-preference'])
+          .optional()
+          .describe('Reduced motion preference'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        appliedSettings: z.array(z.string()),
+      },
+    },
+    createToolHandler(
+      async ({
+        sessionId,
+        pageId,
+        viewport,
+        extraHTTPHeaders,
+        geolocation,
+        permissions,
+        colorScheme,
+        reducedMotion,
+      }) => {
+        const result = await browserManager.preparePage(sessionId, pageId, {
+          viewport,
+          extraHTTPHeaders,
+          geolocation,
+          permissions,
+          colorScheme,
+          reducedMotion,
+        });
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Page prepared with settings: ${result.appliedSettings.join(', ') || 'none'}`,
+            },
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error preparing page'
+    )
+  );
 }

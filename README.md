@@ -90,20 +90,20 @@ Auto-waiting assertions that retry until the condition is met:
 
 ### Wait & Load State
 
-| Tool                       | Description                                     |
-| -------------------------- | ----------------------------------------------- |
-| `wait_for_selector`        | Wait for element to appear/disappear            |
-| `wait_for_download`        | Wait for file download                          |
+| Tool                       | Description                                                    |
+| -------------------------- | -------------------------------------------------------------- |
+| `wait_for_selector`        | Wait for element to appear/disappear                           |
+| `wait_for_download`        | Wait for file download                                         |
 | `page_wait_for_load_state` | Wait for page load state (load, domcontentloaded, networkidle) |
-| `wait_for_network_idle`    | Wait until no network requests for 500ms        |
+| `wait_for_network_idle`    | Wait until no network requests for 500ms                       |
 
 ### Page Inspection
 
-| Tool              | Description                          |
-| ----------------- | ------------------------------------ |
-| `page_screenshot` | Take a screenshot                    |
-| `page_content`    | Get page HTML and text               |
-| `page_prepare`    | Configure page settings for testing  |
+| Tool              | Description                         |
+| ----------------- | ----------------------------------- |
+| `page_screenshot` | Take a screenshot                   |
+| `page_content`    | Get page HTML and text              |
+| `page_prepare`    | Configure page settings for testing |
 
 ### Keyboard & Mouse
 
@@ -116,27 +116,27 @@ Auto-waiting assertions that retry until the condition is met:
 
 ### Tracing & Debugging
 
-| Tool            | Description                         |
-| --------------- | ----------------------------------- |
-| `tracing_start` | Start recording a trace             |
-| `tracing_stop`  | Stop and save trace                 |
+| Tool            | Description             |
+| --------------- | ----------------------- |
+| `tracing_start` | Start recording a trace |
+| `tracing_stop`  | Stop and save trace     |
 
 ### Authentication
 
-| Tool                 | Description                              |
-| -------------------- | ---------------------------------------- |
-| `save_storage_state` | Save cookies/localStorage for auth reuse |
-| `launch_with_auth`   | Launch browser with saved auth state     |
-| `session_reset_state`| Clear session cookies and storage        |
+| Tool                  | Description                              |
+| --------------------- | ---------------------------------------- |
+| `save_storage_state`  | Save cookies/localStorage for auth reuse |
+| `launch_with_auth`    | Launch browser with saved auth state     |
+| `session_reset_state` | Clear session cookies and storage        |
 
 ### Accessibility Testing
 
-| Tool                   | Description                                      |
-| ---------------------- | ------------------------------------------------ |
-| `accessibility_scan`   | Scan page for WCAG violations using axe-core     |
-| `accessibility_report` | Generate HTML accessibility report               |
-| `emulate_reduced_motion` | Test reduced motion preference                 |
-| `emulate_color_scheme` | Test light/dark color scheme                     |
+| Tool                     | Description                                  |
+| ------------------------ | -------------------------------------------- |
+| `accessibility_scan`     | Scan page for WCAG violations using axe-core |
+| `accessibility_report`   | Generate HTML accessibility report           |
+| `emulate_reduced_motion` | Test reduced motion preference               |
+| `emulate_color_scheme`   | Test light/dark color scheme                 |
 
 ## Locator Priority Guide
 

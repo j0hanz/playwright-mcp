@@ -1,0 +1,290 @@
+import config from '../config/server-config.js';
+import {
+  ErrorCode,
+  ErrorHandler,
+  isMCPPlaywrightError,
+  toError,
+} from '../utils/error-handler.js';
+import { Logger } from '../utils/logger.js';
+import { Page } from 'playwright';
+import { promises as fs, constants as fsConstants } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const logger = new Logger('Security');
+
+/**
+ * Allowed URL protocols for navigation.
+ * Prevents javascript:, file:, and data: URL attacks.
+ */
+export const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
+
+/**
+ * Predefined safe scripts (preferred approach)
+ */
+export const SAFE_SCRIPT_TEMPLATES: Record<string, string> = {
+  getTitle: 'document.title',
+  getURL: 'window.location.href',
+  getViewport:
+    'JSON.stringify({ width: window.innerWidth, height: window.innerHeight })',
+  getScrollPosition: 'JSON.stringify({ x: window.scrollX, y: window.scrollY })',
+  getBodyText: 'document.body?.innerText || ""',
+  getDocumentReadyState: 'document.readyState',
+};
+
+/**
+ * Strict blocklist - these are always rejected regardless of pattern match
+ * Security: Comprehensive list covering XSS, prototype pollution, and code injection vectors
+ */
+const STRICT_BLOCKLIST = [
+  // Code execution
+  'eval',
+  'Function(',
+  'setTimeout',
+  'setInterval',
+  'setImmediate',
+  'requestAnimationFrame',
+  'requestIdleCallback',
+  // Storage access
+  'document.cookie',
+  'localStorage',
+  'sessionStorage',
+  'indexedDB',
+  'openDatabase',
+  'caches',
+  // Network requests
+  'XMLHttpRequest',
+  'fetch(',
+  'importScripts',
+  'navigator.sendBeacon',
+  'EventSource',
+  'WebSocket',
+  // DOM manipulation (XSS vectors)
+  'window.open',
+  'document.write',
+  'document.writeln',
+  'innerHTML',
+  'outerHTML',
+  'insertAdjacentHTML',
+  'createContextualFragment',
+  'document.domain',
+  'document.implementation',
+  // Prototype pollution
+  '__proto__',
+  '.constructor',
+  '.prototype',
+  'Object.assign',
+  'Object.defineProperty',
+  'Object.setPrototypeOf',
+  'Reflect.',
+  'Proxy',
+  // Script injection
+  'script>',
+  '<script',
+  '<iframe',
+  '<object',
+  '<embed',
+  '<svg',
+  'onerror',
+  'onload',
+  'onclick',
+  // URI schemes
+  'javascript:',
+  'data:',
+  'vbscript:',
+  'blob:',
+  // Encoding bypass attempts
+  'atob',
+  'btoa',
+  'unescape',
+  'decodeURI',
+  'decodeURIComponent',
+  'String.fromCharCode',
+  'String.fromCodePoint',
+  // Dangerous APIs
+  'execCommand',
+  'document.execCommand',
+  'postMessage',
+  'BroadcastChannel',
+  'SharedWorker',
+  'Worker(',
+  'ServiceWorker',
+  'navigator.serviceWorker',
+  // Module loading
+  'import(',
+  'require(',
+  'define(',
+  // Clipboard access
+  'navigator.clipboard',
+  'document.getSelection',
+  // Location manipulation
+  'location.href',
+  'location.assign',
+  'location.replace',
+  'history.pushState',
+  'history.replaceState',
+];
+
+/**
+ * Allowlist of safe operations - only permit these patterns at start of script
+ */
+const SAFE_PATTERNS = [
+  /^\s*document\.querySelector\s*\(/,
+  /^\s*document\.querySelectorAll\s*\(/,
+  /^\s*document\.getElementById\s*\(/,
+  /^\s*document\.getElementsByClassName\s*\(/,
+  /^\s*document\.getElementsByTagName\s*\(/,
+  /^\s*document\.title\s*$/,
+  /^\s*window\.innerWidth\s*$/,
+  /^\s*window\.innerHeight\s*$/,
+  /^\s*window\.scrollY\s*$/,
+  /^\s*window\.scrollX\s*$/,
+];
+
+/**
+ * Allowed upload directory for file input operations.
+ * Files must be within this directory to be uploaded.
+ */
+const ALLOWED_UPLOAD_DIR = fileURLToPath(
+  new URL('../../uploads', import.meta.url)
+);
+
+/**
+ * Validates a URL protocol.
+ */
+export function validateUrlProtocol(url: string): void {
+  try {
+    const parsedUrl = new URL(url);
+    if (!ALLOWED_PROTOCOLS.has(parsedUrl.protocol)) {
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        `Invalid URL protocol: ${parsedUrl.protocol}. Only http: and https: are allowed.`
+      );
+    }
+  } catch (error) {
+    // Re-throw if it's already our error type
+    if (isMCPPlaywrightError(error)) throw error;
+
+    throw ErrorHandler.createError(
+      ErrorCode.VALIDATION_FAILED,
+      `Invalid URL format: ${url}`
+    );
+  }
+}
+
+/**
+ * Execute JavaScript code in the page context with strict security controls.
+ */
+export async function evaluateScript(
+  page: Page,
+  script: string,
+  sessionId: string,
+  pageId: string,
+  updateActivityCallback: (sessionId: string) => void
+): Promise<{ result: unknown }> {
+  if (script.length > config.limits.maxScriptLength) {
+    throw ErrorHandler.createError(
+      ErrorCode.VALIDATION_FAILED,
+      `Script exceeds maximum length of ${config.limits.maxScriptLength} characters`
+    );
+  }
+
+  // Check if script is a predefined safe template
+  const templateScript = SAFE_SCRIPT_TEMPLATES[script.trim()];
+  if (templateScript) {
+    try {
+      const result = await page.evaluate(templateScript);
+      updateActivityCallback(sessionId);
+      return { result };
+    } catch (error) {
+      const err = toError(error);
+      logger.error('Script evaluation failed', {
+        sessionId,
+        pageId,
+        error: err.message,
+      });
+      throw ErrorHandler.handlePlaywrightError(err);
+    }
+  }
+
+  // For custom scripts, apply strict validation
+  const scriptLower = script.toLowerCase();
+  for (const blocked of STRICT_BLOCKLIST) {
+    if (scriptLower.includes(blocked.toLowerCase())) {
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        `Script contains blocked operation. Use predefined templates: ${Object.keys(SAFE_SCRIPT_TEMPLATES).join(', ')}`
+      );
+    }
+  }
+
+  const isSafeScript = SAFE_PATTERNS.some((pattern) =>
+    pattern.test(script.trim())
+  );
+
+  if (!isSafeScript) {
+    throw ErrorHandler.createError(
+      ErrorCode.VALIDATION_FAILED,
+      `Script does not match allowed patterns. Use predefined templates: ${Object.keys(SAFE_SCRIPT_TEMPLATES).join(', ')}`
+    );
+  }
+
+  try {
+    const result = await page.evaluate(script);
+    updateActivityCallback(sessionId);
+    return { result };
+  } catch (error) {
+    const err = toError(error);
+    logger.error('Script evaluation failed', {
+      sessionId,
+      pageId,
+      error: err.message,
+    });
+    throw ErrorHandler.handlePlaywrightError(err);
+  }
+}
+
+/**
+ * Validates a file path for upload.
+ */
+export async function validateUploadPath(filePath: string): Promise<string> {
+  try {
+    // First check: resolve path before symlink resolution
+    const initialResolved = path.resolve(filePath);
+    if (!initialResolved.startsWith(ALLOWED_UPLOAD_DIR)) {
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        `File path not allowed: ${filePath}. Files must be in the uploads directory.`
+      );
+    }
+
+    // Second check: resolve symlinks and verify still in upload dir (TOCTOU mitigation)
+    const resolvedPath = await fs.realpath(initialResolved);
+    if (!resolvedPath.startsWith(ALLOWED_UPLOAD_DIR)) {
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        `Symlink points outside upload directory: ${filePath}`
+      );
+    }
+
+    // Check file exists and is readable
+    await fs.access(resolvedPath, fsConstants.R_OK);
+
+    // Verify it's a regular file, not a directory
+    const stats = await fs.stat(resolvedPath);
+    if (!stats.isFile()) {
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        `Path is not a file: ${filePath}`
+      );
+    }
+
+    return resolvedPath;
+  } catch (error) {
+    if (isMCPPlaywrightError(error)) throw error;
+    throw ErrorHandler.createError(
+      ErrorCode.VALIDATION_FAILED,
+      `File not found or not accessible: ${filePath}`
+    );
+  }
+}

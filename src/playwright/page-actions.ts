@@ -5,11 +5,28 @@
  * common Playwright operations. Following MCP best practices for
  * separating browser logic from transport/tool definitions.
  *
- * Benefits:
- * - Consistent error handling
- * - Reusable across different tools
+ * **Design Principles:**
+ * - Use Playwright's recommended locator strategies
+ * - Auto-waiting is built into all interactions
+ * - Consistent error propagation for upstream handling
+ * - Single responsibility - each function does one thing well
+ *
+ * **Locator Priority (Playwright Best Practices):**
+ * 1. getByRole() - Best for interactive elements, reflects accessibility
+ * 2. getByLabel() - Best for form inputs with labels
+ * 3. getByPlaceholder() - For inputs without visible labels
+ * 4. getByText() - For elements identified by text content
+ * 5. getByTestId() - For stable test automation selectors
+ * 6. CSS/XPath - Last resort, avoid when possible
+ *
+ * **Benefits:**
+ * - Consistent error handling across all operations
+ * - Reusable across different MCP tools
  * - Easy to test in isolation
  * - Single point for adding logging, metrics, etc.
+ *
+ * @see https://playwright.dev/docs/locators
+ * @see https://playwright.dev/docs/best-practices
  */
 import type { Page } from 'playwright';
 
@@ -115,7 +132,27 @@ export async function clickElement(
 }
 
 /**
- * Click on an element by its ARIA role
+ * Click on an element by its ARIA role.
+ *
+ * **This is the most recommended locator strategy by Playwright.**
+ *
+ * Role-based locators are resilient to DOM changes and ensure accessibility.
+ * They reflect how users and assistive technologies perceive the page.
+ *
+ * @see https://playwright.dev/docs/locators#locate-by-role
+ *
+ * @param page - Playwright Page instance
+ * @param role - ARIA role (button, link, checkbox, textbox, etc.)
+ * @param options - Locator and click options
+ *
+ * @example
+ * ```typescript
+ * // Click submit button
+ * await clickByRole(page, 'button', { name: 'Submit' });
+ *
+ * // Click link with exact text
+ * await clickByRole(page, 'link', { name: 'Learn more', exact: true });
+ * ```
  */
 export async function clickByRole(
   page: Page,
@@ -136,7 +173,25 @@ export async function clickByRole(
 }
 
 /**
- * Click on an element by its text content
+ * Click on an element by its text content.
+ *
+ * Uses Playwright's getByText() locator which finds elements containing
+ * the specified text. By default, it matches substrings case-sensitively.
+ *
+ * @see https://playwright.dev/docs/locators#locate-by-text
+ *
+ * @param page - Playwright Page instance
+ * @param text - Text content to search for
+ * @param options - Match and click options
+ *
+ * @example
+ * ```typescript
+ * // Click element containing "Welcome"
+ * await clickByText(page, 'Welcome');
+ *
+ * // Click with exact text match
+ * await clickByText(page, 'Click me', { exact: true });
+ * ```
  */
 export async function clickByText(
   page: Page,
@@ -156,7 +211,22 @@ export async function clickByText(
 }
 
 /**
- * Click on an element by data-testid
+ * Click on an element by data-testid.
+ *
+ * **Use when semantic locators aren't suitable.**
+ * Test IDs provide stable selectors independent of implementation.
+ *
+ * @see https://playwright.dev/docs/locators#locate-by-test-id
+ *
+ * @param page - Playwright Page instance
+ * @param testId - Value of the data-testid attribute
+ * @param options - Click options
+ *
+ * @example
+ * ```typescript
+ * // HTML: <button data-testid="submit-btn">Submit</button>
+ * await clickByTestId(page, 'submit-btn');
+ * ```
  */
 export async function clickByTestId(
   page: Page,
@@ -191,7 +261,31 @@ export async function fillInput(
 }
 
 /**
- * Fill an input by its label
+ * Fill an input by its label.
+ *
+ * **Recommended for form inputs** - matches how users identify form fields.
+ *
+ * Works with:
+ * - <label for="id"> associations
+ * - Inputs nested inside <label>
+ * - aria-labelledby references
+ * - aria-label attributes
+ *
+ * @see https://playwright.dev/docs/locators#locate-by-label
+ *
+ * @param page - Playwright Page instance
+ * @param label - Label text to match
+ * @param text - Text to fill into the input
+ * @param options - Match and fill options
+ *
+ * @example
+ * ```typescript
+ * // Fill input labeled "Email"
+ * await fillByLabel(page, 'Email', 'user@example.com');
+ *
+ * // With exact matching
+ * await fillByLabel(page, 'Password', 'secret', { exact: true });
+ * ```
  */
 export async function fillByLabel(
   page: Page,
@@ -211,7 +305,23 @@ export async function fillByLabel(
 }
 
 /**
- * Fill an input by its placeholder
+ * Fill an input by its placeholder.
+ *
+ * **Use when labels aren't available.**
+ * Placeholder text provides a reasonable fallback for identifying inputs.
+ *
+ * @see https://playwright.dev/docs/locators#locate-by-placeholder
+ *
+ * @param page - Playwright Page instance
+ * @param placeholder - Placeholder attribute text
+ * @param text - Text to fill into the input
+ * @param options - Match and fill options
+ *
+ * @example
+ * ```typescript
+ * // Fill input with placeholder "Enter email..."
+ * await fillByPlaceholder(page, 'Enter email...', 'user@example.com');
+ * ```
  */
 export async function fillByPlaceholder(
   page: Page,
