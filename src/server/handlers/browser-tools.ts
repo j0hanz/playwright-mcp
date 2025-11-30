@@ -144,10 +144,14 @@ export function registerBrowserTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, width, height }) => {
-      const result = await browserManager.resizeViewport(sessionId, pageId, {
-        width,
-        height,
-      });
+      const result = await browserManager.pageOperations.resizeViewport(
+        sessionId,
+        pageId,
+        {
+          width,
+          height,
+        }
+      );
 
       return {
         content: [textContent(`Viewport resized to ${width}x${height}`)],
@@ -193,7 +197,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, action, pageId, url }) => {
-      const result = await browserManager.manageTabs(
+      const result = await browserManager.pageOperations.manageTabs(
         sessionId,
         action,
         pageId,
@@ -337,7 +341,8 @@ export function registerBrowserTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId }) => {
-      const result = await browserManager.resetSessionState(sessionId);
+      const result =
+        await browserManager.pageOperations.resetSessionState(sessionId);
 
       return {
         content: [
@@ -407,14 +412,18 @@ export function registerBrowserTools(ctx: ToolContext): void {
         colorScheme,
         reducedMotion,
       }) => {
-        const result = await browserManager.preparePage(sessionId, pageId, {
-          viewport,
-          extraHTTPHeaders,
-          geolocation,
-          permissions,
-          colorScheme,
-          reducedMotion,
-        });
+        const result = await browserManager.pageOperations.preparePage(
+          sessionId,
+          pageId,
+          {
+            viewport,
+            extraHTTPHeaders,
+            geolocation,
+            permissions,
+            colorScheme,
+            reducedMotion,
+          }
+        );
 
         return {
           content: [

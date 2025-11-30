@@ -46,7 +46,7 @@ export function registerPageTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, fullPage, path, type, quality }) => {
-        const result = await browserManager.takeScreenshot({
+        const result = await browserManager.pageOperations.takeScreenshot({
           sessionId,
           pageId,
           fullPage,
@@ -98,7 +98,10 @@ export function registerPageTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId }) => {
-      const result = await browserManager.getPageContent(sessionId, pageId);
+      const result = await browserManager.pageOperations.getPageContent(
+        sessionId,
+        pageId
+      );
 
       // Truncate text for display
       const displayText =
@@ -136,7 +139,7 @@ export function registerPageTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, selector, state, timeout }) => {
-        const result = await browserManager.waitForSelector(
+        const result = await browserManager.pageOperations.waitForSelector(
           sessionId,
           pageId,
           selector,
@@ -176,9 +179,13 @@ export function registerPageTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, timeout }) => {
-      const result = await browserManager.waitForDownload(sessionId, pageId, {
-        timeout,
-      });
+      const result = await browserManager.pageOperations.waitForDownload(
+        sessionId,
+        pageId,
+        {
+          timeout,
+        }
+      );
 
       return {
         content: [
@@ -263,7 +270,7 @@ export function registerPageTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, script }) => {
-      const result = await browserManager.evaluateScript(
+      const result = await browserManager.pageOperations.evaluateScript(
         sessionId,
         pageId,
         script
@@ -325,7 +332,7 @@ export function registerPageTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, tags, includedImpacts, selector }) => {
-        const result = await browserManager.runAccessibilityScan(
+        const result = await browserManager.pageOperations.runAccessibilityScan(
           sessionId,
           pageId,
           { tags, includedImpacts, selector }
@@ -431,7 +438,7 @@ export function registerPageTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, outputPath, tags }) => {
-      const result = await browserManager.runAccessibilityScan(
+      const result = await browserManager.pageOperations.runAccessibilityScan(
         sessionId,
         pageId,
         { tags }

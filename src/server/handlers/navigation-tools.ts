@@ -29,7 +29,7 @@ export function registerNavigationTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, url, waitUntil }) => {
-      const result = await browserManager.navigateToPage({
+      const result = await browserManager.navigationActions.navigateToPage({
         sessionId,
         url,
         waitUntil,
@@ -55,7 +55,10 @@ export function registerNavigationTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId }) => {
-      const result = await browserManager.navigateBack(sessionId, pageId);
+      const result = await browserManager.navigationActions.navigateBack(
+        sessionId,
+        pageId
+      );
 
       return {
         content: [

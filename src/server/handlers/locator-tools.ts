@@ -40,7 +40,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, role, name, exact, force, timeout }) => {
-        const result = await browserManager.clickByRole(
+        const result = await browserManager.locatorActions.clickByRole(
           sessionId,
           pageId,
           role,
@@ -75,7 +75,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, label, text, exact, timeout }) => {
-        const result = await browserManager.fillByLabel(
+        const result = await browserManager.locatorActions.fillByLabel(
           sessionId,
           pageId,
           label,
@@ -110,7 +110,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, text, exact, force, timeout }) => {
-        const result = await browserManager.clickByText(
+        const result = await browserManager.locatorActions.clickByText(
           sessionId,
           pageId,
           text,
@@ -144,7 +144,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, placeholder, text, exact, timeout }) => {
-        const result = await browserManager.fillByPlaceholder(
+        const result = await browserManager.locatorActions.fillByPlaceholder(
           sessionId,
           pageId,
           placeholder,
@@ -179,7 +179,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, testId, force, timeout }) => {
-      const result = await browserManager.clickByTestId(
+      const result = await browserManager.locatorActions.clickByTestId(
         sessionId,
         pageId,
         testId,
@@ -209,7 +209,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, testId, text, timeout }) => {
-      const result = await browserManager.fillByTestId(
+      const result = await browserManager.locatorActions.fillByTestId(
         sessionId,
         pageId,
         testId,
@@ -243,7 +243,7 @@ export function registerLocatorTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, altText, exact, force, timeout }) => {
-        const result = await browserManager.clickByAltText(
+        const result = await browserManager.locatorActions.clickByAltText(
           sessionId,
           pageId,
           altText,

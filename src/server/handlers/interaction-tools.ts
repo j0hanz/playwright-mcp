@@ -63,7 +63,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
         modifiers,
         delay,
       }) => {
-        const result = await browserManager.clickElement({
+        const result = await browserManager.interactionActions.clickElement({
           sessionId,
           pageId,
           selector,
@@ -99,7 +99,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, selector, text }) => {
-      const result = await browserManager.fillInput({
+      const result = await browserManager.interactionActions.fillInput({
         sessionId,
         pageId,
         selector,
@@ -128,7 +128,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, selector }) => {
-      const result = await browserManager.hoverElement({
+      const result = await browserManager.interactionActions.hoverElement({
         sessionId,
         pageId,
         selector,
@@ -162,7 +162,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, selector, value, timeout }) => {
-        const result = await browserManager.selectOption(
+        const result = await browserManager.interactionActions.selectOption(
           sessionId,
           pageId,
           selector,
@@ -210,7 +210,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
         targetSelector,
         timeout,
       }) => {
-        const result = await browserManager.dragAndDrop(
+        const result = await browserManager.interactionActions.dragAndDrop(
           sessionId,
           pageId,
           sourceSelector,

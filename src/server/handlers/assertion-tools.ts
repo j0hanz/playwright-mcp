@@ -27,7 +27,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertVisible(
+      const result = await browserManager.assertionActions.assertVisible(
         sessionId,
         pageId,
         selector,
@@ -61,7 +61,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertHidden(
+      const result = await browserManager.assertionActions.assertHidden(
         sessionId,
         pageId,
         selector,
@@ -103,7 +103,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, selector, expectedText, exact, timeout }) => {
-        const result = await browserManager.assertText(
+        const result = await browserManager.assertionActions.assertText(
           sessionId,
           pageId,
           selector,
@@ -151,7 +151,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
         expectedValue,
         timeout,
       }) => {
-        const result = await browserManager.assertAttribute(
+        const result = await browserManager.assertionActions.assertAttribute(
           sessionId,
           pageId,
           selector,
@@ -192,7 +192,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, selector, expectedValue, timeout }) => {
-        const result = await browserManager.assertValue(
+        const result = await browserManager.assertionActions.assertValue(
           sessionId,
           pageId,
           selector,
@@ -233,7 +233,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, selector, checked, timeout }) => {
-        const result = await browserManager.assertChecked(
+        const result = await browserManager.assertionActions.assertChecked(
           sessionId,
           pageId,
           selector,
@@ -274,7 +274,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, expectedUrl, timeout }) => {
-      const result = await browserManager.assertUrl(
+      const result = await browserManager.assertionActions.assertUrl(
         sessionId,
         pageId,
         expectedUrl,
@@ -310,7 +310,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, expectedTitle, timeout }) => {
-      const result = await browserManager.assertTitle(
+      const result = await browserManager.assertionActions.assertTitle(
         sessionId,
         pageId,
         expectedTitle,
@@ -344,7 +344,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertEnabled(
+      const result = await browserManager.assertionActions.assertEnabled(
         sessionId,
         pageId,
         selector,
@@ -378,7 +378,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertDisabled(
+      const result = await browserManager.assertionActions.assertDisabled(
         sessionId,
         pageId,
         selector,
@@ -412,7 +412,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
       },
     },
     createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertFocused(
+      const result = await browserManager.assertionActions.assertFocused(
         sessionId,
         pageId,
         selector,
@@ -450,7 +450,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
     },
     createToolHandler(
       async ({ sessionId, pageId, selector, expectedCount, timeout }) => {
-        const result = await browserManager.assertCount(
+        const result = await browserManager.assertionActions.assertCount(
           sessionId,
           pageId,
           selector,
@@ -500,7 +500,7 @@ export function registerAssertionTools(ctx: ToolContext): void {
         expectedValue,
         timeout,
       }) => {
-        const result = await browserManager.assertCss(
+        const result = await browserManager.assertionActions.assertCss(
           sessionId,
           pageId,
           selector,
