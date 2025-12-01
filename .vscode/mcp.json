@@ -1,0 +1,85 @@
+{
+  "servers": {
+    "apify": {
+      "type": "http",
+      "url": "https://mcp.apify.com",
+      "headers": {
+        "Authorization": "Bearer ${input:apify-api-key}"
+      }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["dist/src/index.js"]
+    },
+    "playwright-test": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["playwright", "run-test-mcp-server"]
+    },
+    "mui-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@mui/mcp@latest"]
+    },
+    "Ref": {
+      "type": "http",
+      "url": "https://api.ref.tools/mcp?apiKey=ref-ee25d82f44bd8d69362f"
+    },
+    "markitdown": {
+      "type": "stdio",
+      "command": "py",
+      "args": ["-m", "markitdown_mcp"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem@latest",
+        "${workspaceFolder}"
+      ]
+    },
+    "brave-search": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@brave/brave-search-mcp-server", "--transport", "stdio"],
+      "env": {
+        "BRAVE_API_KEY": "${input:brave-api-key}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "password": true,
+      "id": "apify-api-key",
+      "type": "promptString",
+      "description": "Apify API Key"
+    },
+    {
+      "password": true,
+      "id": "brave-api-key",
+      "type": "promptString",
+      "description": "Brave Search API Key"
+    },
+    {
+      "id": "verifyConnection",
+      "type": "command",
+      "command": "npx",
+      "args": ["@modelcontextprotocol/inspector"]
+    },
+    {
+      "id": "enforceMuiRules",
+      "type": "command",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "if (!(Test-Path .github/instructions)) { New-Item -ItemType Directory -Path .github/instructions -Force } ; Set-Content -Path .github/instructions/mui.md -Value '# Material UI MCP Rules\n\nUse the mui-mcp server to answer any Material UI questions:\n\n1. Call useMuiDocs to fetch docs for the relevant package.\n2. Call fetchDocs to pull any additional material, using only URLs returned by useMuiDocs.\n3. Repeat until you have all necessary context.\n4. Answer the question using the fetched content and cite the sources.\n'"
+      ]
+    }
+  ]
+}
