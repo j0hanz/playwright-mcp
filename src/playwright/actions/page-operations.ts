@@ -141,8 +141,13 @@ export class PageOperations {
       let title = '';
       try {
         title = await page.title();
-      } catch {
-        title = 'Unknown';
+      } catch (error) {
+        // Page may be closed or crashed - log at debug level and provide fallback
+        this.logger.debug('Failed to get page title, page may be closed', {
+          pageId: pid,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        title = '<unavailable>';
       }
       tabs.push({
         pageId: pid,
@@ -159,11 +164,24 @@ export class PageOperations {
     sessionId: string;
     pageId: string;
     fullPage?: boolean;
+    selector?: string;
+    clip?: { x: number; y: number; width: number; height: number };
     path?: string;
     type?: 'png' | 'jpeg';
     quality?: number;
+    omitBackground?: boolean;
   }): Promise<{ base64?: string; path?: string }> {
-    const { sessionId, pageId, fullPage, path, type, quality } = options;
+    const {
+      sessionId,
+      pageId,
+      fullPage,
+      selector,
+      clip,
+      path,
+      type,
+      quality,
+      omitBackground,
+    } = options;
     return executePageOperation(
       this.sessionManager,
       this.logger,
@@ -171,6 +189,36 @@ export class PageOperations {
       pageId,
       'Take screenshot',
       async (page) => {
+        // Element screenshot takes priority
+        if (selector) {
+          const buffer = await page.locator(selector).screenshot({
+            path,
+            type,
+            quality,
+            omitBackground,
+          });
+          return {
+            base64: buffer.toString('base64'),
+            path,
+          };
+        }
+
+        // Clip region screenshot
+        if (clip) {
+          const buffer = await page.screenshot({
+            path,
+            type,
+            quality,
+            omitBackground,
+            clip,
+          });
+          return {
+            base64: buffer.toString('base64'),
+            path,
+          };
+        }
+
+        // Full page or viewport screenshot
         return pageActions.takeScreenshot(page, {
           fullPage,
           path,
@@ -261,7 +309,8 @@ export class PageOperations {
           localStorage.clear();
           sessionStorage.clear();
         } catch {
-          // Ignore errors if storage is not accessible
+          // Storage may not be accessible (e.g., file:// URLs, sandboxed iframes)
+          // This is expected behavior in some contexts, not an error condition
         }
       });
     }
@@ -391,18 +440,23 @@ export class PageOperations {
 
         return {
           success: true,
-          violations: violations as unknown as Array<{
-            id: string;
-            impact?: string | null;
-            description: string;
-            help: string;
-            helpUrl: string;
-            nodes: Array<{
-              html: string;
-              target: string[];
-              failureSummary?: string;
-            }>;
-          }>,
+          violations: violations.map((v) => ({
+            id: v.id,
+            impact: v.impact as
+              | 'minor'
+              | 'moderate'
+              | 'serious'
+              | 'critical'
+              | undefined,
+            description: v.description,
+            help: v.help,
+            helpUrl: v.helpUrl,
+            nodes: v.nodes.map((n) => ({
+              html: n.html,
+              target: n.target as string[],
+              failureSummary: n.failureSummary,
+            })),
+          })),
           passes: results.passes.length,
           incomplete: results.incomplete.length,
           inapplicable: results.inapplicable.length,

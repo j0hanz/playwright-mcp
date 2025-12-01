@@ -3,57 +3,202 @@
 
 import { z } from 'zod';
 
-import type {
-  ToolContext,
-  AccessibilityViolation,
-  AccessibilityNode,
-} from '../../config/types.js';
+import type { ToolContext } from '../../config/types.js';
 import { basePageInput, longTimeoutOption, textContent } from './types.js';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Maximum length of text content to display before truncation */
+const MAX_TEXT_DISPLAY_LENGTH = 1000;
+
+// ============================================================================
+// Schemas - Centralized for DRY compliance
+// ============================================================================
+
+const schemas = {
+  // Common output schemas
+  successResult: { success: z.boolean() },
+
+  // Screenshot input/output
+  screenshotInput: {
+    ...basePageInput,
+    fullPage: z
+      .boolean()
+      .default(false)
+      .describe('Capture full scrollable page'),
+    selector: z
+      .string()
+      .optional()
+      .describe(
+        'CSS selector to screenshot a specific element (overrides fullPage)'
+      ),
+    clip: z
+      .object({
+        x: z.number().describe('X coordinate of the top-left corner'),
+        y: z.number().describe('Y coordinate of the top-left corner'),
+        width: z.number().describe('Width of the clipping region'),
+        height: z.number().describe('Height of the clipping region'),
+      })
+      .optional()
+      .describe('Clip region to screenshot (overrides fullPage and selector)'),
+    path: z
+      .string()
+      .optional()
+      .describe('Optional file path to save screenshot'),
+    type: z.enum(['png', 'jpeg']).default('png').describe('Image format'),
+    quality: z
+      .number()
+      .min(0)
+      .max(100)
+      .optional()
+      .describe('Quality for jpeg (0-100)'),
+    omitBackground: z
+      .boolean()
+      .default(false)
+      .describe(
+        'Hide default white background for transparent screenshots (PNG only)'
+      ),
+  },
+  screenshotOutput: {
+    success: z.boolean(),
+    path: z.string().optional(),
+    base64: z.string().optional().describe('Base64-encoded image'),
+  },
+
+  // Wait for selector input/output
+  waitSelectorInput: {
+    ...basePageInput,
+    selector: z.string().describe('CSS selector to wait for'),
+    state: z
+      .enum(['attached', 'detached', 'visible', 'hidden'])
+      .default('visible')
+      .describe('Expected element state'),
+    ...longTimeoutOption,
+  },
+  waitSelectorOutput: {
+    success: z.boolean(),
+    found: z.boolean(),
+  },
+
+  // Wait for load state input
+  loadStateInput: {
+    ...basePageInput,
+    state: z
+      .enum(['load', 'domcontentloaded', 'networkidle'])
+      .default('domcontentloaded')
+      .describe(
+        'Load state to wait for: load (all resources), domcontentloaded (DOM ready), networkidle (no network requests for 500ms)'
+      ),
+    ...longTimeoutOption,
+  },
+
+  // Accessibility scan input/output (with optional report generation)
+  a11yScanInput: {
+    ...basePageInput,
+    tags: z
+      .array(z.string())
+      .optional()
+      .describe(
+        'WCAG tags to filter by (e.g., wcag2a, wcag2aa, wcag21aa, best-practice)'
+      ),
+    includedImpacts: z
+      .array(z.enum(['minor', 'moderate', 'serious', 'critical']))
+      .optional()
+      .describe('Filter violations by impact level'),
+    selector: z
+      .string()
+      .optional()
+      .describe('CSS selector to limit the scan to a specific element'),
+    generateReport: z
+      .boolean()
+      .default(false)
+      .describe('Generate an HTML report file'),
+    reportPath: z
+      .string()
+      .optional()
+      .describe(
+        'Path to save HTML report (only used if generateReport is true)'
+      ),
+  },
+  a11yScanOutput: {
+    success: z.boolean(),
+    violations: z.array(
+      z.object({
+        id: z.string(),
+        impact: z.string(),
+        description: z.string(),
+        help: z.string(),
+        helpUrl: z.string(),
+        nodes: z.array(
+          z.object({
+            html: z.string(),
+            target: z.array(z.string()),
+            failureSummary: z.string(),
+          })
+        ),
+      })
+    ),
+    passes: z.number(),
+    incomplete: z.number(),
+    inapplicable: z.number(),
+    reportPath: z.string().optional(),
+  },
+} as const;
 
 export function registerPageTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
 
-  // Page Screenshot Tool
+  // ============================================================================
+  // Screenshot & Content Tools
+  // ============================================================================
+
   server.registerTool(
     'page_screenshot',
     {
       title: 'Take Page Screenshot',
       description:
-        'Capture a screenshot of the page. Returns base64-encoded PNG.',
-      inputSchema: {
-        ...basePageInput,
-        fullPage: z
-          .boolean()
-          .default(false)
-          .describe('Capture full scrollable page'),
-        path: z
-          .string()
-          .optional()
-          .describe('Optional file path to save screenshot'),
-        type: z.enum(['png', 'jpeg']).default('png').describe('Image format'),
-        quality: z
-          .number()
-          .min(0)
-          .max(100)
-          .optional()
-          .describe('Quality for jpeg (0-100)'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        path: z.string().optional(),
-        base64: z.string().optional().describe('Base64-encoded image'),
-      },
+        'Capture a screenshot of the page, a specific element, or a region. Returns base64-encoded image.',
+      inputSchema: schemas.screenshotInput,
+      outputSchema: schemas.screenshotOutput,
     },
     createToolHandler(
-      async ({ sessionId, pageId, fullPage, path, type, quality }) => {
+      async ({
+        sessionId,
+        pageId,
+        fullPage,
+        selector,
+        clip,
+        path,
+        type,
+        quality,
+        omitBackground,
+      }) => {
         const result = await browserManager.pageOperations.takeScreenshot({
           sessionId,
           pageId,
           fullPage,
+          selector,
+          clip,
           path,
           type,
           quality,
+          omitBackground,
         });
+
+        // Build description
+        let description = 'Screenshot captured';
+        if (selector) {
+          description = `Element screenshot captured: ${selector}`;
+        } else if (clip) {
+          description = `Region screenshot captured (${clip.width}x${clip.height} at ${clip.x},${clip.y})`;
+        } else if (fullPage) {
+          description = 'Full page screenshot captured';
+        }
+        if (path) {
+          description = `${description}, saved to ${path}`;
+        }
 
         // Return as image content when data is available
         if (result.base64) {
@@ -70,11 +215,7 @@ export function registerPageTools(ctx: ToolContext): void {
         }
 
         return {
-          content: [
-            textContent(
-              path ? `Screenshot saved to ${path}` : 'Screenshot captured'
-            ),
-          ],
+          content: [textContent(description)],
           structuredContent: { success: true, path: result.path },
         };
       },
@@ -82,15 +223,12 @@ export function registerPageTools(ctx: ToolContext): void {
     )
   );
 
-  // Page Content Tool
   server.registerTool(
     'page_content',
     {
       title: 'Get Page Content',
       description: 'Retrieve the HTML and text content of the page',
-      inputSchema: {
-        ...basePageInput,
-      },
+      inputSchema: basePageInput,
       outputSchema: {
         success: z.boolean(),
         html: z.string(),
@@ -105,8 +243,8 @@ export function registerPageTools(ctx: ToolContext): void {
 
       // Truncate text for display
       const displayText =
-        result.text.length > 1000
-          ? `${result.text.substring(0, 1000)}... (truncated)`
+        result.text.length > MAX_TEXT_DISPLAY_LENGTH
+          ? `${result.text.substring(0, MAX_TEXT_DISPLAY_LENGTH)}... (truncated)`
           : result.text;
 
       return {
@@ -116,26 +254,44 @@ export function registerPageTools(ctx: ToolContext): void {
     }, 'Error getting page content')
   );
 
-  // Wait for Selector Tool
+  server.registerTool(
+    'page_evaluate',
+    {
+      title: 'Evaluate JavaScript',
+      description:
+        'Execute JavaScript in the page context. RESTRICTED: Only allows safe, read-only operations (DOM inspection, property retrieval).',
+      inputSchema: {
+        ...basePageInput,
+        script: z.string().describe('JavaScript code to execute'),
+      },
+      outputSchema: { result: z.unknown() },
+    },
+    createToolHandler(async ({ sessionId, pageId, script }) => {
+      const result = await browserManager.pageOperations.evaluateScript(
+        sessionId,
+        pageId,
+        script
+      );
+
+      return {
+        content: [textContent('Script executed successfully')],
+        structuredContent: result,
+      };
+    }, 'Error evaluating script')
+  );
+
+  // ============================================================================
+  // Wait Tools
+  // ============================================================================
+
   server.registerTool(
     'wait_for_selector',
     {
       title: 'Wait for Selector',
       description:
         'Wait for an element matching the selector to appear or reach a specific state',
-      inputSchema: {
-        ...basePageInput,
-        selector: z.string().describe('CSS selector to wait for'),
-        state: z
-          .enum(['attached', 'detached', 'visible', 'hidden'])
-          .default('visible')
-          .describe('Expected element state'),
-        ...longTimeoutOption,
-      },
-      outputSchema: {
-        success: z.boolean(),
-        found: z.boolean(),
-      },
+      inputSchema: schemas.waitSelectorInput,
+      outputSchema: schemas.waitSelectorOutput,
     },
     createToolHandler(
       async ({ sessionId, pageId, selector, state, timeout }) => {
@@ -161,17 +317,13 @@ export function registerPageTools(ctx: ToolContext): void {
     )
   );
 
-  // Wait for Download Tool
   server.registerTool(
     'wait_for_download',
     {
       title: 'Wait for Download',
       description:
         'Wait for a file download to complete after triggering an action',
-      inputSchema: {
-        ...basePageInput,
-        ...longTimeoutOption,
-      },
+      inputSchema: { ...basePageInput, ...longTimeoutOption },
       outputSchema: {
         success: z.boolean(),
         suggestedFilename: z.string().optional(),
@@ -182,9 +334,7 @@ export function registerPageTools(ctx: ToolContext): void {
       const result = await browserManager.pageOperations.waitForDownload(
         sessionId,
         pageId,
-        {
-          timeout,
-        }
+        { timeout }
       );
 
       return {
@@ -196,26 +346,14 @@ export function registerPageTools(ctx: ToolContext): void {
     }, 'Error waiting for download')
   );
 
-  // Wait for Load State Tool
   server.registerTool(
     'page_wait_for_load_state',
     {
       title: 'Wait for Load State',
       description:
         'Wait for the page to reach a specific load state. Recommended: use domcontentloaded for SPAs, networkidle for pages with async data loading.',
-      inputSchema: {
-        ...basePageInput,
-        state: z
-          .enum(['load', 'domcontentloaded', 'networkidle'])
-          .default('domcontentloaded')
-          .describe(
-            'Load state to wait for: load (all resources), domcontentloaded (DOM ready), networkidle (no network requests for 500ms)'
-          ),
-        ...longTimeoutOption,
-      },
-      outputSchema: {
-        success: z.boolean(),
-      },
+      inputSchema: schemas.loadStateInput,
+      outputSchema: schemas.successResult,
     },
     createToolHandler(async ({ sessionId, pageId, state, timeout }) => {
       const page = browserManager.getPageForTool(sessionId, pageId);
@@ -228,226 +366,97 @@ export function registerPageTools(ctx: ToolContext): void {
     }, 'Error waiting for load state')
   );
 
-  // Wait for Network Idle Tool
-  server.registerTool(
-    'wait_for_network_idle',
-    {
-      title: 'Wait for Network Idle',
-      description:
-        'Wait until there are no network connections for at least 500ms. Useful for pages with async data loading.',
-      inputSchema: {
-        ...basePageInput,
-        ...longTimeoutOption,
-      },
-      outputSchema: {
-        success: z.boolean(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, timeout }) => {
-      const page = browserManager.getPageForTool(sessionId, pageId);
-      await page.waitForLoadState('networkidle', { timeout });
-      browserManager.markSessionActive(sessionId);
-      return {
-        content: [textContent('Page reached network idle state')],
-        structuredContent: { success: true },
-      };
-    }, 'Error waiting for network idle')
-  );
+  // ============================================================================
+  // Accessibility Tools
+  // ============================================================================
 
-  // Page Evaluate Tool
-  server.registerTool(
-    'page_evaluate',
-    {
-      title: 'Evaluate JavaScript',
-      description:
-        'Execute JavaScript in the page context. RESTRICTED: Only allows safe, read-only operations (DOM inspection, property retrieval).',
-      inputSchema: {
-        ...basePageInput,
-        script: z.string().describe('JavaScript code to execute'),
-      },
-      outputSchema: {
-        result: z.unknown(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, script }) => {
-      const result = await browserManager.pageOperations.evaluateScript(
-        sessionId,
-        pageId,
-        script
-      );
-
-      return {
-        content: [textContent(`Script executed successfully`)],
-        structuredContent: result,
-      };
-    }, 'Error evaluating script')
-  );
-
-  // Accessibility Scan Tool
   server.registerTool(
     'accessibility_scan',
     {
       title: 'Run Accessibility Scan',
       description:
-        'Scan the page for accessibility violations using axe-core. Returns WCAG violations with remediation guidance.',
-      inputSchema: {
-        ...basePageInput,
-        tags: z
-          .array(z.string())
-          .optional()
-          .describe(
-            'WCAG tags to filter by (e.g., wcag2a, wcag2aa, wcag21aa, best-practice)'
-          ),
-        includedImpacts: z
-          .array(z.enum(['minor', 'moderate', 'serious', 'critical']))
-          .optional()
-          .describe('Filter violations by impact level'),
-        selector: z
-          .string()
-          .optional()
-          .describe('CSS selector to limit the scan to a specific element'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        violations: z.array(
-          z.object({
-            id: z.string(),
-            impact: z.string(),
-            description: z.string(),
-            help: z.string(),
-            helpUrl: z.string(),
-            nodes: z.array(
-              z.object({
-                html: z.string(),
-                target: z.array(z.string()),
-                failureSummary: z.string(),
-              })
-            ),
-          })
-        ),
-        passes: z.number(),
-        incomplete: z.number(),
-        inapplicable: z.number(),
-      },
+        'Scan the page for accessibility violations using axe-core. Returns WCAG violations with remediation guidance. Optionally generates an HTML report.',
+      inputSchema: schemas.a11yScanInput,
+      outputSchema: schemas.a11yScanOutput,
     },
     createToolHandler(
-      async ({ sessionId, pageId, tags, includedImpacts, selector }) => {
+      async ({
+        sessionId,
+        pageId,
+        tags,
+        includedImpacts,
+        selector,
+        generateReport,
+        reportPath,
+      }) => {
         const result = await browserManager.pageOperations.runAccessibilityScan(
           sessionId,
           pageId,
           { tags, includedImpacts, selector }
         );
 
+        let savedReportPath: string | undefined;
+
+        // Generate HTML report if requested
+        if (generateReport) {
+          savedReportPath = reportPath || `logs/a11y-report-${Date.now()}.html`;
+          const htmlReport = generateA11yHtmlReport(result);
+          const { promises: fs } = await import('fs');
+          const path = await import('path');
+          await fs.mkdir(path.dirname(savedReportPath), { recursive: true });
+          await fs.writeFile(savedReportPath, htmlReport);
+        }
+
         const summary =
           result.violations.length === 0
             ? '✓ No accessibility violations found'
             : `✗ Found ${result.violations.length} accessibility violation(s)`;
 
+        const reportInfo = savedReportPath
+          ? ` Report saved to ${savedReportPath}`
+          : '';
+
         return {
           content: [
             textContent(
-              `${summary} (${result.passes} passed, ${result.incomplete} incomplete, ${result.inapplicable} inapplicable)`
+              `${summary} (${result.passes} passed, ${result.incomplete} incomplete, ${result.inapplicable} inapplicable)${reportInfo}`
             ),
           ],
-          structuredContent: result,
+          structuredContent: { ...result, reportPath: savedReportPath },
         };
       },
       'Error running accessibility scan'
     )
   );
+}
 
-  // Emulate Reduced Motion Tool
-  server.registerTool(
-    'emulate_reduced_motion',
-    {
-      title: 'Emulate Reduced Motion',
-      description:
-        'Emulate reduced motion preference for accessibility testing. Important for users with vestibular disorders.',
-      inputSchema: {
-        ...basePageInput,
-        reducedMotion: z
-          .enum(['reduce', 'no-preference'])
-          .describe('Reduced motion preference'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, reducedMotion }) => {
-      const page = browserManager.getPageForTool(sessionId, pageId);
-      await page.emulateMedia({ reducedMotion });
-      browserManager.markSessionActive(sessionId);
-      return {
-        content: [textContent(`Reduced motion set to: ${reducedMotion}`)],
-        structuredContent: { success: true },
-      };
-    }, 'Error emulating reduced motion')
-  );
+// ============================================================================
+// Helper Functions
+// ============================================================================
 
-  // Emulate Color Scheme Tool
-  server.registerTool(
-    'emulate_color_scheme',
-    {
-      title: 'Emulate Color Scheme',
-      description: 'Emulate light or dark color scheme for theme testing',
-      inputSchema: {
-        ...basePageInput,
-        colorScheme: z
-          .enum(['light', 'dark', 'no-preference'])
-          .describe('Color scheme preference'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, colorScheme }) => {
-      const page = browserManager.getPageForTool(sessionId, pageId);
-      await page.emulateMedia({ colorScheme });
-      browserManager.markSessionActive(sessionId);
-      return {
-        content: [textContent(`Color scheme set to: ${colorScheme}`)],
-        structuredContent: { success: true },
-      };
-    }, 'Error emulating color scheme')
-  );
+interface A11yReportViolation {
+  id: string;
+  impact?: string | null;
+  description: string;
+  help: string;
+  helpUrl: string;
+  nodes: Array<{
+    html: string;
+    target: string[];
+    failureSummary?: string;
+  }>;
+}
 
-  // Generate Accessibility HTML Report Tool
-  server.registerTool(
-    'accessibility_report',
-    {
-      title: 'Generate Accessibility HTML Report',
-      description:
-        'Run accessibility scan and generate an HTML report file for audit purposes',
-      inputSchema: {
-        ...basePageInput,
-        outputPath: z
-          .string()
-          .optional()
-          .describe(
-            'Path to save HTML report (defaults to logs/a11y-report-{timestamp}.html)'
-          ),
-        tags: z
-          .array(z.string())
-          .optional()
-          .describe('WCAG tags to filter by (e.g., wcag2a, wcag2aa)'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        reportPath: z.string(),
-        violationsCount: z.number(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, outputPath, tags }) => {
-      const result = await browserManager.pageOperations.runAccessibilityScan(
-        sessionId,
-        pageId,
-        { tags }
-      );
+function generateA11yHtmlReport(result: {
+  violations: A11yReportViolation[];
+  passes: number;
+  incomplete: number;
+  inapplicable: number;
+}): string {
+  const escapeHtml = (str: string) =>
+    str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-      const reportPath = outputPath || `logs/a11y-report-${Date.now()}.html`;
-
-      // Generate HTML report
-      const htmlReport = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -481,34 +490,22 @@ export function registerPageTools(ctx: ToolContext): void {
 <body>
   <h1>🔍 Accessibility Report</h1>
   <div class="summary">
-    <div class="summary-item">
-      <div class="summary-value">${result.violations.length}</div>
-      <div class="summary-label">Violations</div>
-    </div>
-    <div class="summary-item">
-      <div class="summary-value">${result.passes}</div>
-      <div class="summary-label">Passed</div>
-    </div>
-    <div class="summary-item">
-      <div class="summary-value">${result.incomplete}</div>
-      <div class="summary-label">Incomplete</div>
-    </div>
-    <div class="summary-item">
-      <div class="summary-value">${result.inapplicable}</div>
-      <div class="summary-label">Inapplicable</div>
-    </div>
+    <div class="summary-item"><div class="summary-value">${result.violations.length}</div><div class="summary-label">Violations</div></div>
+    <div class="summary-item"><div class="summary-value">${result.passes}</div><div class="summary-label">Passed</div></div>
+    <div class="summary-item"><div class="summary-value">${result.incomplete}</div><div class="summary-label">Incomplete</div></div>
+    <div class="summary-item"><div class="summary-value">${result.inapplicable}</div><div class="summary-label">Inapplicable</div></div>
   </div>
   <p><strong>Generated:</strong> ${new Date().toISOString()}</p>
   ${
     result.violations.length === 0
       ? `<div class="no-violations">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-      <h2>No accessibility violations found!</h2>
-      <p>Great job! Your page passes all accessibility checks.</p>
-    </div>`
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        <h2>No accessibility violations found!</h2>
+        <p>Great job! Your page passes all accessibility checks.</p>
+      </div>`
       : result.violations
           .map(
-            (v: AccessibilityViolation) => `
+            (v: A11yReportViolation) => `
   <div class="violation ${v.impact || 'minor'}">
     <h2>${v.id} <span class="impact-badge impact-${v.impact || 'minor'}">${v.impact || 'minor'}</span></h2>
     <p>${v.description}</p>
@@ -518,9 +515,9 @@ export function registerPageTools(ctx: ToolContext): void {
     ${v.nodes
       .slice(0, 10)
       .map(
-        (n: AccessibilityNode) => `
+        (n) => `
       <div class="node">
-        <code>${n.html.slice(0, 300).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}${n.html.length > 300 ? '...' : ''}</code>
+        <code>${escapeHtml(n.html.slice(0, 300))}${n.html.length > 300 ? '...' : ''}</code>
         <p style="margin: 8px 0 0; color: #666;">${n.failureSummary || ''}</p>
       </div>`
       )
@@ -532,24 +529,4 @@ export function registerPageTools(ctx: ToolContext): void {
   }
 </body>
 </html>`;
-
-      const { promises: fs } = await import('fs');
-      const path = await import('path');
-      await fs.mkdir(path.dirname(reportPath), { recursive: true });
-      await fs.writeFile(reportPath, htmlReport);
-
-      return {
-        content: [
-          textContent(
-            `Accessibility report generated: ${result.violations.length} violations found. Report saved to ${reportPath}`
-          ),
-        ],
-        structuredContent: {
-          success: true,
-          reportPath,
-          violationsCount: result.violations.length,
-        },
-      };
-    }, 'Error generating accessibility report')
-  );
 }

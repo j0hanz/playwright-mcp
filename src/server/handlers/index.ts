@@ -9,7 +9,6 @@ import { Logger } from '../../utils/logger.js';
 import { registerAssertionTools } from './assertion-tools.js';
 import { registerBrowserTools } from './browser-tools.js';
 import { registerInteractionTools } from './interaction-tools.js';
-import { registerLocatorTools } from './locator-tools.js';
 import { registerNavigationTools } from './navigation-tools.js';
 import { registerPageTools } from './page-tools.js';
 import { registerTestTools } from './test-tools.js';
@@ -36,7 +35,6 @@ export function registerAllHandlers(
     { name: 'navigation', register: registerNavigationTools },
     { name: 'interaction', register: registerInteractionTools },
     { name: 'assertion', register: registerAssertionTools },
-    { name: 'locator', register: registerLocatorTools },
     { name: 'page', register: registerPageTools },
     { name: 'test', register: registerTestTools },
   ];

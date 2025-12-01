@@ -184,6 +184,98 @@ export class LocatorActions {
     );
   }
 
+  async clickByTitle(
+    sessionId: string,
+    pageId: string,
+    title: string,
+    options: { exact?: boolean; force?: boolean; timeout?: number } = {}
+  ): Promise<{ success: boolean }> {
+    const { exact, force, timeout = TIMEOUTS.ACTION } = options;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Click by title',
+      async (page) => {
+        await page.getByTitle(title, { exact }).click({ force, timeout });
+        return { success: true };
+      },
+      { title }
+    );
+  }
+
+  async hoverByRole(
+    sessionId: string,
+    pageId: string,
+    role: AriaRole,
+    options: {
+      name?: string;
+      exact?: boolean;
+      timeout?: number;
+    } = {}
+  ): Promise<{ success: boolean }> {
+    const { name, exact, timeout = TIMEOUTS.ACTION } = options;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Hover by role',
+      async (page) => {
+        await page.getByRole(role, { name, exact }).hover({ timeout });
+        return { success: true };
+      },
+      { role, name }
+    );
+  }
+
+  async hoverByText(
+    sessionId: string,
+    pageId: string,
+    text: string,
+    options: { exact?: boolean; timeout?: number } = {}
+  ): Promise<{ success: boolean }> {
+    const { exact, timeout = TIMEOUTS.ACTION } = options;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Hover by text',
+      async (page) => {
+        await page.getByText(text, { exact }).hover({ timeout });
+        return { success: true };
+      },
+      { text }
+    );
+  }
+
+  async hoverByTestId(
+    sessionId: string,
+    pageId: string,
+    testId: string,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean }> {
+    const { timeout = TIMEOUTS.ACTION } = options;
+
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Hover by testId',
+      async (page) => {
+        await page.getByTestId(testId).hover({ timeout });
+        return { success: true };
+      },
+      { testId }
+    );
+  }
+
   // Locator Composition (and/or)
 
   async clickWithAnd(

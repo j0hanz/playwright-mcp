@@ -237,14 +237,28 @@ export function xpath(expression: string): string {
   return `xpath=${expression}`;
 }
 
+/**
+ * Basic CSS selector validation (Node.js compatible)
+ * Note: Full validation requires browser context. This validates common patterns.
+ */
 export function isValidSelector(selector: string): boolean {
-  try {
-    // Try to create a selector - this will throw if invalid
-    document.createDocumentFragment().querySelector(selector);
-    return true;
-  } catch {
-    return false;
+  if (!selector || typeof selector !== 'string') return false;
+
+  // Reject obviously invalid selectors
+  const invalidPatterns = [
+    /^\s*$/, // Empty or whitespace only
+    /[{}]/, // Contains braces (CSS rule, not selector)
+    /^\d/, // Starts with digit (invalid CSS identifier)
+  ];
+
+  for (const pattern of invalidPatterns) {
+    if (pattern.test(selector)) return false;
   }
+
+  // Basic structural validation for common selector patterns
+  // Allow: #id, .class, tag, [attr], tag.class#id, tag[attr="value"], etc.
+  const validSelectorPattern = /^[a-zA-Z_#.[\]="'\-:>+~*\s,()\d^$|]+$/;
+  return validSelectorPattern.test(selector);
 }
 
 export default {

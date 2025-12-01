@@ -4,7 +4,7 @@
 import type { ElementInteractionOptions } from '../../config/types.js';
 import { Logger } from '../../utils/logger.js';
 import * as pageActions from '../page-actions.js';
-import * as security from '../security.js';
+import { validateUploadPath } from '../security.js';
 import { SessionManager } from '../session-manager.js';
 import { executePageOperation } from '../utils/execution-helper.js';
 
@@ -302,12 +302,35 @@ export class InteractionActions {
       async (page) => {
         const validatedPaths: string[] = [];
         for (const filePath of filePaths) {
-          validatedPaths.push(await security.validateUploadPath(filePath));
+          validatedPaths.push(await validateUploadPath(filePath));
         }
         await page.locator(selector).setInputFiles(validatedPaths);
         return { success: true, filesUploaded: validatedPaths.length };
       },
       { selector, fileCount: filePaths.length }
+    );
+  }
+
+  async setChecked(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    checked: boolean,
+    options: { timeout?: number } = {}
+  ): Promise<{ success: boolean }> {
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      checked ? 'Check element' : 'Uncheck element',
+      async (page) => {
+        await page
+          .locator(selector)
+          .setChecked(checked, { timeout: options.timeout });
+        return { success: true };
+      },
+      { selector, checked }
     );
   }
 }

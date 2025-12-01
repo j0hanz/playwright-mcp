@@ -258,6 +258,18 @@ export async function validateUploadPath(filePath: string): Promise<string> {
       );
     }
 
+    // Enforce file size limit
+    if (stats.size > config.limits.maxFileSizeForUpload) {
+      const maxSizeMB = Math.round(
+        config.limits.maxFileSizeForUpload / (1024 * 1024)
+      );
+      const actualSizeMB = Math.round(stats.size / (1024 * 1024));
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        `File size (${actualSizeMB}MB) exceeds maximum allowed size (${maxSizeMB}MB): ${filePath}`
+      );
+    }
+
     return resolvedPath;
   } catch (error) {
     if (isMCPPlaywrightError(error)) throw error;

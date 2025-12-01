@@ -1,6 +1,11 @@
 // Rate Limiter - Sliding window rate limiter with memory bounds
 
 import { ErrorHandler } from '../utils/error-handler.js';
+import {
+  DEFAULT_MAX_TRACKED_REQUESTS,
+  MS_PER_MINUTE,
+  MS_PER_SECOND,
+} from '../utils/constants.js';
 
 export interface RateLimiterConfig {
   maxRequests: number;
@@ -14,8 +19,6 @@ export interface RateLimitStatus {
   resetMs: number;
 }
 
-const DEFAULT_MAX_TRACKED = 100;
-
 export class RateLimiter {
   private timestamps: number[] = [];
   private readonly maxRequests: number;
@@ -25,7 +28,7 @@ export class RateLimiter {
   constructor(config: RateLimiterConfig) {
     this.maxRequests = config.maxRequests;
     this.windowMs = config.windowMs;
-    this.maxTracked = config.maxTracked ?? DEFAULT_MAX_TRACKED;
+    this.maxTracked = config.maxTracked ?? DEFAULT_MAX_TRACKED_REQUESTS;
   }
 
   checkLimit(): void {
@@ -88,9 +91,6 @@ export class RateLimiter {
     }
   }
 }
-
-const MS_PER_SECOND = 1_000;
-const MS_PER_MINUTE = 60 * MS_PER_SECOND;
 
 export const RateLimiters = {
   forSessions(maxPerMinute: number): RateLimiter {

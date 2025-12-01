@@ -2,13 +2,16 @@
  * Dialog Manager - Manages Playwright dialogs (alerts, confirms, prompts)
  */
 import { Dialog, Page } from 'playwright';
-import { Logger } from '../utils/logger.js';
 
-const DIALOG_AUTO_DISMISS_TIMEOUT_MS = 10_000;
+import config from '../config/server-config.js';
+import { ErrorCode, ErrorHandler } from '../utils/error-handler.js';
+import { Logger } from '../utils/logger.js';
 
 export class DialogManager {
   private readonly pendingDialogs = new Map<string, Dialog>();
   private readonly dialogTimeouts = new Map<string, NodeJS.Timeout>();
+  public static readonly NO_PENDING_DIALOG_MSG =
+    'No pending dialog found for this page';
 
   constructor(private readonly logger: Logger) {}
 
@@ -36,22 +39,37 @@ export class DialogManager {
 
       const timeoutId = setTimeout(() => {
         if (this.pendingDialogs.has(dialogKey)) {
-          dialog.dismiss().catch(() => {});
+          dialog.dismiss().catch((error: unknown) => {
+            // Log dismissal errors instead of silently swallowing
+            this.logger.warn('Failed to auto-dismiss dialog', {
+              sessionId,
+              pageId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
           this.pendingDialogs.delete(dialogKey);
           this.dialogTimeouts.delete(dialogKey);
           this.logger.warn('Dialog auto-dismissed due to timeout', {
             sessionId,
             pageId,
-            timeoutMs: DIALOG_AUTO_DISMISS_TIMEOUT_MS,
+            timeoutMs: config.timeouts.dialogAutoDismiss,
           });
         }
-      }, DIALOG_AUTO_DISMISS_TIMEOUT_MS);
+      }, config.timeouts.dialogAutoDismiss);
       this.dialogTimeouts.set(dialogKey, timeoutId);
     });
 
     page.on('close', () => {
       this.cleanupPage(sessionId, pageId);
       this.logger.debug('Page closed, cleaned up dialogs', {
+        sessionId,
+        pageId,
+      });
+    });
+
+    page.on('crash', () => {
+      this.cleanupPage(sessionId, pageId);
+      this.logger.warn('Page crashed, cleaned up dialogs', {
         sessionId,
         pageId,
       });
@@ -88,7 +106,10 @@ export class DialogManager {
     const dialog = this.pendingDialogs.get(dialogKey);
 
     if (!dialog) {
-      throw new Error('No pending dialog found for this page');
+      throw ErrorHandler.createError(
+        ErrorCode.DIALOG_ERROR,
+        DialogManager.NO_PENDING_DIALOG_MSG
+      );
     }
 
     const dialogType = dialog.type();

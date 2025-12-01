@@ -4,14 +4,19 @@
 import path from 'path';
 import { z } from 'zod';
 
-import { ErrorCode, type ToolContext } from '../../config/types.js';
-import { ErrorHandler } from '../../utils/error-handler.js';
+import type { ToolContext } from '../../config/types.js';
+import { ErrorCode, ErrorHandler } from '../../utils/error-handler.js';
 import { textContent } from './types.js';
+
+// ============================================================================
+// Constants & Validation
+// ============================================================================
+
+const ALLOWED_DIRS = ['specs', 'tests'] as const;
 
 function validateArtifactPath(filePath: string): void {
   const normalizedPath = path.normalize(filePath);
-  const allowedDirs = ['specs', 'tests'];
-  const isAllowed = allowedDirs.some(
+  const isAllowed = ALLOWED_DIRS.some(
     (dir) =>
       normalizedPath.startsWith(dir + path.sep) ||
       normalizedPath.startsWith(dir + '/')
@@ -19,53 +24,108 @@ function validateArtifactPath(filePath: string): void {
   if (!isAllowed) {
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,
-      `Path must be within ${allowedDirs.join(' or ')} directory: ${filePath}`
+      `Path must be within ${ALLOWED_DIRS.join(' or ')} directory: ${filePath}`
     );
   }
 }
 
-export function registerTestTools(ctx: ToolContext): void {
-  const { server, createToolHandler, logger } = ctx;
+/** Sanitize filename to be safe for filesystem */
+const sanitizeFileName = (name: string): string =>
+  name.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
 
-  // Create Test Plan Tool
-  server.registerTool(
-    'test_plan_create',
-    {
-      title: 'Create Test Plan',
-      description:
-        'Create a structured test plan in Markdown format. Used by the Playwright Test Planner agent.',
-      inputSchema: {
-        name: z
-          .string()
-          .describe(
-            'Test plan name (e.g., Authentication Flow, Shopping Cart)'
-          ),
-        description: z
-          .string()
-          .describe('High-level description of the test plan'),
-        scenarios: z
-          .array(
-            z.object({
-              title: z.string(),
-              steps: z.array(z.string()),
-              expected: z.string(),
-            })
-          )
-          .describe('List of test scenarios'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        path: z.string(),
-        filename: z.string(),
-      },
-    },
-    createToolHandler(async ({ name, description, scenarios }) => {
-      const { promises: fs } = await import('fs');
+// ============================================================================
+// Schemas - Centralized for DRY compliance
+// ============================================================================
 
-      const safeFileName = name.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
-      const filePath = `specs/${safeFileName}.md`;
+const schemas = {
+  // Common output schemas
+  fileResult: {
+    success: z.boolean(),
+    path: z.string(),
+    filename: z.string(),
+  },
+  updateResult: {
+    success: z.boolean(),
+    path: z.string(),
+    updated: z.boolean(),
+  },
+  readResult: {
+    success: z.boolean(),
+    path: z.string(),
+    content: z.string(),
+    lines: z.number(),
+  },
+  listResult: {
+    success: z.boolean(),
+    specs: z.array(z.string()),
+    tests: z.array(z.string()),
+    total: z.number(),
+  },
+  deleteResult: {
+    success: z.boolean(),
+    deleted: z.boolean(),
+    path: z.string(),
+  },
 
-      const content = `# ${name}
+  // Input schemas
+  testPlanInput: {
+    name: z
+      .string()
+      .describe('Test plan name (e.g., Authentication Flow, Shopping Cart)'),
+    description: z.string().describe('High-level description of the test plan'),
+    scenarios: z
+      .array(
+        z.object({
+          title: z.string(),
+          steps: z.array(z.string()),
+          expected: z.string(),
+        })
+      )
+      .describe('List of test scenarios'),
+  },
+  testFileInput: {
+    name: z
+      .string()
+      .describe(
+        'Test file name (e.g., add-todo, login-valid). Will be saved as tests/{name}.spec.ts'
+      ),
+    content: z.string().describe('TypeScript test file content'),
+  },
+  updateFileInput: {
+    path: z
+      .string()
+      .describe('Relative path to test file (e.g., tests/add-todo.spec.ts)'),
+    content: z.string().describe('Updated test file content'),
+    reason: z
+      .string()
+      .optional()
+      .describe('Reason for update (e.g., "Fixed broken locator")'),
+  },
+  pathInput: {
+    path: z
+      .string()
+      .describe(
+        'Relative path to test file (e.g., tests/add-todo.spec.ts, specs/login-flow.md)'
+      ),
+  },
+  listTypeInput: {
+    type: z
+      .enum(['all', 'specs', 'tests'])
+      .default('all')
+      .describe('Which artifacts to list'),
+  },
+} as const;
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function generateTestPlanMarkdown(
+  name: string,
+  description: string,
+  scenarios: Array<{ title: string; steps: string[]; expected: string }>
+): string {
+  return `# ${name}
 
 > ${description}
 
@@ -84,6 +144,30 @@ ${s.expected}
   )
   .join('\n')}
 `;
+}
+
+export function registerTestTools(ctx: ToolContext): void {
+  const { server, createToolHandler, logger } = ctx;
+
+  // ============================================================================
+  // Test Plan Management
+  // ============================================================================
+
+  server.registerTool(
+    'test_plan_create',
+    {
+      title: 'Create Test Plan',
+      description:
+        'Create a structured test plan in Markdown format. Used by the Playwright Test Planner agent.',
+      inputSchema: schemas.testPlanInput,
+      outputSchema: schemas.fileResult,
+    },
+    createToolHandler(async ({ name, description, scenarios }) => {
+      const { promises: fs } = await import('fs');
+
+      const safeFileName = sanitizeFileName(name);
+      const filePath = `specs/${safeFileName}.md`;
+      const content = generateTestPlanMarkdown(name, description, scenarios);
 
       await fs.mkdir('specs', { recursive: true });
       await fs.writeFile(filePath, content, 'utf-8');
@@ -99,31 +183,23 @@ ${s.expected}
     }, 'Error creating test plan')
   );
 
-  // Create Test File Tool
+  // ============================================================================
+  // Test File Management
+  // ============================================================================
+
   server.registerTool(
     'test_file_create',
     {
       title: 'Create Test File',
       description:
         'Create a Playwright test specification file generated by the Playwright Test Generator agent',
-      inputSchema: {
-        name: z
-          .string()
-          .describe(
-            'Test file name (e.g., add-todo, login-valid). Will be saved as tests/{name}.spec.ts'
-          ),
-        content: z.string().describe('TypeScript test file content'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        path: z.string(),
-        filename: z.string(),
-      },
+      inputSchema: schemas.testFileInput,
+      outputSchema: schemas.fileResult,
     },
     createToolHandler(async ({ name, content }) => {
       const { promises: fs } = await import('fs');
 
-      const safeFileName = name.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+      const safeFileName = sanitizeFileName(name);
       const filePath = `tests/${safeFileName}.spec.ts`;
 
       await fs.mkdir('tests', { recursive: true });
@@ -140,37 +216,19 @@ ${s.expected}
     }, 'Error creating test file')
   );
 
-  // Update Test File Tool
   server.registerTool(
     'test_file_update',
     {
       title: 'Update Test File',
       description:
         'Update an existing Playwright test file. Used by the Healer agent to fix failing tests.',
-      inputSchema: {
-        path: z
-          .string()
-          .describe(
-            'Relative path to test file (e.g., tests/add-todo.spec.ts)'
-          ),
-        content: z.string().describe('Updated test file content'),
-        reason: z
-          .string()
-          .optional()
-          .describe('Reason for update (e.g., "Fixed broken locator")'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        path: z.string(),
-        updated: z.boolean(),
-      },
+      inputSchema: schemas.updateFileInput,
+      outputSchema: schemas.updateResult,
     },
     createToolHandler(async ({ path: filePath, content, reason }) => {
       const { promises: fs } = await import('fs');
 
-      // Validate path is within allowed directories
       validateArtifactPath(filePath);
-
       await fs.writeFile(filePath, content, 'utf-8');
 
       logger.info('Test file updated', {
@@ -184,76 +242,46 @@ ${s.expected}
             `Test file updated: ${filePath}${reason ? ` (${reason})` : ''}`
           ),
         ],
-        structuredContent: {
-          success: true,
-          path: filePath,
-          updated: true,
-        },
+        structuredContent: { success: true, path: filePath, updated: true },
       };
     }, 'Error updating test file')
   );
 
-  // Read Test File Tool
   server.registerTool(
     'test_file_read',
     {
       title: 'Read Test File',
       description:
         'Read the content of a test specification file. Used by agents to understand existing tests.',
-      inputSchema: {
-        path: z
-          .string()
-          .describe(
-            'Relative path to test file (e.g., tests/add-todo.spec.ts, specs/login-flow.md)'
-          ),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        path: z.string(),
-        content: z.string(),
-        lines: z.number(),
-      },
+      inputSchema: schemas.pathInput,
+      outputSchema: schemas.readResult,
     },
     createToolHandler(async ({ path: filePath }) => {
       const { promises: fs } = await import('fs');
 
-      // Validate path is within allowed directories
       validateArtifactPath(filePath);
-
       const content = await fs.readFile(filePath, 'utf-8');
       const lines = content.split('\n').length;
 
       return {
         content: [textContent(`Read ${filePath} (${lines} lines)`)],
-        structuredContent: {
-          success: true,
-          path: filePath,
-          content,
-          lines,
-        },
+        structuredContent: { success: true, path: filePath, content, lines },
       };
     }, 'Error reading test file')
   );
 
-  // List Test Artifacts Tool
+  // ============================================================================
+  // Artifact Listing & Deletion
+  // ============================================================================
+
   server.registerTool(
     'test_artifacts_list',
     {
       title: 'List Test Artifacts',
       description:
         'List all test plans and test files in the project. Returns specs/ and tests/ directories.',
-      inputSchema: {
-        type: z
-          .enum(['all', 'specs', 'tests'])
-          .default('all')
-          .describe('Which artifacts to list'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        specs: z.array(z.string()),
-        tests: z.array(z.string()),
-        total: z.number(),
-      },
+      inputSchema: schemas.listTypeInput,
+      outputSchema: schemas.listResult,
     },
     createToolHandler(async ({ type }) => {
       const { promises: fs } = await import('fs');
@@ -261,31 +289,24 @@ ${s.expected}
       const specs: string[] = [];
       const tests: string[] = [];
 
-      try {
-        if (type === 'all' || type === 'specs') {
-          const specsDir = 'specs';
-          try {
-            const files = await fs.readdir(specsDir);
-            specs.push(...files.filter((f) => f.endsWith('.md')));
-          } catch {
-            // specs directory might not exist yet
-          }
+      const readDir = async (
+        dir: string,
+        extension: string
+      ): Promise<string[]> => {
+        try {
+          const files = await fs.readdir(dir);
+          return files.filter((f) => f.endsWith(extension));
+        } catch {
+          return []; // Directory might not exist yet
         }
+      };
 
-        if (type === 'all' || type === 'tests') {
-          const testsDir = 'tests';
-          try {
-            const files = await fs.readdir(testsDir);
-            tests.push(...files.filter((f) => f.endsWith('.spec.ts')));
-          } catch {
-            // tests directory might not exist yet
-          }
-        }
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        logger.error('Error listing test artifacts', {
-          error: err.message,
-        });
+      if (type === 'all' || type === 'specs') {
+        specs.push(...(await readDir('specs', '.md')));
+      }
+
+      if (type === 'all' || type === 'tests') {
+        tests.push(...(await readDir('tests', '.spec.ts')));
       }
 
       const total = specs.length + tests.length;
@@ -296,49 +317,30 @@ ${s.expected}
             `Found ${specs.length} test plan(s) and ${tests.length} test file(s)`
           ),
         ],
-        structuredContent: {
-          success: true,
-          specs,
-          tests,
-          total,
-        },
+        structuredContent: { success: true, specs, tests, total },
       };
     }, 'Error listing test artifacts')
   );
 
-  // Delete Test Artifact Tool
   server.registerTool(
     'test_artifact_delete',
     {
       title: 'Delete Test Artifact',
       description: 'Delete a test plan or test file',
-      inputSchema: {
-        path: z
-          .string()
-          .describe(
-            'Relative path to artifact (e.g., specs/login-flow.md, tests/add-todo.spec.ts)'
-          ),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        deleted: z.boolean(),
-        path: z.string(),
-      },
+      inputSchema: schemas.pathInput,
+      outputSchema: schemas.deleteResult,
     },
     createToolHandler(async ({ path: filePath }) => {
       const { promises: fs } = await import('fs');
 
       try {
+        validateArtifactPath(filePath);
         await fs.unlink(filePath);
         logger.info('Test artifact deleted', { path: filePath });
 
         return {
           content: [textContent(`Deleted: ${filePath}`)],
-          structuredContent: {
-            success: true,
-            deleted: true,
-            path: filePath,
-          },
+          structuredContent: { success: true, deleted: true, path: filePath },
         };
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
@@ -346,11 +348,7 @@ ${s.expected}
           content: [
             textContent(`Failed to delete ${filePath}: ${err.message}`),
           ],
-          structuredContent: {
-            success: false,
-            deleted: false,
-            path: filePath,
-          },
+          structuredContent: { success: false, deleted: false, path: filePath },
         };
       }
     }, 'Error deleting test artifact')

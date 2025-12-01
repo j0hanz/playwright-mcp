@@ -1,27 +1,92 @@
-// Interaction Tool Handlers - Element interactions using CSS selectors
-// @see https://playwright.dev/docs/api/class-locator
+// Interaction Tool Handlers - Unified element interactions with multiple locator strategies
+// @see https://playwright.dev/docs/locators
 
 import { z } from 'zod';
 
-import type { ToolContext } from '../../config/types.js';
-import { basePageInput, textContent, timeoutOption } from './types.js';
+import { ARIA_ROLES, type ToolContext } from '../../config/types.js';
+import {
+  basePageInput,
+  selectorInput,
+  textContent,
+  timeoutOption,
+} from './types.js';
+
+// ============================================================================
+// Shared Schemas
+// ============================================================================
+
+const modifiersSchema = z
+  .array(z.enum(['Alt', 'Control', 'Meta', 'Shift']))
+  .optional()
+  .describe('Keyboard modifiers to hold');
+
+const forceSchema = z
+  .boolean()
+  .default(false)
+  .describe('Force action even if element is not visible');
+
+const exactSchema = z
+  .boolean()
+  .default(false)
+  .describe('Whether to match exactly (case-sensitive, whole-string)');
+
+// Locator type enums
+const clickLocatorType = z
+  .enum(['selector', 'role', 'text', 'testid', 'altText', 'title'])
+  .describe('Type of locator to use for finding the element');
+
+const fillLocatorType = z
+  .enum(['selector', 'label', 'placeholder', 'testid'])
+  .describe('Type of locator to use for finding the input');
+
+const hoverLocatorType = z
+  .enum(['selector', 'role', 'text', 'testid'])
+  .describe('Type of locator to use for finding the element');
 
 export function registerInteractionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
 
-  // Click Element Tool
+  // ============================================================================
+  // Unified Click Tool - Consolidates all click operations
+  // ============================================================================
+
   server.registerTool(
     'element_click',
     {
       title: 'Click Element',
-      description: 'Click on an element using a CSS selector',
+      description: `Click an element using various locator strategies. 
+Locator types (in recommended priority order):
+- 'role': ARIA role (button, link, checkbox, etc.) - RECOMMENDED for accessibility
+- 'text': Visible text content
+- 'testid': data-testid attribute
+- 'title': Element's title attribute
+- 'altText': Image alt text
+- 'selector': CSS selector (least recommended, use as fallback)`,
       inputSchema: {
         ...basePageInput,
-        selector: z.string().describe('CSS selector for the element'),
-        force: z
-          .boolean()
-          .default(false)
-          .describe('Force click even if element is not visible'),
+        locatorType: clickLocatorType,
+        // Locator value - meaning depends on locatorType
+        value: z
+          .string()
+          .describe(
+            'Locator value: CSS selector, role name, text, testid, or alt text'
+          ),
+        // Role-specific options
+        name: z
+          .string()
+          .optional()
+          .describe(
+            'Accessible name for role locator (button text, link text, etc.)'
+          ),
+        role: z
+          .enum(ARIA_ROLES)
+          .optional()
+          .describe('ARIA role (required when locatorType is "role")'),
+        // Common options
+        exact: exactSchema,
+        force: forceSchema,
+        ...timeoutOption,
+        // Advanced click options
         button: z
           .enum(['left', 'middle', 'right'])
           .default('left')
@@ -32,10 +97,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
           .max(3)
           .default(1)
           .describe('Number of clicks (1=single, 2=double, 3=triple)'),
-        modifiers: z
-          .array(z.enum(['Alt', 'Control', 'Meta', 'Shift']))
-          .optional()
-          .describe('Keyboard modifiers to hold'),
+        modifiers: modifiersSchema,
         delay: z
           .number()
           .min(0)
@@ -52,26 +114,89 @@ export function registerInteractionTools(ctx: ToolContext): void {
       async ({
         sessionId,
         pageId,
-        selector,
+        locatorType,
+        value,
+        name,
+        role,
+        exact,
         force,
+        timeout,
         button,
         clickCount,
         modifiers,
         delay,
       }) => {
-        const result = await browserManager.interactionActions.clickElement({
-          sessionId,
-          pageId,
-          selector,
-          force,
-          button,
-          clickCount,
-          modifiers,
-          delay,
-        });
+        let result: { success: boolean };
+        let description: string;
+
+        switch (locatorType) {
+          case 'role': {
+            // Role requires the role parameter, value is used as name if name not provided
+            const roleValue = role ?? (value as (typeof ARIA_ROLES)[number]);
+            const roleName = name ?? (role ? value : undefined);
+            result = await browserManager.locatorActions.clickByRole(
+              sessionId,
+              pageId,
+              roleValue,
+              { name: roleName, exact, force, timeout }
+            );
+            description = `Clicked ${roleValue}${roleName ? ` "${roleName}"` : ''}`;
+            break;
+          }
+          case 'text':
+            result = await browserManager.locatorActions.clickByText(
+              sessionId,
+              pageId,
+              value,
+              { exact, force, timeout }
+            );
+            description = `Clicked element with text "${value}"`;
+            break;
+          case 'testid':
+            result = await browserManager.locatorActions.clickByTestId(
+              sessionId,
+              pageId,
+              value,
+              { force, timeout }
+            );
+            description = `Clicked element with testId "${value}"`;
+            break;
+          case 'altText':
+            result = await browserManager.locatorActions.clickByAltText(
+              sessionId,
+              pageId,
+              value,
+              { exact, force, timeout }
+            );
+            description = `Clicked image with alt text "${value}"`;
+            break;
+          case 'title':
+            result = await browserManager.locatorActions.clickByTitle(
+              sessionId,
+              pageId,
+              value,
+              { exact, force, timeout }
+            );
+            description = `Clicked element with title "${value}"`;
+            break;
+          case 'selector':
+          default:
+            result = await browserManager.interactionActions.clickElement({
+              sessionId,
+              pageId,
+              selector: value,
+              force,
+              button,
+              clickCount,
+              modifiers,
+              delay,
+            });
+            description = `Clicked element: ${value}`;
+            break;
+        }
 
         return {
-          content: [textContent(`Clicked element: ${selector}`)],
+          content: [textContent(description)],
           structuredContent: result,
         };
       },
@@ -79,62 +204,203 @@ export function registerInteractionTools(ctx: ToolContext): void {
     )
   );
 
-  // Fill Input Tool
+  // ============================================================================
+  // Unified Fill Tool - Consolidates all fill operations
+  // ============================================================================
+
   server.registerTool(
     'element_fill',
     {
       title: 'Fill Input',
-      description: 'Fill text into an input field',
+      description: `Fill text into an input field using various locator strategies.
+Locator types (in recommended priority order):
+- 'label': Input's associated label text - RECOMMENDED for accessibility
+- 'placeholder': Input's placeholder text
+- 'testid': data-testid attribute
+- 'selector': CSS selector (least recommended, use as fallback)`,
       inputSchema: {
         ...basePageInput,
-        selector: z.string().describe('CSS selector for the input'),
-        text: z.string().describe('Text to fill'),
+        locatorType: fillLocatorType,
+        // Locator value - meaning depends on locatorType
+        value: z
+          .string()
+          .describe(
+            'Locator value: CSS selector, label text, placeholder text, or testid'
+          ),
+        text: z.string().describe('Text to fill into the input'),
+        // Common options
+        exact: exactSchema,
+        ...timeoutOption,
       },
-      outputSchema: {
-        success: z.boolean(),
-      },
+      outputSchema: { success: z.boolean() },
     },
-    createToolHandler(async ({ sessionId, pageId, selector, text }) => {
-      const result = await browserManager.interactionActions.fillInput({
+    createToolHandler(
+      async ({
         sessionId,
         pageId,
-        selector,
+        locatorType,
+        value,
         text,
-      });
+        exact,
+        timeout,
+      }) => {
+        let result: { success: boolean };
+        let description: string;
 
-      return {
-        content: [textContent(`Filled input ${selector} with text`)],
-        structuredContent: result,
-      };
-    }, 'Error filling input')
+        switch (locatorType) {
+          case 'label':
+            result = await browserManager.locatorActions.fillByLabel(
+              sessionId,
+              pageId,
+              value,
+              text,
+              { exact, timeout }
+            );
+            description = `Filled input labeled "${value}"`;
+            break;
+          case 'placeholder':
+            result = await browserManager.locatorActions.fillByPlaceholder(
+              sessionId,
+              pageId,
+              value,
+              text,
+              { exact, timeout }
+            );
+            description = `Filled input with placeholder "${value}"`;
+            break;
+          case 'testid':
+            result = await browserManager.locatorActions.fillByTestId(
+              sessionId,
+              pageId,
+              value,
+              text,
+              { timeout }
+            );
+            description = `Filled input with testId "${value}"`;
+            break;
+          case 'selector':
+          default:
+            result = await browserManager.interactionActions.fillInput({
+              sessionId,
+              pageId,
+              selector: value,
+              text,
+            });
+            description = `Filled input ${value}`;
+            break;
+        }
+
+        return {
+          content: [textContent(description)],
+          structuredContent: result,
+        };
+      },
+      'Error filling input'
+    )
   );
 
-  // Hover Element Tool
+  // ============================================================================
+  // Unified Hover Tool - Enhanced with locator strategies
+  // ============================================================================
+
   server.registerTool(
     'element_hover',
     {
       title: 'Hover Element',
-      description: 'Hover over an element',
+      description: `Hover over an element using various locator strategies.
+Locator types (in recommended priority order):
+- 'role': ARIA role (button, link, etc.) - RECOMMENDED for accessibility
+- 'text': Visible text content
+- 'testid': data-testid attribute
+- 'selector': CSS selector (least recommended, use as fallback)`,
       inputSchema: {
         ...basePageInput,
-        selector: z.string().describe('CSS selector for the element'),
+        locatorType: hoverLocatorType.default('selector'),
+        // Locator value - meaning depends on locatorType
+        value: z
+          .string()
+          .describe('Locator value: CSS selector, role name, text, or testid'),
+        // Role-specific options
+        name: z
+          .string()
+          .optional()
+          .describe(
+            'Accessible name for role locator (button text, link text, etc.)'
+          ),
+        role: z
+          .enum(ARIA_ROLES)
+          .optional()
+          .describe('ARIA role (required when locatorType is "role")'),
+        // Common options
+        exact: exactSchema,
+        ...timeoutOption,
       },
-      outputSchema: {
-        success: z.boolean(),
-      },
+      outputSchema: { success: z.boolean() },
     },
-    createToolHandler(async ({ sessionId, pageId, selector }) => {
-      const result = await browserManager.interactionActions.hoverElement({
+    createToolHandler(
+      async ({
         sessionId,
         pageId,
-        selector,
-      });
+        locatorType,
+        value,
+        name,
+        role,
+        exact,
+        timeout,
+      }) => {
+        let result: { success: boolean };
+        let description: string;
 
-      return {
-        content: [textContent(`Hovered over element: ${selector}`)],
-        structuredContent: result,
-      };
-    }, 'Error hovering element')
+        switch (locatorType) {
+          case 'role': {
+            const roleValue = role ?? (value as (typeof ARIA_ROLES)[number]);
+            const roleName = name ?? (role ? value : undefined);
+            result = await browserManager.locatorActions.hoverByRole(
+              sessionId,
+              pageId,
+              roleValue,
+              { name: roleName, exact, timeout }
+            );
+            description = `Hovered ${roleValue}${roleName ? ` "${roleName}"` : ''}`;
+            break;
+          }
+          case 'text':
+            result = await browserManager.locatorActions.hoverByText(
+              sessionId,
+              pageId,
+              value,
+              { exact, timeout }
+            );
+            description = `Hovered element with text "${value}"`;
+            break;
+          case 'testid':
+            result = await browserManager.locatorActions.hoverByTestId(
+              sessionId,
+              pageId,
+              value,
+              { timeout }
+            );
+            description = `Hovered element with testId "${value}"`;
+            break;
+          case 'selector':
+          default:
+            result = await browserManager.interactionActions.hoverElement({
+              sessionId,
+              pageId,
+              selector: value,
+              timeout,
+            });
+            description = `Hovered over element: ${value}`;
+            break;
+        }
+
+        return {
+          content: [textContent(description)],
+          structuredContent: result,
+        };
+      },
+      'Error hovering element'
+    )
   );
 
   // Select Option Tool
@@ -144,8 +410,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
       title: 'Select Option',
       description: 'Select an option from a dropdown/select element',
       inputSchema: {
-        ...basePageInput,
-        selector: z.string().describe('CSS selector for the select element'),
+        ...selectorInput,
         value: z
           .union([z.string(), z.array(z.string())])
           .describe('Value(s) to select'),
@@ -165,7 +430,6 @@ export function registerInteractionTools(ctx: ToolContext): void {
           value,
           { timeout }
         );
-
         return {
           content: [textContent(`Selected option(s) in ${selector}`)],
           structuredContent: result,
@@ -174,9 +438,6 @@ export function registerInteractionTools(ctx: ToolContext): void {
       'Error selecting option'
     )
   );
-
-  // Note: element_check (setChecked) tool can be added once the method is implemented
-  // in BrowserManager. The page-actions.ts module provides the underlying functionality.
 
   // Drag and Drop Tool
   server.registerTool(
@@ -194,9 +455,7 @@ export function registerInteractionTools(ctx: ToolContext): void {
           .describe('CSS selector for the target element'),
         ...timeoutOption,
       },
-      outputSchema: {
-        success: z.boolean(),
-      },
+      outputSchema: { success: z.boolean() },
     },
     createToolHandler(
       async ({
@@ -213,7 +472,6 @@ export function registerInteractionTools(ctx: ToolContext): void {
           targetSelector,
           { timeout }
         );
-
         return {
           content: [
             textContent(`Dragged ${sourceSelector} to ${targetSelector}`),
@@ -223,5 +481,220 @@ export function registerInteractionTools(ctx: ToolContext): void {
       },
       'Error during drag and drop'
     )
+  );
+
+  // ============================================================================
+  // Keyboard Tools
+  // ============================================================================
+
+  server.registerTool(
+    'keyboard_press',
+    {
+      title: 'Press Keyboard Key',
+      description: `Press a keyboard key or key combination. 
+Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+'Control+a', 'Control+c', 'Control+v', 'Shift+Tab', 'Alt+F4', 'Meta+Enter'`,
+      inputSchema: {
+        ...basePageInput,
+        key: z
+          .string()
+          .describe(
+            'Key to press (e.g., Enter, Tab, Escape, Control+a, Shift+Tab)'
+          ),
+        delay: z
+          .number()
+          .min(0)
+          .max(1000)
+          .optional()
+          .describe('Time between keydown and keyup in milliseconds'),
+      },
+      outputSchema: { success: z.boolean() },
+    },
+    createToolHandler(async ({ sessionId, pageId, key, delay }) => {
+      const result = await browserManager.interactionActions.keyboardPress(
+        sessionId,
+        pageId,
+        key,
+        { delay }
+      );
+      return {
+        content: [textContent(`Pressed key: ${key}`)],
+        structuredContent: result,
+      };
+    }, 'Error pressing keyboard key')
+  );
+
+  server.registerTool(
+    'keyboard_type',
+    {
+      title: 'Type Text',
+      description:
+        'Type text character by character (simulates real typing). Use element_fill for faster input, use this for character-by-character typing simulation.',
+      inputSchema: {
+        ...basePageInput,
+        text: z.string().describe('Text to type'),
+        delay: z
+          .number()
+          .min(0)
+          .max(500)
+          .optional()
+          .describe('Delay between key presses in milliseconds'),
+      },
+      outputSchema: { success: z.boolean() },
+    },
+    createToolHandler(async ({ sessionId, pageId, text, delay }) => {
+      const result = await browserManager.interactionActions.keyboardType(
+        sessionId,
+        pageId,
+        text,
+        { delay }
+      );
+      return {
+        content: [textContent(`Typed ${text.length} characters`)],
+        structuredContent: result,
+      };
+    }, 'Error typing text')
+  );
+
+  // ============================================================================
+  // File Upload Tool
+  // ============================================================================
+
+  server.registerTool(
+    'file_upload',
+    {
+      title: 'Upload Files',
+      description:
+        'Upload one or more files to a file input element. The selector should target an <input type="file"> element.',
+      inputSchema: {
+        ...basePageInput,
+        selector: z
+          .string()
+          .describe('CSS selector for the file input element'),
+        filePaths: z
+          .array(z.string())
+          .min(1)
+          .describe('Array of absolute file paths to upload'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        filesUploaded: z.number(),
+      },
+    },
+    createToolHandler(async ({ sessionId, pageId, selector, filePaths }) => {
+      const result = await browserManager.interactionActions.uploadFiles(
+        sessionId,
+        pageId,
+        selector,
+        filePaths
+      );
+      return {
+        content: [
+          textContent(
+            `Uploaded ${result.filesUploaded} file(s) to ${selector}`
+          ),
+        ],
+        structuredContent: result,
+      };
+    }, 'Error uploading files')
+  );
+
+  // ============================================================================
+  // Checkbox/Toggle Tool
+  // ============================================================================
+
+  server.registerTool(
+    'checkbox_set',
+    {
+      title: 'Set Checkbox State',
+      description:
+        'Check or uncheck a checkbox element. Works with both <input type="checkbox"> and toggle-like elements.',
+      inputSchema: {
+        ...basePageInput,
+        selector: z.string().describe('CSS selector for the checkbox element'),
+        checked: z.boolean().describe('Whether the checkbox should be checked'),
+        ...timeoutOption,
+      },
+      outputSchema: { success: z.boolean() },
+    },
+    createToolHandler(
+      async ({ sessionId, pageId, selector, checked, timeout }) => {
+        const result = await browserManager.interactionActions.setChecked(
+          sessionId,
+          pageId,
+          selector,
+          checked,
+          { timeout }
+        );
+        return {
+          content: [
+            textContent(
+              `${checked ? 'Checked' : 'Unchecked'} checkbox: ${selector}`
+            ),
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error setting checkbox state'
+    )
+  );
+
+  // ============================================================================
+  // Focus/Blur Tools
+  // ============================================================================
+
+  server.registerTool(
+    'element_focus',
+    {
+      title: 'Focus Element',
+      description:
+        'Focus an element (e.g., to trigger focus events or enable keyboard input)',
+      inputSchema: {
+        ...selectorInput,
+        ...timeoutOption,
+      },
+      outputSchema: { success: z.boolean() },
+    },
+    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
+      const result = await browserManager.interactionActions.focusElement(
+        sessionId,
+        pageId,
+        selector,
+        { timeout }
+      );
+      return {
+        content: [textContent(`Focused element: ${selector}`)],
+        structuredContent: result,
+      };
+    }, 'Error focusing element')
+  );
+
+  // ============================================================================
+  // Clear Input Tool
+  // ============================================================================
+
+  server.registerTool(
+    'element_clear',
+    {
+      title: 'Clear Input',
+      description: 'Clear the contents of an input or textarea element',
+      inputSchema: {
+        ...selectorInput,
+        ...timeoutOption,
+      },
+      outputSchema: { success: z.boolean() },
+    },
+    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
+      const result = await browserManager.interactionActions.clearInput(
+        sessionId,
+        pageId,
+        selector,
+        { timeout }
+      );
+      return {
+        content: [textContent(`Cleared input: ${selector}`)],
+        structuredContent: result,
+      };
+    }, 'Error clearing input')
   );
 }

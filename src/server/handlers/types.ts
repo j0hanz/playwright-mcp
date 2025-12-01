@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
 import type {
-  ErrorCode,
   ErrorResponse,
   PaginatedResponse,
   PaginationMeta,
@@ -14,11 +13,17 @@ import type {
   ToolResponse,
 } from '../../config/types.js';
 import {
-  ErrorCode as ErrorCodeConst,
+  ErrorCode,
   isMCPPlaywrightError,
   toError,
 } from '../../utils/error-handler.js';
+import type { ErrorCode as ErrorCodeType } from '../../utils/error-handler.js';
 import { Logger } from '../../utils/logger.js';
+
+// Pagination Constants
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
 // Request ID Generation
 
@@ -26,68 +31,65 @@ export function generateRequestId(): string {
   return uuidv4().slice(0, 8);
 }
 
-// Retry Hints
-
-const RETRY_HINTS: Readonly<Record<ErrorCode, string>> = {
-  [ErrorCodeConst.BROWSER_LAUNCH_FAILED]:
+// Retry Hints - Actionable guidance for each error code
+const RETRY_HINTS: Readonly<Record<ErrorCodeType, string>> = {
+  [ErrorCode.BROWSER_LAUNCH_FAILED]:
     'Run `npx playwright install` to install browsers. Check system resources and permissions.',
-  [ErrorCodeConst.BROWSER_CLOSED]:
+  [ErrorCode.BROWSER_CLOSED]:
     'Browser was closed unexpectedly. Launch a new browser session with browser_launch.',
-  [ErrorCodeConst.PAGE_NAVIGATION_FAILED]:
+  [ErrorCode.PAGE_NAVIGATION_FAILED]:
     'Check URL validity and network connectivity. Ensure the server is running.',
-  [ErrorCodeConst.PAGE_CRASHED]:
+  [ErrorCode.PAGE_CRASHED]:
     'Page crashed. Close and recreate the page. Consider reducing memory usage.',
-  [ErrorCodeConst.ELEMENT_NOT_FOUND]:
+  [ErrorCode.ELEMENT_NOT_FOUND]:
     'Element not found. Use Playwright locators: getByRole(), getByLabel(), getByTestId(). Try wait_for_selector first.',
-  [ErrorCodeConst.ELEMENT_NOT_VISIBLE]:
+  [ErrorCode.ELEMENT_NOT_VISIBLE]:
     'Element exists but is hidden. Check CSS (display, visibility, opacity). May need to scroll or wait.',
-  [ErrorCodeConst.ELEMENT_NOT_ENABLED]:
+  [ErrorCode.ELEMENT_NOT_ENABLED]:
     'Element is disabled. Wait for it to become enabled or check application state.',
-  [ErrorCodeConst.ELEMENT_DETACHED]:
+  [ErrorCode.ELEMENT_DETACHED]:
     'Element was removed from DOM (common in SPAs). Re-query using a fresh locator.',
-  [ErrorCodeConst.TIMEOUT_EXCEEDED]:
+  [ErrorCode.TIMEOUT_EXCEEDED]:
     'Operation timed out. Increase timeout, check element visibility, or use networkidle wait.',
-  [ErrorCodeConst.NAVIGATION_TIMEOUT]:
+  [ErrorCode.NAVIGATION_TIMEOUT]:
     'Navigation timed out. Check network, increase timeout, or use domcontentloaded instead of load.',
-  [ErrorCodeConst.SESSION_NOT_FOUND]:
+  [ErrorCode.SESSION_NOT_FOUND]:
     'Session not found. It may have expired (30 min timeout). Launch a new session.',
-  [ErrorCodeConst.SESSION_EXPIRED]:
+  [ErrorCode.SESSION_EXPIRED]:
     'Session expired due to inactivity. Sessions timeout after 30 minutes.',
-  [ErrorCodeConst.PAGE_NOT_FOUND]:
+  [ErrorCode.PAGE_NOT_FOUND]:
     'Page was closed or never created. Use browser_tabs to list pages or browser_navigate to create one.',
-  [ErrorCodeConst.VALIDATION_FAILED]:
+  [ErrorCode.VALIDATION_FAILED]:
     'Input validation failed. Check parameter types and values against the schema.',
-  [ErrorCodeConst.INVALID_SELECTOR]:
+  [ErrorCode.INVALID_SELECTOR]:
     'Selector syntax is invalid. Prefer Playwright locators: getByRole(), getByLabel(), getByTestId().',
-  [ErrorCodeConst.INVALID_URL]:
+  [ErrorCode.INVALID_URL]:
     'URL is invalid. Must use http:// or https:// protocol. Check for typos.',
-  [ErrorCodeConst.ASSERTION_FAILED]:
+  [ErrorCode.ASSERTION_FAILED]:
     'Assertion failed. Verify expected vs actual values. Consider using soft assertions for debugging.',
-  [ErrorCodeConst.SCREENSHOT_FAILED]:
+  [ErrorCode.SCREENSHOT_FAILED]:
     'Screenshot failed. Ensure page is loaded and visible. Check disk space and permissions.',
-  [ErrorCodeConst.NETWORK_ERROR]:
+  [ErrorCode.NETWORK_ERROR]:
     'Network error. Check internet connectivity, proxy settings, and firewall rules.',
-  [ErrorCodeConst.INTERNAL_ERROR]:
+  [ErrorCode.INTERNAL_ERROR]:
     'Internal error occurred. Check server logs for details. This may be a bug.',
-  [ErrorCodeConst.TOOL_NOT_FOUND]:
+  [ErrorCode.TOOL_NOT_FOUND]:
     'Tool not found. Use sessions_list to see available tools.',
-  [ErrorCodeConst.RATE_LIMIT_EXCEEDED]:
+  [ErrorCode.RATE_LIMIT_EXCEEDED]:
     'Rate limit exceeded. Wait a moment and retry. Consider batching operations.',
-  [ErrorCodeConst.CAPACITY_EXCEEDED]:
+  [ErrorCode.CAPACITY_EXCEEDED]:
     'Maximum session capacity reached. Close unused sessions with browser_close before launching new ones.',
-  [ErrorCodeConst.SECURITY_VIOLATION]:
+  [ErrorCode.SECURITY_VIOLATION]:
     'Security policy violation. This operation is not permitted for security reasons.',
+  [ErrorCode.DIALOG_ERROR]:
+    'Dialog handling failed. Ensure there is a pending dialog before calling handle_dialog. Dialogs auto-dismiss after timeout.',
 };
 
-export function getRetryHint(code: ErrorCode): string | undefined {
+export function getRetryHint(code: ErrorCodeType): string | undefined {
   return RETRY_HINTS[code];
 }
 
 // Pagination Utilities
-
-const DEFAULT_PAGE = 1;
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 100;
 
 function normalizePageParams(params: PaginationParams): {
   page: number;

@@ -6,6 +6,66 @@ import { z } from 'zod';
 import type { ToolContext } from '../../config/types.js';
 import { basePageInput, textContent } from './types.js';
 
+// Shared Schema Definitions (DRY - reusable across tools)
+const schemas = {
+  proxy: z
+    .object({
+      server: z.string().describe('Proxy server URL'),
+      bypass: z.string().optional().describe('Domains to bypass proxy'),
+      username: z.string().optional(),
+      password: z.string().optional(),
+    })
+    .optional()
+    .describe('Proxy configuration'),
+
+  recordVideo: z
+    .object({
+      dir: z.string().describe('Directory to save video recordings'),
+      width: z
+        .number()
+        .optional()
+        .describe('Video width (defaults to viewport)'),
+      height: z
+        .number()
+        .optional()
+        .describe('Video height (defaults to viewport)'),
+    })
+    .optional()
+    .describe('Video recording configuration'),
+
+  browserType: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
+  headless: z.boolean().default(true).describe('Run in headless mode'),
+  viewportWidth: z
+    .number()
+    .min(320)
+    .max(3840)
+    .default(1920)
+    .describe('Viewport width'),
+  viewportHeight: z
+    .number()
+    .min(240)
+    .max(2160)
+    .default(1080)
+    .describe('Viewport height'),
+
+  viewport: z
+    .object({
+      width: z.number().min(320).max(3840),
+      height: z.number().min(240).max(2160),
+    })
+    .optional()
+    .describe('Viewport size'),
+
+  geolocation: z
+    .object({
+      latitude: z.number().min(-90).max(90),
+      longitude: z.number().min(-180).max(180),
+      accuracy: z.number().optional(),
+    })
+    .optional()
+    .describe('Geolocation override'),
+} as const;
+
 export function registerBrowserTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
 
@@ -15,15 +75,12 @@ export function registerBrowserTools(ctx: ToolContext): void {
     {
       title: 'Launch Browser',
       description:
-        'Launch a new browser instance (Chromium, Firefox, or WebKit) with optional video recording',
+        'Launch a new browser instance (Chromium, Firefox, or WebKit) with optional authentication state and video recording',
       inputSchema: {
-        browserType: z
-          .enum(['chromium', 'firefox', 'webkit'])
-          .default('chromium')
-          .describe('Browser type to launch'),
-        headless: z.boolean().default(true).describe('Run in headless mode'),
-        viewportWidth: z.number().default(1920).describe('Viewport width'),
-        viewportHeight: z.number().default(1080).describe('Viewport height'),
+        browserType: schemas.browserType.describe('Browser type to launch'),
+        headless: schemas.headless,
+        viewportWidth: schemas.viewportWidth,
+        viewportHeight: schemas.viewportHeight,
         channel: z
           .string()
           .optional()
@@ -34,29 +91,12 @@ export function registerBrowserTools(ctx: ToolContext): void {
           .max(5000)
           .optional()
           .describe('Slow down operations by ms'),
-        proxy: z
-          .object({
-            server: z.string().describe('Proxy server URL'),
-            bypass: z.string().optional().describe('Domains to bypass proxy'),
-            username: z.string().optional(),
-            password: z.string().optional(),
-          })
+        storageState: z
+          .string()
           .optional()
-          .describe('Proxy configuration'),
-        recordVideo: z
-          .object({
-            dir: z.string().describe('Directory to save video recordings'),
-            width: z
-              .number()
-              .optional()
-              .describe('Video width (defaults to viewport)'),
-            height: z
-              .number()
-              .optional()
-              .describe('Video height (defaults to viewport)'),
-          })
-          .optional()
-          .describe('Video recording configuration'),
+          .describe('Path to storage state file for authentication reuse'),
+        proxy: schemas.proxy,
+        recordVideo: schemas.recordVideo,
       },
       outputSchema: {
         sessionId: z.string(),
@@ -72,6 +112,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
         viewportHeight,
         channel,
         slowMo,
+        storageState,
         proxy,
         recordVideo,
       }) => {
@@ -81,6 +122,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
           viewport: { width: viewportWidth, height: viewportHeight },
           channel,
           slowMo,
+          storageState,
           proxy,
           recordVideo: recordVideo
             ? {
@@ -92,11 +134,10 @@ export function registerBrowserTools(ctx: ToolContext): void {
               }
             : undefined,
         });
-
         return {
           content: [
             textContent(
-              `Browser launched: ${result.browserType}${result.recordingVideo ? ' (recording video)' : ''}`
+              `Browser launched: ${result.browserType}${storageState ? ' (with auth)' : ''}${result.recordingVideo ? ' (recording video)' : ''}`
             ),
           ],
           structuredContent: result,
@@ -115,50 +156,15 @@ export function registerBrowserTools(ctx: ToolContext): void {
       inputSchema: {
         sessionId: z.string().describe('Browser session ID to close'),
       },
-      outputSchema: {
-        success: z.boolean(),
-      },
+      outputSchema: { success: z.boolean() },
     },
     createToolHandler(async ({ sessionId }) => {
       const result = await browserManager.closeBrowser(sessionId);
-
       return {
         content: [textContent(`Browser session ${sessionId} closed`)],
         structuredContent: result,
       };
     }, 'Error closing browser')
-  );
-
-  // Browser Resize Tool
-  server.registerTool(
-    'browser_resize',
-    {
-      title: 'Resize Browser',
-      description: 'Resize the browser viewport',
-      inputSchema: {
-        ...basePageInput,
-        width: z.number().min(320).max(3840).describe('Viewport width'),
-        height: z.number().min(240).max(2160).describe('Viewport height'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, width, height }) => {
-      const result = await browserManager.pageOperations.resizeViewport(
-        sessionId,
-        pageId,
-        {
-          width,
-          height,
-        }
-      );
-
-      return {
-        content: [textContent(`Viewport resized to ${width}x${height}`)],
-        structuredContent: result,
-      };
-    }, 'Error resizing viewport')
   );
 
   // Browser Tabs Tool
@@ -204,18 +210,14 @@ export function registerBrowserTools(ctx: ToolContext): void {
         pageId,
         url
       );
-
-      const message =
-        action === 'list'
-          ? `Found ${result.tabs?.length ?? 0} tab(s)`
-          : action === 'create'
-            ? `Created new tab${result.newPageId ? ` (${result.newPageId})` : ''}`
-            : action === 'close'
-              ? `Closed tab ${pageId}`
-              : `Selected tab ${pageId}`;
-
+      const messages: Record<string, string> = {
+        list: `Found ${result.tabs?.length ?? 0} tab(s)`,
+        create: `Created new tab${result.newPageId ? ` (${result.newPageId})` : ''}`,
+        close: `Closed tab ${pageId}`,
+        select: `Selected tab ${pageId}`,
+      };
       return {
-        content: [textContent(message)],
+        content: [textContent(messages[action])],
         structuredContent: result,
       };
     }, 'Error managing tabs')
@@ -241,7 +243,6 @@ export function registerBrowserTools(ctx: ToolContext): void {
     },
     () => {
       const sessions = browserManager.listSessions();
-
       return {
         content: [textContent(`Active sessions: ${sessions.length}`)],
         structuredContent: { sessions },
@@ -263,66 +264,15 @@ export function registerBrowserTools(ctx: ToolContext): void {
           .optional()
           .describe('Path to save the storage state file'),
       },
-      outputSchema: {
-        success: z.boolean(),
-        path: z.string(),
-      },
+      outputSchema: { success: z.boolean(), path: z.string() },
     },
     createToolHandler(async ({ sessionId, path }) => {
       const result = await browserManager.saveStorageState(sessionId, path);
-
       return {
         content: [textContent(`Storage state saved to ${result.path}`)],
         structuredContent: result,
       };
     }, 'Error saving storage state')
-  );
-
-  // Launch with Auth Tool
-  server.registerTool(
-    'launch_with_auth',
-    {
-      title: 'Launch Browser with Auth',
-      description:
-        'Launch a new browser session with saved authentication state',
-      inputSchema: {
-        browserType: z
-          .enum(['chromium', 'firefox', 'webkit'])
-          .default('chromium'),
-        headless: z.boolean().default(true),
-        storageState: z.string().describe('Path to storage state file'),
-        viewportWidth: z.number().default(1920),
-        viewportHeight: z.number().default(1080),
-      },
-      outputSchema: {
-        sessionId: z.string(),
-        browserType: z.string(),
-      },
-    },
-    createToolHandler(
-      async ({
-        browserType,
-        headless,
-        storageState,
-        viewportWidth,
-        viewportHeight,
-      }) => {
-        const result = await browserManager.launchWithStorageState({
-          browserType,
-          headless,
-          storageState,
-          viewport: { width: viewportWidth, height: viewportHeight },
-        });
-
-        return {
-          content: [
-            textContent(`Browser launched with auth from ${storageState}`),
-          ],
-          structuredContent: result,
-        };
-      },
-      'Error launching with auth'
-    )
   );
 
   // Session Reset State Tool
@@ -332,9 +282,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       title: 'Reset Session State',
       description:
         'Clear cookies, localStorage, and sessionStorage for a browser session (useful for test isolation)',
-      inputSchema: {
-        sessionId: z.string().describe('Browser session ID'),
-      },
+      inputSchema: { sessionId: z.string().describe('Browser session ID') },
       outputSchema: {
         success: z.boolean(),
         clearedCookies: z.boolean(),
@@ -344,7 +292,6 @@ export function registerBrowserTools(ctx: ToolContext): void {
     createToolHandler(async ({ sessionId }) => {
       const result =
         await browserManager.pageOperations.resetSessionState(sessionId);
-
       return {
         content: [
           textContent(
@@ -365,25 +312,12 @@ export function registerBrowserTools(ctx: ToolContext): void {
         'Configure page settings for testing (viewport, geolocation, permissions, color scheme, etc.)',
       inputSchema: {
         ...basePageInput,
-        viewport: z
-          .object({
-            width: z.number().min(320).max(3840),
-            height: z.number().min(240).max(2160),
-          })
-          .optional()
-          .describe('Viewport size'),
+        viewport: schemas.viewport,
         extraHTTPHeaders: z
           .record(z.string(), z.string())
           .optional()
           .describe('Extra HTTP headers to send'),
-        geolocation: z
-          .object({
-            latitude: z.number().min(-90).max(90),
-            longitude: z.number().min(-180).max(180),
-            accuracy: z.number().optional(),
-          })
-          .optional()
-          .describe('Geolocation override'),
+        geolocation: schemas.geolocation,
         permissions: z
           .array(z.string())
           .optional()
@@ -425,7 +359,6 @@ export function registerBrowserTools(ctx: ToolContext): void {
             reducedMotion,
           }
         );
-
         return {
           content: [
             textContent(

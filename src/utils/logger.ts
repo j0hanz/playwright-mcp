@@ -6,15 +6,13 @@ import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import winston from 'winston';
 
-// Constants
-
-const BYTES_PER_MB = 1024 * 1024;
-const DEFAULT_MAX_ERROR_LOG_FILE_SIZE = 5 * BYTES_PER_MB;
-const DEFAULT_MAX_LOG_FILE_SIZE = 10 * BYTES_PER_MB;
-const DEFAULT_MAX_LOG_FILES = 10;
-
-const MAX_LOG_FILE_SIZE_CAP = 100 * BYTES_PER_MB;
-const MAX_LOG_FILES_CAP = 50;
+import {
+  DEFAULT_MAX_ERROR_LOG_FILE_SIZE,
+  DEFAULT_MAX_LOG_FILE_SIZE,
+  DEFAULT_MAX_LOG_FILES,
+  MAX_LOG_FILE_SIZE_CAP,
+  MAX_LOG_FILES_CAP,
+} from './constants.js';
 
 const parseLogSize = (
   value: string | undefined,

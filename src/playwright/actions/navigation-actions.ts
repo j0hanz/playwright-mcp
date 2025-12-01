@@ -74,4 +74,41 @@ export class NavigationActions {
       }
     );
   }
+
+  async navigateForward(
+    sessionId: string,
+    pageId: string
+  ): Promise<{ success: boolean; url?: string }> {
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Navigate forward',
+      async (page) => {
+        const result = await pageActions.navigateForward(page);
+        return { success: true, url: result.url };
+      }
+    );
+  }
+
+  async reloadPage(
+    sessionId: string,
+    pageId: string,
+    options?: {
+      waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
+    }
+  ): Promise<{ success: boolean; url?: string }> {
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Reload page',
+      async (page) => {
+        await pageActions.reload(page, options);
+        return { success: true, url: page.url() };
+      }
+    );
+  }
 }

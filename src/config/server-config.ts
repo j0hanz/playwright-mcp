@@ -8,14 +8,14 @@
  */
 import dotenv from 'dotenv';
 
+import {
+  BYTES_PER_MB,
+  MS_PER_MINUTE,
+  MS_PER_SECOND,
+} from '../utils/constants.js';
 import type { BrowserType, Viewport } from './types.js';
 
 dotenv.config();
-
-// Time and size unit constants
-const MS_PER_SECOND = 1_000;
-const MS_PER_MINUTE = 60 * MS_PER_SECOND;
-const BYTES_PER_MB = 1024 * 1024;
 
 const parseNumber = (
   value: string | undefined,
@@ -87,6 +87,7 @@ export interface ServerConfig {
     readonly action: number;
     readonly assertion: number;
     readonly download: number;
+    readonly dialogAutoDismiss: number;
   };
   readonly limits: {
     readonly maxScriptLength: number;
@@ -156,6 +157,14 @@ export const config: ServerConfig = Object.freeze({
       min: 10 * MS_PER_SECOND,
       max: 300 * MS_PER_SECOND,
     }),
+    dialogAutoDismiss: parseNumber(
+      process.env.TIMEOUT_DIALOG,
+      10 * MS_PER_SECOND,
+      {
+        min: 1 * MS_PER_SECOND,
+        max: 60 * MS_PER_SECOND,
+      }
+    ),
   }),
   limits: Object.freeze({
     maxScriptLength: 5_000,

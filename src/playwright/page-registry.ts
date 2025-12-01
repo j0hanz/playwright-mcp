@@ -3,6 +3,10 @@
 import type { Page } from 'playwright';
 
 import { ErrorCode, ErrorHandler } from '../utils/error-handler.js';
+import { Logger } from '../utils/logger.js';
+
+// Module-level logger for error reporting
+const logger = new Logger('PageRegistry');
 
 export interface PageEntry {
   id: string;
@@ -119,8 +123,12 @@ export class PageRegistry {
           title: await entry.page.title(),
           isActive: pageId === this.activePageId,
         });
-      } catch {
-        // Page may have been closed, skip it
+      } catch (error) {
+        // Page may have been closed or crashed, log and provide fallback
+        logger.debug('Failed to get page summary, page may be closed', {
+          pageId,
+          error: error instanceof Error ? error.message : String(error),
+        });
         summaries.push({
           id: pageId,
           url: 'about:blank',

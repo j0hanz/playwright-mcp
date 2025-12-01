@@ -8,7 +8,12 @@
 import { Page } from 'playwright';
 
 import config from '../config/server-config.js';
-import { ErrorCode, ErrorHandler, toError } from '../utils/error-handler.js';
+import {
+  ErrorCode,
+  ErrorHandler,
+  isMCPPlaywrightError,
+  toError,
+} from '../utils/error-handler.js';
 import { Logger } from '../utils/logger.js';
 import { AssertionActions } from './actions/assertion-actions.js';
 import { ClockActions } from './actions/clock-actions.js';
@@ -160,8 +165,6 @@ export class BrowserManager {
     accept: boolean,
     promptText?: string
   ): Promise<{ success: boolean; dialogType?: string; message?: string }> {
-    const NO_PENDING_DIALOG_MSG = 'No pending dialog found for this page';
-
     try {
       const { dialogType, message } = await this.dialogManager.handleDialog(
         sessionId,
@@ -180,10 +183,13 @@ export class BrowserManager {
 
       return { success: true, dialogType, message };
     } catch (error) {
-      const err = toError(error);
-      if (err.message === NO_PENDING_DIALOG_MSG) {
-        throw ErrorHandler.createError(ErrorCode.INTERNAL_ERROR, err.message);
+      if (
+        isMCPPlaywrightError(error) &&
+        error.code === ErrorCode.DIALOG_ERROR
+      ) {
+        throw ErrorHandler.createError(ErrorCode.INTERNAL_ERROR, error.message);
       }
+      const err = toError(error);
       this.logger.error('Handle dialog failed', {
         sessionId,
         pageId,
@@ -210,15 +216,5 @@ export class BrowserManager {
     await session.context.storageState({ path: statePath });
     this.sessionManager.updateActivity(sessionId);
     return { success: true, path: statePath };
-  }
-
-  async launchWithStorageState(
-    options: BrowserLaunchOptions & { storageState: string }
-  ): Promise<{ sessionId: string; browserType: string }> {
-    const result = await this.launchBrowser(options);
-    return {
-      sessionId: result.sessionId,
-      browserType: result.browserType,
-    };
   }
 }

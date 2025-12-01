@@ -12,8 +12,14 @@ import type {
   SessionInfo,
   SessionManagerConfig,
 } from '../config/types.js';
-import { ErrorCode, ErrorHandler, toError } from '../utils/error-handler.js';
+import {
+  ErrorCode,
+  ErrorHandler,
+  toError,
+  validateUUID,
+} from '../utils/error-handler.js';
 import type { Logger } from '../utils/logger.js';
+import { MS_PER_MINUTE } from '../utils/constants.js';
 import { RateLimiter } from './rate-limiter.js';
 
 export class SessionManager {
@@ -34,10 +40,9 @@ export class SessionManager {
         config.limits.maxSessionsPerMinute,
     };
 
-    const windowMs = 60_000; // 1 minute
     this.rateLimiter = new RateLimiter({
       maxRequests: this.config.maxSessionsPerMinute,
-      windowMs,
+      windowMs: MS_PER_MINUTE,
       maxTracked: this.config.maxSessionsPerMinute * 2,
     });
   }
@@ -91,6 +96,7 @@ export class SessionManager {
   }
 
   getSession(sessionId: string): BrowserSession {
+    validateUUID(sessionId, 'sessionId');
     const session = this.sessions.get(sessionId);
     if (!session) {
       throw ErrorHandler.createError(
@@ -212,6 +218,8 @@ export class SessionManager {
   }
 
   getPage(sessionId: string, pageId: string): Page {
+    validateUUID(sessionId, 'sessionId');
+    validateUUID(pageId, 'pageId');
     const session = this.getSession(sessionId);
     const page = session.pages.get(pageId);
     if (!page) {

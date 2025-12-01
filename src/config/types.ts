@@ -104,27 +104,8 @@ export const ARIA_ROLES = [
   'treegrid',
 ] as const;
 
-// Error Codes - Re-exported from error-handler for single source of truth
-export {
-  ErrorCode,
-  type ErrorCode as ErrorCodeType,
-} from '../utils/error-handler.js';
-
-// Browser Channels
-
-export const browserChannels = {
-  chrome: 'chrome',
-  'chrome-beta': 'chrome-beta',
-  'chrome-dev': 'chrome-dev',
-  'chrome-canary': 'chrome-canary',
-  msedge: 'msedge',
-  'msedge-beta': 'msedge-beta',
-  'msedge-dev': 'msedge-dev',
-  'msedge-canary': 'msedge-canary',
-} as const;
-
-export type BrowserChannel =
-  (typeof browserChannels)[keyof typeof browserChannels];
+// Note: Import ErrorCode directly from '../utils/error-handler.js' where needed
+// Note: Import browserChannels from './playwright-config.js' where needed
 
 // Primitive Types
 
@@ -162,24 +143,6 @@ export interface ClipRegion extends Position {
 export type BoundingBox = ClipRegion;
 
 // Response Types
-
-export interface StandardResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown;
-    retryable?: boolean;
-  };
-  metadata: {
-    timestamp: string;
-    executionTime?: number;
-    requestId?: string;
-    sessionId?: string;
-    pageId?: string;
-  };
-}
 
 export interface AssertionResult<T> {
   success: boolean;
@@ -234,21 +197,6 @@ export type SessionCleanupCallback = (
   sessionId: string,
   session: BrowserSession
 ) => Promise<void>;
-
-// Page Registry Types
-
-export interface PageEntry {
-  id: string;
-  page: Page;
-  createdAt: Date;
-}
-
-export interface PageSummary {
-  id: string;
-  url: string;
-  title: string;
-  isActive: boolean;
-}
 
 // Rate Limiter Types
 
@@ -535,10 +483,6 @@ export interface ErrorResponse {
   requestId?: string;
 }
 
-export interface SuccessResponse<T> extends ToolResponse<T> {
-  isError?: false;
-}
-
 // Pagination Types
 
 export interface PaginationParams {
@@ -562,14 +506,16 @@ export interface PaginatedResponse<T> {
   pagination: PaginationMeta;
 }
 
-// Tool Context Types (uses `any` to avoid circular dependencies)
+// Tool Context Types - Forward-compatible interface for handler registration
+// Uses BrowserManager and Logger interfaces to avoid circular dependencies
+
+import type { BrowserManager } from '../playwright/browser-manager.js';
+import type { Logger } from '../utils/logger.js';
 
 export interface ToolContext {
   server: McpServer;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  browserManager: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  logger: any;
+  browserManager: BrowserManager;
+  logger: Logger;
   createToolHandler: <T, R extends { structuredContent?: unknown }>(
     handler: (input: T) => Promise<R>,
     errorMessage: string
@@ -666,11 +612,3 @@ export interface AccessibilityViolation {
   helpUrl: string;
   nodes: AccessibilityNode[];
 }
-
-// Utility Types
-
-export type RequireFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
-
-export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
-};

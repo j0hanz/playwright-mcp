@@ -44,6 +44,9 @@ export const ErrorCode = {
   // Network Errors
   NETWORK_ERROR: 'NETWORK_ERROR',
 
+  // Dialog Errors
+  DIALOG_ERROR: 'DIALOG_ERROR',
+
   // Internal Errors
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   TOOL_NOT_FOUND: 'TOOL_NOT_FOUND',
@@ -227,6 +230,25 @@ export function toError(error: unknown): Error {
     return err;
   }
   return new Error(String(error));
+}
+
+// UUID Validation Utility
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isValidUUID(id: string): boolean {
+  return typeof id === 'string' && UUID_REGEX.test(id);
+}
+
+export function validateUUID(id: string, fieldName: string): void {
+  if (!isValidUUID(id)) {
+    throw new MCPPlaywrightError(
+      ErrorCode.VALIDATION_FAILED,
+      `Invalid ${fieldName} format: must be a valid UUID`,
+      { field: fieldName, value: id }
+    );
+  }
 }
 
 // Error Handler Factory

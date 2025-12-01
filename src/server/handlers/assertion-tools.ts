@@ -6,113 +6,285 @@ import { z } from 'zod';
 import type { ToolContext } from '../../config/types.js';
 import { baseLocatorInput, selectorWithTimeout, textContent } from './types.js';
 
+// ============================================================================
+// Schemas - Centralized for DRY compliance
+// ============================================================================
+
+// Element state enum for consolidated state assertions
+const elementStateSchema = z
+  .enum([
+    'visible',
+    'hidden',
+    'enabled',
+    'disabled',
+    'focused',
+    'editable',
+    'attached',
+    'inViewport',
+  ])
+  .describe('Expected element state');
+
+const schemas = {
+  // Consolidated element state assertion
+  withState: {
+    ...selectorWithTimeout,
+    state: elementStateSchema,
+  },
+  // Input schemas with expected values
+  withExpectedText: {
+    ...selectorWithTimeout,
+    expectedText: z
+      .string()
+      .describe('Expected text content (or regex pattern if useRegex is true)'),
+    exact: z
+      .boolean()
+      .default(false)
+      .describe('Whether to match exact text or just contain'),
+    useRegex: z
+      .boolean()
+      .default(false)
+      .describe('Treat expectedText as a regular expression pattern'),
+  },
+  withExpectedValue: {
+    ...selectorWithTimeout,
+    expectedValue: z.string().describe('Expected input value'),
+  },
+  withAttribute: {
+    ...selectorWithTimeout,
+    attribute: z.string().describe('Attribute name'),
+    expectedValue: z.string().describe('Expected attribute value'),
+  },
+  withCheckedState: {
+    ...selectorWithTimeout,
+    checked: z.boolean().default(true).describe('Expected checked state'),
+  },
+  withExpectedUrl: {
+    ...baseLocatorInput,
+    expectedUrl: z
+      .string()
+      .describe(
+        'Expected URL (exact string or regex pattern if useRegex is true)'
+      ),
+    useRegex: z
+      .boolean()
+      .default(false)
+      .describe('Treat expectedUrl as a regular expression pattern'),
+  },
+  withExpectedTitle: {
+    ...baseLocatorInput,
+    expectedTitle: z
+      .string()
+      .describe('Expected page title (or regex pattern if useRegex is true)'),
+    useRegex: z
+      .boolean()
+      .default(false)
+      .describe('Treat expectedTitle as a regular expression pattern'),
+  },
+  withExpectedCount: {
+    ...selectorWithTimeout,
+    expectedCount: z.number().describe('Expected number of elements'),
+  },
+  withCssProperty: {
+    ...selectorWithTimeout,
+    property: z
+      .string()
+      .describe('CSS property name (e.g., "color", "display")'),
+    expectedValue: z.string().describe('Expected CSS property value'),
+  },
+
+  // Output schemas - reusable result patterns
+  stateResult: {
+    success: z.boolean(),
+    state: elementStateSchema,
+    matches: z.boolean(),
+  },
+  comparisonResult: (key: string) => ({
+    success: z.boolean(),
+    [key]: z.string().optional(),
+  }),
+  countResult: { success: z.boolean(), actualCount: z.number() },
+} as const;
+
+// ============================================================================
+// Result Message Formatters
+// ============================================================================
+
+const formatResult = {
+  /** Format state assertions (visible/hidden/enabled/disabled/focused) */
+  state: (selector: string, state: string, success: boolean) =>
+    success
+      ? `✓ Element ${selector} is ${state}`
+      : `✗ Element ${selector} is NOT ${state}`,
+
+  /** Format comparison assertions (expected vs actual) */
+  comparison: (
+    label: string,
+    expected: string,
+    actual: string | undefined,
+    success: boolean
+  ) =>
+    success
+      ? `✓ ${label} matches "${expected}"`
+      : `✗ Expected ${label} "${expected}", got "${actual}"`,
+
+  /** Format simple pass/fail with custom message */
+  simple: (passMessage: string, failMessage: string, success: boolean) =>
+    success ? `✓ ${passMessage}` : `✗ ${failMessage}`,
+};
+
 export function registerAssertionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
 
-  // Assert Visible Tool
-  server.registerTool(
-    'assert_visible',
-    {
-      title: 'Assert Element Visible',
-      description:
-        'Assert that an element is visible on the page (web-first assertion with auto-waiting)',
-      inputSchema: selectorWithTimeout,
-      outputSchema: {
-        success: z.boolean(),
-        visible: z.boolean(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertionActions.assertVisible(
-        sessionId,
-        pageId,
-        selector,
-        { timeout }
-      );
+  // ============================================================================
+  // Consolidated Element State Assertion
+  // ============================================================================
 
-      return {
-        content: [
-          textContent(
-            result.success
-              ? `✓ Element ${selector} is visible`
-              : `✗ Element ${selector} is NOT visible`
-          ),
-        ],
-        structuredContent: result,
-      };
-    }, 'Error asserting visibility')
+  server.registerTool(
+    'assert_element',
+    {
+      title: 'Assert Element State',
+      description: `Assert that an element is in a specific state (web-first assertion with auto-waiting).
+States:
+- 'visible': Element is visible on the page
+- 'hidden': Element is hidden or not present
+- 'enabled': Element is enabled (for interactive elements)
+- 'disabled': Element is disabled
+- 'focused': Element has focus
+- 'editable': Element is editable (for inputs)
+- 'attached': Element is attached to DOM
+- 'inViewport': Element is visible in the viewport`,
+      inputSchema: schemas.withState,
+      outputSchema: schemas.stateResult,
+    },
+    createToolHandler(
+      async ({ sessionId, pageId, selector, state, timeout }) => {
+        let result: { success: boolean };
+
+        switch (state) {
+          case 'visible':
+            result = await browserManager.assertionActions.assertVisible(
+              sessionId,
+              pageId,
+              selector,
+              { timeout }
+            );
+            break;
+          case 'hidden':
+            result = await browserManager.assertionActions.assertHidden(
+              sessionId,
+              pageId,
+              selector,
+              { timeout }
+            );
+            break;
+          case 'enabled':
+            result = await browserManager.assertionActions.assertEnabled(
+              sessionId,
+              pageId,
+              selector,
+              { timeout }
+            );
+            break;
+          case 'disabled':
+            result = await browserManager.assertionActions.assertDisabled(
+              sessionId,
+              pageId,
+              selector,
+              { timeout }
+            );
+            break;
+          case 'focused':
+            result = await browserManager.assertionActions.assertFocused(
+              sessionId,
+              pageId,
+              selector,
+              { timeout }
+            );
+            break;
+          case 'editable':
+            result = await browserManager.assertionActions.assertEditable(
+              sessionId,
+              pageId,
+              selector,
+              { timeout }
+            );
+            break;
+          case 'attached':
+            result = await browserManager.assertionActions.assertAttached(
+              sessionId,
+              pageId,
+              selector,
+              { timeout }
+            );
+            break;
+          case 'inViewport':
+            result = await browserManager.assertionActions.assertInViewport(
+              sessionId,
+              pageId,
+              selector,
+              { timeout }
+            );
+            break;
+        }
+
+        return {
+          content: [
+            textContent(formatResult.state(selector, state, result.success)),
+          ],
+          structuredContent: { ...result, state, matches: result.success },
+        };
+      },
+      'Error asserting element state'
+    )
   );
 
-  // Assert Hidden Tool
-  server.registerTool(
-    'assert_hidden',
-    {
-      title: 'Assert Element Hidden',
-      description:
-        'Assert that an element is hidden or not present (web-first assertion with auto-waiting)',
-      inputSchema: selectorWithTimeout,
-      outputSchema: {
-        success: z.boolean(),
-        hidden: z.boolean(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertionActions.assertHidden(
-        sessionId,
-        pageId,
-        selector,
-        { timeout }
-      );
+  // ============================================================================
+  // Text/Value Comparison Assertions
+  // ============================================================================
 
-      return {
-        content: [
-          textContent(
-            result.success
-              ? `✓ Element ${selector} is hidden`
-              : `✗ Element ${selector} is NOT hidden`
-          ),
-        ],
-        structuredContent: result,
-      };
-    }, 'Error asserting hidden')
-  );
-
-  // Assert Text Tool
   server.registerTool(
     'assert_text',
     {
       title: 'Assert Element Text',
       description:
-        'Assert that an element has or contains specific text (web-first assertion)',
-      inputSchema: {
-        ...selectorWithTimeout,
-        expectedText: z.string().describe('Expected text content'),
-        exact: z
-          .boolean()
-          .default(false)
-          .describe('Whether to match exact text or just contain'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        actualText: z.string().optional(),
-      },
+        'Assert that an element has or contains specific text (web-first assertion). Supports regex patterns.',
+      inputSchema: schemas.withExpectedText,
+      outputSchema: schemas.comparisonResult('actualText'),
     },
     createToolHandler(
-      async ({ sessionId, pageId, selector, expectedText, exact, timeout }) => {
-        const result = await browserManager.assertionActions.assertText(
-          sessionId,
-          pageId,
-          selector,
-          expectedText,
-          { exact, timeout }
-        );
-
+      async ({
+        sessionId,
+        pageId,
+        selector,
+        expectedText,
+        exact,
+        useRegex,
+        timeout,
+      }) => {
+        const result = useRegex
+          ? await browserManager.assertionActions.assertTextWithRegex(
+              sessionId,
+              pageId,
+              selector,
+              expectedText,
+              { timeout }
+            )
+          : await browserManager.assertionActions.assertText(
+              sessionId,
+              pageId,
+              selector,
+              expectedText,
+              { exact, timeout }
+            );
         return {
           content: [
             textContent(
-              result.success
-                ? `✓ Text assertion passed`
-                : `✗ Expected "${expectedText}", got "${result.actualText}"`
+              formatResult.comparison(
+                useRegex ? 'text (regex)' : 'text',
+                expectedText,
+                result.actualText,
+                result.success
+              )
             ),
           ],
           structuredContent: result,
@@ -122,21 +294,48 @@ export function registerAssertionTools(ctx: ToolContext): void {
     )
   );
 
-  // Assert Attribute Tool
+  server.registerTool(
+    'assert_value',
+    {
+      title: 'Assert Input Value',
+      description: 'Assert that an input element has a specific value',
+      inputSchema: schemas.withExpectedValue,
+      outputSchema: schemas.comparisonResult('actualValue'),
+    },
+    createToolHandler(
+      async ({ sessionId, pageId, selector, expectedValue, timeout }) => {
+        const result = await browserManager.assertionActions.assertValue(
+          sessionId,
+          pageId,
+          selector,
+          expectedValue,
+          { timeout }
+        );
+        return {
+          content: [
+            textContent(
+              formatResult.comparison(
+                'value',
+                expectedValue,
+                result.actualValue,
+                result.success
+              )
+            ),
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error asserting value'
+    )
+  );
+
   server.registerTool(
     'assert_attribute',
     {
       title: 'Assert Element Attribute',
       description: 'Assert that an element has a specific attribute value',
-      inputSchema: {
-        ...selectorWithTimeout,
-        attribute: z.string().describe('Attribute name'),
-        expectedValue: z.string().describe('Expected attribute value'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        actualValue: z.string().optional(),
-      },
+      inputSchema: schemas.withAttribute,
+      outputSchema: schemas.comparisonResult('actualValue'),
     },
     createToolHandler(
       async ({
@@ -155,13 +354,15 @@ export function registerAssertionTools(ctx: ToolContext): void {
           expectedValue,
           { timeout }
         );
-
         return {
           content: [
             textContent(
-              result.success
-                ? `✓ Attribute ${attribute}="${expectedValue}"`
-                : `✗ Expected ${attribute}="${expectedValue}", got "${result.actualValue}"`
+              formatResult.comparison(
+                attribute,
+                expectedValue,
+                result.actualValue,
+                result.success
+              )
             ),
           ],
           structuredContent: result,
@@ -171,321 +372,13 @@ export function registerAssertionTools(ctx: ToolContext): void {
     )
   );
 
-  // Assert Value Tool
-  server.registerTool(
-    'assert_value',
-    {
-      title: 'Assert Input Value',
-      description: 'Assert that an input element has a specific value',
-      inputSchema: {
-        ...selectorWithTimeout,
-        expectedValue: z.string().describe('Expected input value'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        actualValue: z.string().optional(),
-      },
-    },
-    createToolHandler(
-      async ({ sessionId, pageId, selector, expectedValue, timeout }) => {
-        const result = await browserManager.assertionActions.assertValue(
-          sessionId,
-          pageId,
-          selector,
-          expectedValue,
-          { timeout }
-        );
-
-        return {
-          content: [
-            textContent(
-              result.success
-                ? `✓ Input value="${expectedValue}"`
-                : `✗ Expected "${expectedValue}", got "${result.actualValue}"`
-            ),
-          ],
-          structuredContent: result,
-        };
-      },
-      'Error asserting value'
-    )
-  );
-
-  // Assert Checked Tool
-  server.registerTool(
-    'assert_checked',
-    {
-      title: 'Assert Checkbox Checked',
-      description:
-        'Assert that a checkbox or radio button is checked or unchecked',
-      inputSchema: {
-        ...selectorWithTimeout,
-        checked: z.boolean().default(true).describe('Expected checked state'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        isChecked: z.boolean().optional(),
-      },
-    },
-    createToolHandler(
-      async ({ sessionId, pageId, selector, checked, timeout }) => {
-        const result = await browserManager.assertionActions.assertChecked(
-          sessionId,
-          pageId,
-          selector,
-          checked,
-          { timeout }
-        );
-
-        return {
-          content: [
-            textContent(
-              result.success
-                ? `✓ Element is ${checked ? 'checked' : 'unchecked'}`
-                : `✗ Expected ${checked ? 'checked' : 'unchecked'}, got ${result.isChecked ? 'checked' : 'unchecked'}`
-            ),
-          ],
-          structuredContent: result,
-        };
-      },
-      'Error asserting checked'
-    )
-  );
-
-  // Assert URL Tool
-  server.registerTool(
-    'assert_url',
-    {
-      title: 'Assert Page URL',
-      description: 'Assert that the page has a specific URL',
-      inputSchema: {
-        ...baseLocatorInput,
-        expectedUrl: z
-          .string()
-          .describe('Expected URL (string or regex pattern)'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        actualUrl: z.string().optional(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, expectedUrl, timeout }) => {
-      const result = await browserManager.assertionActions.assertUrl(
-        sessionId,
-        pageId,
-        expectedUrl,
-        { timeout }
-      );
-
-      return {
-        content: [
-          textContent(
-            result.success
-              ? `✓ URL matches "${expectedUrl}"`
-              : `✗ Expected URL "${expectedUrl}", got "${result.actualUrl}"`
-          ),
-        ],
-        structuredContent: result,
-      };
-    }, 'Error asserting URL')
-  );
-
-  // Assert Title Tool
-  server.registerTool(
-    'assert_title',
-    {
-      title: 'Assert Page Title',
-      description: 'Assert that the page has a specific title',
-      inputSchema: {
-        ...baseLocatorInput,
-        expectedTitle: z.string().describe('Expected page title'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        actualTitle: z.string().optional(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, expectedTitle, timeout }) => {
-      const result = await browserManager.assertionActions.assertTitle(
-        sessionId,
-        pageId,
-        expectedTitle,
-        { timeout }
-      );
-
-      return {
-        content: [
-          textContent(
-            result.success
-              ? `✓ Title matches "${expectedTitle}"`
-              : `✗ Expected title "${expectedTitle}", got "${result.actualTitle}"`
-          ),
-        ],
-        structuredContent: result,
-      };
-    }, 'Error asserting title')
-  );
-
-  // Assert Enabled Tool
-  server.registerTool(
-    'assert_enabled',
-    {
-      title: 'Assert Element Enabled',
-      description:
-        'Assert that an element is enabled (web-first assertion with auto-waiting)',
-      inputSchema: selectorWithTimeout,
-      outputSchema: {
-        success: z.boolean(),
-        enabled: z.boolean(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertionActions.assertEnabled(
-        sessionId,
-        pageId,
-        selector,
-        { timeout }
-      );
-
-      return {
-        content: [
-          textContent(
-            result.success
-              ? `✓ Element ${selector} is enabled`
-              : `✗ Element ${selector} is NOT enabled`
-          ),
-        ],
-        structuredContent: result,
-      };
-    }, 'Error asserting enabled')
-  );
-
-  // Assert Disabled Tool
-  server.registerTool(
-    'assert_disabled',
-    {
-      title: 'Assert Element Disabled',
-      description:
-        'Assert that an element is disabled (web-first assertion with auto-waiting)',
-      inputSchema: selectorWithTimeout,
-      outputSchema: {
-        success: z.boolean(),
-        disabled: z.boolean(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertionActions.assertDisabled(
-        sessionId,
-        pageId,
-        selector,
-        { timeout }
-      );
-
-      return {
-        content: [
-          textContent(
-            result.success
-              ? `✓ Element ${selector} is disabled`
-              : `✗ Element ${selector} is NOT disabled`
-          ),
-        ],
-        structuredContent: result,
-      };
-    }, 'Error asserting disabled')
-  );
-
-  // Assert Focused Tool
-  server.registerTool(
-    'assert_focused',
-    {
-      title: 'Assert Element Focused',
-      description:
-        'Assert that an element has focus (web-first assertion with auto-waiting)',
-      inputSchema: selectorWithTimeout,
-      outputSchema: {
-        success: z.boolean(),
-        focused: z.boolean(),
-      },
-    },
-    createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
-      const result = await browserManager.assertionActions.assertFocused(
-        sessionId,
-        pageId,
-        selector,
-        { timeout }
-      );
-
-      return {
-        content: [
-          textContent(
-            result.success
-              ? `✓ Element ${selector} has focus`
-              : `✗ Element ${selector} does NOT have focus`
-          ),
-        ],
-        structuredContent: result,
-      };
-    }, 'Error asserting focused')
-  );
-
-  // Assert Count Tool
-  server.registerTool(
-    'assert_count',
-    {
-      title: 'Assert Element Count',
-      description:
-        'Assert that the number of elements matching the selector equals expected count',
-      inputSchema: {
-        ...selectorWithTimeout,
-        expectedCount: z.number().describe('Expected number of elements'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        actualCount: z.number(),
-      },
-    },
-    createToolHandler(
-      async ({ sessionId, pageId, selector, expectedCount, timeout }) => {
-        const result = await browserManager.assertionActions.assertCount(
-          sessionId,
-          pageId,
-          selector,
-          expectedCount,
-          { timeout }
-        );
-
-        return {
-          content: [
-            textContent(
-              result.success
-                ? `✓ Found ${expectedCount} element(s) matching ${selector}`
-                : `✗ Expected ${expectedCount} element(s), found ${result.actualCount}`
-            ),
-          ],
-          structuredContent: result,
-        };
-      },
-      'Error asserting count'
-    )
-  );
-
-  // Assert CSS Tool
   server.registerTool(
     'assert_css',
     {
       title: 'Assert CSS Property',
       description: 'Assert that an element has a specific CSS property value',
-      inputSchema: {
-        ...selectorWithTimeout,
-        property: z
-          .string()
-          .describe('CSS property name (e.g., "color", "display")'),
-        expectedValue: z.string().describe('Expected CSS property value'),
-      },
-      outputSchema: {
-        success: z.boolean(),
-        actualValue: z.string().optional(),
-      },
+      inputSchema: schemas.withCssProperty,
+      outputSchema: schemas.comparisonResult('actualValue'),
     },
     createToolHandler(
       async ({
@@ -504,19 +397,185 @@ export function registerAssertionTools(ctx: ToolContext): void {
           expectedValue,
           { timeout }
         );
-
         return {
           content: [
             textContent(
-              result.success
-                ? `✓ CSS ${property}="${expectedValue}"`
-                : `✗ Expected ${property}="${expectedValue}", got "${result.actualValue}"`
+              formatResult.comparison(
+                `CSS ${property}`,
+                expectedValue,
+                result.actualValue,
+                result.success
+              )
             ),
           ],
           structuredContent: result,
         };
       },
       'Error asserting CSS'
+    )
+  );
+
+  // ============================================================================
+  // Page-Level Assertions
+  // ============================================================================
+
+  server.registerTool(
+    'assert_url',
+    {
+      title: 'Assert Page URL',
+      description:
+        'Assert that the page has a specific URL. Supports regex patterns.',
+      inputSchema: schemas.withExpectedUrl,
+      outputSchema: schemas.comparisonResult('actualUrl'),
+    },
+    createToolHandler(
+      async ({ sessionId, pageId, expectedUrl, useRegex, timeout }) => {
+        const result = useRegex
+          ? await browserManager.assertionActions.assertUrlWithRegex(
+              sessionId,
+              pageId,
+              expectedUrl,
+              { timeout }
+            )
+          : await browserManager.assertionActions.assertUrl(
+              sessionId,
+              pageId,
+              expectedUrl,
+              { timeout }
+            );
+        return {
+          content: [
+            textContent(
+              formatResult.comparison(
+                useRegex ? 'URL (regex)' : 'URL',
+                expectedUrl,
+                result.actualUrl,
+                result.success
+              )
+            ),
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error asserting URL'
+    )
+  );
+
+  server.registerTool(
+    'assert_title',
+    {
+      title: 'Assert Page Title',
+      description:
+        'Assert that the page has a specific title. Supports regex patterns.',
+      inputSchema: schemas.withExpectedTitle,
+      outputSchema: schemas.comparisonResult('actualTitle'),
+    },
+    createToolHandler(
+      async ({ sessionId, pageId, expectedTitle, useRegex, timeout }) => {
+        const result = useRegex
+          ? await browserManager.assertionActions.assertTitleWithRegex(
+              sessionId,
+              pageId,
+              expectedTitle,
+              { timeout }
+            )
+          : await browserManager.assertionActions.assertTitle(
+              sessionId,
+              pageId,
+              expectedTitle,
+              { timeout }
+            );
+        return {
+          content: [
+            textContent(
+              formatResult.comparison(
+                useRegex ? 'title (regex)' : 'title',
+                expectedTitle,
+                result.actualTitle,
+                result.success
+              )
+            ),
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error asserting title'
+    )
+  );
+
+  // ============================================================================
+  // Special Assertions
+  // ============================================================================
+
+  server.registerTool(
+    'assert_checked',
+    {
+      title: 'Assert Checkbox Checked',
+      description:
+        'Assert that a checkbox or radio button is checked or unchecked',
+      inputSchema: schemas.withCheckedState,
+      outputSchema: { success: z.boolean(), isChecked: z.boolean().optional() },
+    },
+    createToolHandler(
+      async ({ sessionId, pageId, selector, checked, timeout }) => {
+        const result = await browserManager.assertionActions.assertChecked(
+          sessionId,
+          pageId,
+          selector,
+          checked,
+          { timeout }
+        );
+        const expectedState = checked ? 'checked' : 'unchecked';
+        const actualState = result.isChecked ? 'checked' : 'unchecked';
+        return {
+          content: [
+            textContent(
+              formatResult.simple(
+                `Element is ${expectedState}`,
+                `Expected ${expectedState}, got ${actualState}`,
+                result.success
+              )
+            ),
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error asserting checked'
+    )
+  );
+
+  server.registerTool(
+    'assert_count',
+    {
+      title: 'Assert Element Count',
+      description:
+        'Assert that the number of elements matching the selector equals expected count',
+      inputSchema: schemas.withExpectedCount,
+      outputSchema: schemas.countResult,
+    },
+    createToolHandler(
+      async ({ sessionId, pageId, selector, expectedCount, timeout }) => {
+        const result = await browserManager.assertionActions.assertCount(
+          sessionId,
+          pageId,
+          selector,
+          expectedCount,
+          { timeout }
+        );
+        return {
+          content: [
+            textContent(
+              formatResult.simple(
+                `Found ${expectedCount} element(s) matching ${selector}`,
+                `Expected ${expectedCount} element(s), found ${result.actualCount}`,
+                result.success
+              )
+            ),
+          ],
+          structuredContent: result,
+        };
+      },
+      'Error asserting count'
     )
   );
 }
