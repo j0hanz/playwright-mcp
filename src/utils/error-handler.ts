@@ -234,11 +234,11 @@ export function toError(error: unknown): Error {
 
 // UUID Validation Utility
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function isValidUUID(id: string): boolean {
-  return typeof id === 'string' && UUID_REGEX.test(id);
+  return typeof id === 'string' && UUID_V4_REGEX.test(id);
 }
 
 export function validateUUID(id: string, fieldName: string): void {

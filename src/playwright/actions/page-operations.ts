@@ -470,9 +470,16 @@ export class PageOperations {
     pageId: string,
     script: string
   ): Promise<{ result: unknown }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    return security.evaluateScript(page, script, sessionId, pageId, (sid) => {
-      this.sessionManager.updateActivity(sid);
-    });
+    return executePageOperation(
+      this.sessionManager,
+      this.logger,
+      sessionId,
+      pageId,
+      'Evaluate script',
+      async (page) => {
+        return security.evaluateScript(page, script);
+      },
+      { scriptLength: script.length }
+    );
   }
 }

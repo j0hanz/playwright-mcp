@@ -365,18 +365,8 @@ export class AssertionActions {
         await expect(locator).toBeFocused({ timeout });
       },
       async (locator) => {
-        const page = locator.page();
-        const selector = await locator
-          .evaluate((el) => {
-            // Generate a unique selector for comparison
-            return el.tagName.toLowerCase() + (el.id ? `#${el.id}` : '');
-          })
-          .catch(() => '');
-        const focused = await page
-          .evaluate(
-            (sel) => document.activeElement === document.querySelector(sel),
-            selector
-          )
+        const focused = await locator
+          .evaluate((el) => document.activeElement === el)
           .catch(() => false);
         return { focused };
       },

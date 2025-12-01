@@ -15,12 +15,17 @@ import { textContent } from './types.js';
 const ALLOWED_DIRS = ['specs', 'tests'] as const;
 
 function validateArtifactPath(filePath: string): void {
-  const normalizedPath = path.normalize(filePath);
-  const isAllowed = ALLOWED_DIRS.some(
-    (dir) =>
-      normalizedPath.startsWith(dir + path.sep) ||
-      normalizedPath.startsWith(dir + '/')
-  );
+  const projectRoot = process.cwd();
+  const resolvedPath = path.resolve(projectRoot, filePath);
+
+  const isAllowed = ALLOWED_DIRS.some((dir) => {
+    const allowedAbsPath = path.resolve(projectRoot, dir);
+    return (
+      resolvedPath === allowedAbsPath ||
+      resolvedPath.startsWith(allowedAbsPath + path.sep)
+    );
+  });
+
   if (!isAllowed) {
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,

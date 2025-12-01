@@ -20,7 +20,6 @@ export class MCPPlaywrightServer {
   private logger: Logger;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private cleanupFailures = 0;
-  private readonly registeredTools = new Set<string>();
   private static readonly MAX_CLEANUP_FAILURES = 5;
 
   constructor() {
@@ -31,7 +30,6 @@ export class MCPPlaywrightServer {
 
     this.browserManager = new BrowserManager();
     this.logger = new Logger('MCPPlaywrightServer');
-    this.setupToolRegistrationGuard();
 
     this.registerTools();
     this.registerResources();
@@ -77,51 +75,39 @@ export class MCPPlaywrightServer {
     }, config.cleanupInterval);
   }
 
-  private async closeSessionSafe(sessionId: string): Promise<void> {
+  private async closeSessionSafe(sessionId: string): Promise<boolean> {
     try {
       await this.browserManager.closeBrowser(sessionId);
       this.logger.info('Closed browser session', { sessionId });
+      return true;
     } catch (error) {
       const err = toError(error);
       this.logger.error('Failed to close session', {
         sessionId,
         error: err.message,
       });
+      return false;
     }
   }
 
-  async cleanup(): Promise<void> {
+  async cleanup(): Promise<{ closedCount: number; failedCount: number }> {
     this.logger.info('Starting cleanup...');
 
-    // Stop cleanup interval
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
 
-    // Close all browser sessions
     const sessions = this.browserManager.listSessions();
-    await Promise.all(
+    const results = await Promise.all(
       sessions.map((session) => this.closeSessionSafe(session.id))
     );
 
-    this.logger.info('Cleanup completed');
-  }
+    const closedCount = results.filter(Boolean).length;
+    const failedCount = results.length - closedCount;
 
-  private setupToolRegistrationGuard(): void {
-    const originalRegisterTool = this.server.registerTool.bind(this.server);
-
-    this.server.registerTool = ((name, definition, handler) => {
-      if (this.registeredTools.has(name)) {
-        this.logger.warn('Skipping duplicate tool registration', {
-          tool: name,
-        });
-        return;
-      }
-
-      this.registeredTools.add(name);
-      return originalRegisterTool(name, definition, handler);
-    }) as typeof this.server.registerTool;
+    this.logger.info('Cleanup completed', { closedCount, failedCount });
+    return { closedCount, failedCount };
   }
 
   private registerTools(): void {
@@ -239,7 +225,6 @@ export class MCPPlaywrightServer {
   private registerResources(): void {
     const { STATUS, HEALTH } = MCPPlaywrightServer.RESOURCE_URIS;
 
-    // Server status resource with capacity info
     this.server.registerResource(
       'server-status',
       STATUS,
@@ -249,11 +234,9 @@ export class MCPPlaywrightServer {
           'Current status of the MCP Playwright server with capacity information',
         mimeType: 'application/json',
       },
-      // sync implementation but SDK expects async callback
       () => this.handleServerStatus(STATUS)
     );
 
-    // Health check resource with detailed metrics
     this.server.registerResource(
       'health',
       HEALTH,
@@ -262,7 +245,6 @@ export class MCPPlaywrightServer {
         description: 'Server health status with performance metrics',
         mimeType: 'application/json',
       },
-      // sync implementation but SDK expects async callback
       () => this.handleHealthCheck(HEALTH)
     );
 

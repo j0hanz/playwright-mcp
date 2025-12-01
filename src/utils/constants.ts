@@ -30,3 +30,8 @@ export const MAX_LOG_FILES_CAP = 50;
 
 // Rate Limiting
 export const DEFAULT_MAX_TRACKED_REQUESTS = 100;
+
+// Pagination Constants
+export const DEFAULT_PAGE = 1;
+export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_PAGE_SIZE = 100;

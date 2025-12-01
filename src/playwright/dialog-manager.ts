@@ -10,6 +10,7 @@ import { Logger } from '../utils/logger.js';
 export class DialogManager {
   private readonly pendingDialogs = new Map<string, Dialog>();
   private readonly dialogTimeouts = new Map<string, NodeJS.Timeout>();
+  private readonly handlingDialogs = new Set<string>();
   public static readonly NO_PENDING_DIALOG_MSG =
     'No pending dialog found for this page';
 
@@ -103,6 +104,14 @@ export class DialogManager {
     promptText?: string
   ): Promise<{ dialogType: string; message: string }> {
     const dialogKey = this.createDialogKey(sessionId, pageId);
+
+    if (this.handlingDialogs.has(dialogKey)) {
+      throw ErrorHandler.createError(
+        ErrorCode.DIALOG_ERROR,
+        'Dialog is currently being processed'
+      );
+    }
+
     const dialog = this.pendingDialogs.get(dialogKey);
 
     if (!dialog) {
@@ -112,17 +121,23 @@ export class DialogManager {
       );
     }
 
-    const dialogType = dialog.type();
-    const message = dialog.message();
+    this.handlingDialogs.add(dialogKey);
 
-    if (accept) {
-      await dialog.accept(promptText);
-    } else {
-      await dialog.dismiss();
+    try {
+      const dialogType = dialog.type();
+      const message = dialog.message();
+
+      if (accept) {
+        await dialog.accept(promptText);
+      } else {
+        await dialog.dismiss();
+      }
+
+      this.cleanupPage(sessionId, pageId);
+
+      return { dialogType, message };
+    } finally {
+      this.handlingDialogs.delete(dialogKey);
     }
-
-    this.cleanupPage(sessionId, pageId);
-
-    return { dialogType, message };
   }
 }

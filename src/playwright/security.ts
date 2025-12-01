@@ -130,9 +130,9 @@ const SAFE_PATTERNS = [
 ];
 
 function isBlockedOperation(script: string): boolean {
-  const scriptLower = script.toLowerCase();
+  const normalized = script.normalize('NFKC').toLowerCase();
   return STRICT_BLOCKLIST.some((blocked) =>
-    scriptLower.includes(blocked.toLowerCase())
+    normalized.includes(blocked.toLowerCase())
   );
 }
 
@@ -164,13 +164,7 @@ export function validateUrlProtocol(url: string): void {
   }
 }
 
-export async function evaluateScript(
-  page: Page,
-  script: string,
-  sessionId: string,
-  pageId: string,
-  updateActivityCallback: (sessionId: string) => void
-): Promise<{ result: unknown }> {
+function validateScript(script: string): void {
   if (script.length > config.limits.maxScriptLength) {
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,
@@ -178,33 +172,24 @@ export async function evaluateScript(
     );
   }
 
-  // Check if script is a predefined safe template
-  const templateScript = SAFE_SCRIPT_TEMPLATES[script.trim()];
-  if (templateScript) {
-    try {
-      const result = await page.evaluate(templateScript);
-      updateActivityCallback(sessionId);
-      return { result };
-    } catch (error) {
-      const err = toError(error);
-      logger.error('Script evaluation failed', {
-        sessionId,
-        pageId,
-        error: err.message,
-      });
-      throw ErrorHandler.handlePlaywrightError(err);
-    }
-  }
-
-  // Validate custom scripts
   if (isBlockedOperation(script)) {
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,
       `Script contains blocked operation. Use predefined templates: ${Object.keys(SAFE_SCRIPT_TEMPLATES).join(', ')}`
     );
   }
+}
 
-  if (!isSafeScript(script)) {
+export async function evaluateScript(
+  page: Page,
+  script: string
+): Promise<{ result: unknown }> {
+  validateScript(script);
+
+  const templateScript = SAFE_SCRIPT_TEMPLATES[script.trim()];
+  const scriptToExecute = templateScript || script;
+
+  if (!templateScript && !isSafeScript(script)) {
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,
       `Script does not match allowed patterns. Use predefined templates: ${Object.keys(SAFE_SCRIPT_TEMPLATES).join(', ')}`
@@ -212,16 +197,11 @@ export async function evaluateScript(
   }
 
   try {
-    const result = await page.evaluate(script);
-    updateActivityCallback(sessionId);
+    const result = await page.evaluate(scriptToExecute);
     return { result };
   } catch (error) {
     const err = toError(error);
-    logger.error('Script evaluation failed', {
-      sessionId,
-      pageId,
-      error: err.message,
-    });
+    logger.error('Script evaluation failed', { error: err.message });
     throw ErrorHandler.handlePlaywrightError(err);
   }
 }

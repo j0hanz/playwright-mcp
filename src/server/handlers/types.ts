@@ -12,18 +12,19 @@ import type {
   TextContent,
   ToolResponse,
 } from '../../config/types.js';
+import config from '../../config/server-config.js';
 import {
   ErrorCode,
   isMCPPlaywrightError,
   toError,
 } from '../../utils/error-handler.js';
 import type { ErrorCode as ErrorCodeType } from '../../utils/error-handler.js';
+import {
+  DEFAULT_PAGE,
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+} from '../../utils/constants.js';
 import { Logger } from '../../utils/logger.js';
-
-// Pagination Constants
-const DEFAULT_PAGE = 1;
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 100;
 
 // Request ID Generation
 
@@ -299,11 +300,17 @@ export const basePageInput = {
 } as const;
 
 export const timeoutOption = {
-  timeout: z.number().default(5000).describe('Timeout in milliseconds'),
+  timeout: z
+    .number()
+    .default(config.timeouts.action)
+    .describe('Timeout in milliseconds'),
 } as const;
 
 export const longTimeoutOption = {
-  timeout: z.number().default(30000).describe('Timeout in milliseconds'),
+  timeout: z
+    .number()
+    .default(config.timeouts.navigation)
+    .describe('Timeout in milliseconds'),
 } as const;
 
 export const forceOption = {

@@ -122,11 +122,10 @@ export class BrowserManager {
   async cleanupExpiredSessions(maxAge: number): Promise<{ cleaned: number }> {
     return this.sessionManager.cleanupExpiredSessions(
       maxAge,
-      async (sessionId, session) => {
-        // Cleanup callback
+      (sessionId, session) => {
         const pageIds = Array.from(session.pages.keys());
         this.dialogManager.cleanupSession(sessionId, pageIds);
-        await Promise.resolve();
+        return Promise.resolve();
       }
     );
   }
