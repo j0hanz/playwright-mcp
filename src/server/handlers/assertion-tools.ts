@@ -4,31 +4,22 @@
 import { z } from 'zod';
 
 import type { ToolContext } from '../../config/types.js';
-import { baseLocatorInput, selectorWithTimeout, textContent } from './types.js';
+import {
+  baseLocatorInput,
+  elementStateSchema,
+  selectorWithTimeout,
+} from './schemas.js';
+import { textContent } from './types.js';
 
 // ============================================================================
-// Schemas - Centralized for DRY compliance
+// Schemas - Local schemas specific to assertions
 // ============================================================================
-
-// Element state enum for consolidated state assertions
-const elementStateSchema = z
-  .enum([
-    'visible',
-    'hidden',
-    'enabled',
-    'disabled',
-    'focused',
-    'editable',
-    'attached',
-    'inViewport',
-  ])
-  .describe('Expected element state');
 
 const schemas = {
   // Consolidated element state assertion
   withState: {
     ...selectorWithTimeout,
-    state: elementStateSchema,
+    state: elementStateSchema.describe('Expected element state'),
   },
   // Input schemas with expected values
   withExpectedText: {

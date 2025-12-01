@@ -612,3 +612,22 @@ export interface AccessibilityViolation {
   helpUrl: string;
   nodes: AccessibilityNode[];
 }
+
+// Logger Types
+
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+
+export type LogMeta = Record<string, unknown>;
+
+export interface TimerResult {
+  done: (meta?: LogMeta) => number;
+  elapsed: () => number;
+  cancel: () => void;
+}
+
+export interface PerformanceMetrics {
+  operation: string;
+  durationMs: number;
+  success: boolean;
+  error?: string;
+}

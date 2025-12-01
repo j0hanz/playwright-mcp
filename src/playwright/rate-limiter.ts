@@ -1,5 +1,6 @@
 // Rate Limiter - Sliding window rate limiter with memory bounds
 
+import type { RateLimiterConfig, RateLimitStatus } from '../config/types.js';
 import { ErrorHandler } from '../utils/error-handler.js';
 import {
   DEFAULT_MAX_TRACKED_REQUESTS,
@@ -7,17 +8,7 @@ import {
   MS_PER_SECOND,
 } from '../utils/constants.js';
 
-export interface RateLimiterConfig {
-  maxRequests: number;
-  windowMs: number;
-  maxTracked?: number;
-}
-
-export interface RateLimitStatus {
-  allowed: boolean;
-  remaining: number;
-  resetMs: number;
-}
+export type { RateLimiterConfig, RateLimitStatus };
 
 export class RateLimiter {
   private timestamps: number[] = [];

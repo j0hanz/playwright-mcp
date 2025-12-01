@@ -4,67 +4,17 @@
 import { z } from 'zod';
 
 import type { ToolContext } from '../../config/types.js';
-import { basePageInput, textContent } from './types.js';
-
-// Shared Schema Definitions (DRY - reusable across tools)
-const schemas = {
-  proxy: z
-    .object({
-      server: z.string().describe('Proxy server URL'),
-      bypass: z.string().optional().describe('Domains to bypass proxy'),
-      username: z.string().optional(),
-      password: z.string().optional(),
-    })
-    .optional()
-    .describe('Proxy configuration'),
-
-  recordVideo: z
-    .object({
-      dir: z.string().describe('Directory to save video recordings'),
-      width: z
-        .number()
-        .optional()
-        .describe('Video width (defaults to viewport)'),
-      height: z
-        .number()
-        .optional()
-        .describe('Video height (defaults to viewport)'),
-    })
-    .optional()
-    .describe('Video recording configuration'),
-
-  browserType: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
-  headless: z.boolean().default(true).describe('Run in headless mode'),
-  viewportWidth: z
-    .number()
-    .min(320)
-    .max(3840)
-    .default(1920)
-    .describe('Viewport width'),
-  viewportHeight: z
-    .number()
-    .min(240)
-    .max(2160)
-    .default(1080)
-    .describe('Viewport height'),
-
-  viewport: z
-    .object({
-      width: z.number().min(320).max(3840),
-      height: z.number().min(240).max(2160),
-    })
-    .optional()
-    .describe('Viewport size'),
-
-  geolocation: z
-    .object({
-      latitude: z.number().min(-90).max(90),
-      longitude: z.number().min(-180).max(180),
-      accuracy: z.number().optional(),
-    })
-    .optional()
-    .describe('Geolocation override'),
-} as const;
+import {
+  basePageInput,
+  browserTypeSchema,
+  colorSchemeSchema,
+  geolocationSchema,
+  proxySchema,
+  recordVideoSchema,
+  reducedMotionSchema,
+  viewportSchema,
+} from './schemas.js';
+import { textContent } from './types.js';
 
 export function registerBrowserTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -77,10 +27,22 @@ export function registerBrowserTools(ctx: ToolContext): void {
       description:
         'Launch a new browser instance (Chromium, Firefox, or WebKit) with optional authentication state and video recording',
       inputSchema: {
-        browserType: schemas.browserType.describe('Browser type to launch'),
-        headless: schemas.headless,
-        viewportWidth: schemas.viewportWidth,
-        viewportHeight: schemas.viewportHeight,
+        browserType: browserTypeSchema
+          .default('chromium')
+          .describe('Browser type to launch'),
+        headless: z.boolean().default(true).describe('Run in headless mode'),
+        viewportWidth: z
+          .number()
+          .min(320)
+          .max(3840)
+          .default(1920)
+          .describe('Viewport width'),
+        viewportHeight: z
+          .number()
+          .min(240)
+          .max(2160)
+          .default(1080)
+          .describe('Viewport height'),
         channel: z
           .string()
           .optional()
@@ -95,8 +57,8 @@ export function registerBrowserTools(ctx: ToolContext): void {
           .string()
           .optional()
           .describe('Path to storage state file for authentication reuse'),
-        proxy: schemas.proxy,
-        recordVideo: schemas.recordVideo,
+        proxy: proxySchema,
+        recordVideo: recordVideoSchema,
       },
       outputSchema: {
         sessionId: z.string(),
@@ -312,22 +274,20 @@ export function registerBrowserTools(ctx: ToolContext): void {
         'Configure page settings for testing (viewport, geolocation, permissions, color scheme, etc.)',
       inputSchema: {
         ...basePageInput,
-        viewport: schemas.viewport,
+        viewport: viewportSchema.optional().describe('Viewport size'),
         extraHTTPHeaders: z
           .record(z.string(), z.string())
           .optional()
           .describe('Extra HTTP headers to send'),
-        geolocation: schemas.geolocation,
+        geolocation: geolocationSchema.optional().describe('Geolocation override'),
         permissions: z
           .array(z.string())
           .optional()
           .describe('Permissions to grant (e.g., geolocation, notifications)'),
-        colorScheme: z
-          .enum(['light', 'dark', 'no-preference'])
+        colorScheme: colorSchemeSchema
           .optional()
           .describe('Color scheme preference'),
-        reducedMotion: z
-          .enum(['reduce', 'no-preference'])
+        reducedMotion: reducedMotionSchema
           .optional()
           .describe('Reduced motion preference'),
       },

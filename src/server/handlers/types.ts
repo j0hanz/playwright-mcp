@@ -2,7 +2,6 @@
 // @see https://modelcontextprotocol.io/docs for MCP SDK documentation
 
 import { v4 as uuidv4 } from 'uuid';
-import { z } from 'zod';
 
 import type {
   ErrorResponse,
@@ -12,7 +11,6 @@ import type {
   TextContent,
   ToolResponse,
 } from '../../config/types.js';
-import config from '../../config/server-config.js';
 import {
   ErrorCode,
   isMCPPlaywrightError,
@@ -25,6 +23,18 @@ import {
   MAX_PAGE_SIZE,
 } from '../../utils/constants.js';
 import { Logger } from '../../utils/logger.js';
+
+// Re-export common schemas from centralized location
+export {
+  basePageInput,
+  baseLocatorInput,
+  selectorInput,
+  selectorWithTimeout,
+  timeoutOption,
+  longTimeoutOption,
+  forceOption,
+  exactMatchOption,
+} from './schemas.js';
 
 // Request ID Generation
 
@@ -291,50 +301,3 @@ export function createResponseBuilder(requestId?: string) {
       paginatedResponse(message, items, params),
   };
 }
-
-// Shared Zod Schemas
-
-export const basePageInput = {
-  sessionId: z.string().describe('Browser session ID'),
-  pageId: z.string().describe('Page ID'),
-} as const;
-
-export const timeoutOption = {
-  timeout: z
-    .number()
-    .default(config.timeouts.action)
-    .describe('Timeout in milliseconds'),
-} as const;
-
-export const longTimeoutOption = {
-  timeout: z
-    .number()
-    .default(config.timeouts.navigation)
-    .describe('Timeout in milliseconds'),
-} as const;
-
-export const forceOption = {
-  force: z
-    .boolean()
-    .default(false)
-    .describe('Force action even if element is not actionable'),
-} as const;
-
-export const exactMatchOption = {
-  exact: z.boolean().default(false).describe('Whether match should be exact'),
-} as const;
-
-export const selectorInput = {
-  ...basePageInput,
-  selector: z.string().describe('CSS selector for the element'),
-} as const;
-
-export const baseLocatorInput = {
-  ...basePageInput,
-  ...timeoutOption,
-} as const;
-
-export const selectorWithTimeout = {
-  ...selectorInput,
-  ...timeoutOption,
-} as const;

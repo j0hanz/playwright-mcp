@@ -6,42 +6,25 @@ import { z } from 'zod';
 import { ARIA_ROLES, type ToolContext } from '../../config/types.js';
 import {
   basePageInput,
+  clickLocatorTypeSchema,
+  exactMatchOption,
+  fillLocatorTypeSchema,
+  hoverLocatorTypeSchema,
+  keyModifiersSchema,
+  mouseButtonSchema,
   selectorInput,
-  textContent,
   timeoutOption,
-} from './types.js';
+} from './schemas.js';
+import { textContent } from './types.js';
 
 // ============================================================================
-// Shared Schemas
+// Shared Schemas (local to this file)
 // ============================================================================
-
-const modifiersSchema = z
-  .array(z.enum(['Alt', 'Control', 'Meta', 'Shift']))
-  .optional()
-  .describe('Keyboard modifiers to hold');
 
 const forceSchema = z
   .boolean()
   .default(false)
   .describe('Force action even if element is not visible');
-
-const exactSchema = z
-  .boolean()
-  .default(false)
-  .describe('Whether to match exactly (case-sensitive, whole-string)');
-
-// Locator type enums
-const clickLocatorType = z
-  .enum(['selector', 'role', 'text', 'testid', 'altText', 'title'])
-  .describe('Type of locator to use for finding the element');
-
-const fillLocatorType = z
-  .enum(['selector', 'label', 'placeholder', 'testid'])
-  .describe('Type of locator to use for finding the input');
-
-const hoverLocatorType = z
-  .enum(['selector', 'role', 'text', 'testid'])
-  .describe('Type of locator to use for finding the element');
 
 export function registerInteractionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -64,7 +47,7 @@ Locator types (in recommended priority order):
 - 'selector': CSS selector (least recommended, use as fallback)`,
       inputSchema: {
         ...basePageInput,
-        locatorType: clickLocatorType,
+        locatorType: clickLocatorTypeSchema.describe('Type of locator to use for finding the element'),
         // Locator value - meaning depends on locatorType
         value: z
           .string()
@@ -83,12 +66,11 @@ Locator types (in recommended priority order):
           .optional()
           .describe('ARIA role (required when locatorType is "role")'),
         // Common options
-        exact: exactSchema,
+        ...exactMatchOption,
         force: forceSchema,
         ...timeoutOption,
         // Advanced click options
-        button: z
-          .enum(['left', 'middle', 'right'])
+        button: mouseButtonSchema
           .default('left')
           .describe('Mouse button to use'),
         clickCount: z
@@ -97,7 +79,7 @@ Locator types (in recommended priority order):
           .max(3)
           .default(1)
           .describe('Number of clicks (1=single, 2=double, 3=triple)'),
-        modifiers: modifiersSchema,
+        modifiers: keyModifiersSchema.optional().describe('Keyboard modifiers to hold'),
         delay: z
           .number()
           .min(0)
@@ -220,7 +202,7 @@ Locator types (in recommended priority order):
 - 'selector': CSS selector (least recommended, use as fallback)`,
       inputSchema: {
         ...basePageInput,
-        locatorType: fillLocatorType,
+        locatorType: fillLocatorTypeSchema.describe('Type of locator to use for finding the input'),
         // Locator value - meaning depends on locatorType
         value: z
           .string()
@@ -229,7 +211,7 @@ Locator types (in recommended priority order):
           ),
         text: z.string().describe('Text to fill into the input'),
         // Common options
-        exact: exactSchema,
+        ...exactMatchOption,
         ...timeoutOption,
       },
       outputSchema: { success: z.boolean() },
@@ -315,7 +297,7 @@ Locator types (in recommended priority order):
 - 'selector': CSS selector (least recommended, use as fallback)`,
       inputSchema: {
         ...basePageInput,
-        locatorType: hoverLocatorType.default('selector'),
+        locatorType: hoverLocatorTypeSchema.default('selector').describe('Type of locator to use for finding the element'),
         // Locator value - meaning depends on locatorType
         value: z
           .string()
@@ -332,7 +314,7 @@ Locator types (in recommended priority order):
           .optional()
           .describe('ARIA role (required when locatorType is "role")'),
         // Common options
-        exact: exactSchema,
+        ...exactMatchOption,
         ...timeoutOption,
       },
       outputSchema: { success: z.boolean() },

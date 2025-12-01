@@ -22,6 +22,7 @@ export class NavigationActions {
     options: NavigationOptions
   ): Promise<{ pageId: string; title: string; url: string }> {
     const { sessionId, url, waitUntil, timeout } = options;
+    const startTime = Date.now();
 
     security.validateUrlProtocol(url);
 
@@ -37,22 +38,28 @@ export class NavigationActions {
         waitUntil,
         timeout,
       });
+      const duration = Date.now() - startTime;
       this.sessionManager.updateActivity(sessionId);
 
-      this.logger.info('Page navigation completed', {
+      this.logger.info('Navigate to page completed', {
         sessionId,
         pageId,
+        duration,
         url: result.url,
         title: result.title,
       });
 
       return { pageId, title: result.title, url: result.url };
     } catch (error) {
+      const duration = Date.now() - startTime;
       const err = toError(error);
-      this.logger.error('Page navigation failed', {
+      this.logger.error('Navigate to page failed', {
         sessionId,
+        pageId,
+        duration,
         url,
         error: err.message,
+        stack: err.stack,
       });
       throw ErrorHandler.handlePlaywrightError(err);
     }

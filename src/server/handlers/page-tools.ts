@@ -4,7 +4,16 @@
 import { z } from 'zod';
 
 import type { ToolContext } from '../../config/types.js';
-import { basePageInput, longTimeoutOption, textContent } from './types.js';
+import {
+  a11yImpactSchema,
+  basePageInput,
+  clipRegionSchema,
+  imageFormatSchema,
+  loadStateSchema,
+  longTimeoutOption,
+  waitStateSchema,
+} from './schemas.js';
+import { textContent } from './types.js';
 
 // ============================================================================
 // Constants
@@ -14,7 +23,7 @@ import { basePageInput, longTimeoutOption, textContent } from './types.js';
 const MAX_TEXT_DISPLAY_LENGTH = 1000;
 
 // ============================================================================
-// Schemas - Centralized for DRY compliance
+// Schemas - Local schemas specific to page operations
 // ============================================================================
 
 const schemas = {
@@ -34,20 +43,14 @@ const schemas = {
       .describe(
         'CSS selector to screenshot a specific element (overrides fullPage)'
       ),
-    clip: z
-      .object({
-        x: z.number().describe('X coordinate of the top-left corner'),
-        y: z.number().describe('Y coordinate of the top-left corner'),
-        width: z.number().describe('Width of the clipping region'),
-        height: z.number().describe('Height of the clipping region'),
-      })
+    clip: clipRegionSchema
       .optional()
       .describe('Clip region to screenshot (overrides fullPage and selector)'),
     path: z
       .string()
       .optional()
       .describe('Optional file path to save screenshot'),
-    type: z.enum(['png', 'jpeg']).default('png').describe('Image format'),
+    type: imageFormatSchema.default('png').describe('Image format'),
     quality: z
       .number()
       .min(0)
@@ -71,10 +74,7 @@ const schemas = {
   waitSelectorInput: {
     ...basePageInput,
     selector: z.string().describe('CSS selector to wait for'),
-    state: z
-      .enum(['attached', 'detached', 'visible', 'hidden'])
-      .default('visible')
-      .describe('Expected element state'),
+    state: waitStateSchema.default('visible').describe('Expected element state'),
     ...longTimeoutOption,
   },
   waitSelectorOutput: {
@@ -85,8 +85,7 @@ const schemas = {
   // Wait for load state input
   loadStateInput: {
     ...basePageInput,
-    state: z
-      .enum(['load', 'domcontentloaded', 'networkidle'])
+    state: loadStateSchema
       .default('domcontentloaded')
       .describe(
         'Load state to wait for: load (all resources), domcontentloaded (DOM ready), networkidle (no network requests for 500ms)'
@@ -104,7 +103,7 @@ const schemas = {
         'WCAG tags to filter by (e.g., wcag2a, wcag2aa, wcag21aa, best-practice)'
       ),
     includedImpacts: z
-      .array(z.enum(['minor', 'moderate', 'serious', 'critical']))
+      .array(a11yImpactSchema)
       .optional()
       .describe('Filter violations by impact level'),
     selector: z

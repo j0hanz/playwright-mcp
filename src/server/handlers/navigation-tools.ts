@@ -4,10 +4,11 @@
 import { z } from 'zod';
 
 import type { ToolContext } from '../../config/types.js';
-import { basePageInput, textContent } from './types.js';
+import { basePageInput, waitUntilSchema } from './schemas.js';
+import { textContent } from './types.js';
 
 // ============================================================================
-// Schemas - Centralized for DRY compliance
+// Schemas - Local schemas specific to navigation
 // ============================================================================
 
 const schemas = {
@@ -15,8 +16,7 @@ const schemas = {
   navigateInput: {
     sessionId: z.string().describe('Browser session ID'),
     url: z.string().url().describe('URL to navigate to'),
-    waitUntil: z
-      .enum(['load', 'domcontentloaded', 'networkidle', 'commit'])
+    waitUntil: waitUntilSchema
       .default('load')
       .describe('When to consider navigation successful'),
   },
@@ -24,8 +24,7 @@ const schemas = {
   // Reload options
   reloadInput: {
     ...basePageInput,
-    waitUntil: z
-      .enum(['load', 'domcontentloaded', 'networkidle', 'commit'])
+    waitUntil: waitUntilSchema
       .default('load')
       .describe('When to consider reload successful'),
   },

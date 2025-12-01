@@ -6,6 +6,12 @@ import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import winston from 'winston';
 
+import type {
+  LogLevel,
+  LogMeta,
+  PerformanceMetrics,
+  TimerResult,
+} from '../config/types.js';
 import {
   DEFAULT_MAX_ERROR_LOG_FILE_SIZE,
   DEFAULT_MAX_LOG_FILE_SIZE,
@@ -13,6 +19,9 @@ import {
   MAX_LOG_FILE_SIZE_CAP,
   MAX_LOG_FILES_CAP,
 } from './constants.js';
+
+// Re-export types for backward compatibility
+export type { LogLevel, LogMeta, PerformanceMetrics, TimerResult };
 
 const parseLogSize = (
   value: string | undefined,
@@ -50,24 +59,6 @@ const maxLogFiles = parseMaxFiles(
   process.env.MAX_LOG_FILES,
   DEFAULT_MAX_LOG_FILES
 );
-
-// Types
-
-type LogLevel = 'error' | 'warn' | 'info' | 'debug';
-type LogMeta = Record<string, unknown>;
-
-interface TimerResult {
-  done: (meta?: LogMeta) => number;
-  elapsed: () => number;
-  cancel: () => void;
-}
-
-interface PerformanceMetrics {
-  operation: string;
-  durationMs: number;
-  success: boolean;
-  error?: string;
-}
 
 // Log Directory Setup
 
