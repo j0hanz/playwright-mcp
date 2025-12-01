@@ -1,318 +1,379 @@
 # MCP Playwright Server
 
-A comprehensive Model Context Protocol (MCP) server for browser automation using Playwright. This server enables AI assistants like Claude and GitHub Copilot to control web browsers programmatically.
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)[![Playwright](https://img.shields.io/badge/Playwright-1.52+-green.svg)](https://playwright.dev/)[![MCP](https://img.shields.io/badge/MCP-1.0-purple.svg)](https://modelcontextprotocol.io/)[![Node.js](https://img.shields.io/badge/Node.js-18+-brightgreen.svg)](https://nodejs.org/)[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+A comprehensive **Model Context Protocol (MCP) server** for browser automation using Playwright. This server enables AI assistants to control browsers via the MCP protocol, providing powerful tools for web testing, accessibility audits, and browser automation.
 
 ## Features
 
-- **Multi-Browser Support**: Chromium, Firefox, and WebKit
-- **Session Management**: Handle multiple browser sessions simultaneously
-- **User-Facing Locators**: Role-based, label-based, and text-based locators (Playwright best practices)
-- **Web-First Assertions**: Auto-waiting assertions for reliable testing
-- **Accessibility Testing**: Built-in axe-core integration for WCAG compliance
-- **Structured Responses**: Consistent JSON responses with timing and metadata
-- **Robust Error Handling**: Comprehensive error types with retry logic
-- **TypeScript**: Fully typed with Zod schema validation
+- 🌐 **Multi-Browser Support** - Chromium, Firefox, and WebKit
+- 🔧 **50+ Browser Automation Tools** - Navigation, interaction, assertions, screenshots
+- ♿ **Accessibility Testing** - Built-in axe-core integration with WCAG compliance checks
+- 🔒 **Session Management** - Isolated browser contexts with rate limiting
+- 📸 **Visual Testing** - Screenshots, video recording, and tracing
+- 🧪 **AI Test Agents** - Automated test planning, generation, and healing
 
-## Quick Start
+## Technology Stack
+
+| Category               | Technologies                     |
+| ---------------------- | -------------------------------- |
+| **Runtime**            | Node.js 18+                      |
+| **Language**           | TypeScript 5.8                   |
+| **Browser Automation** | Playwright 1.52+                 |
+| **Protocol**           | Model Context Protocol (MCP) SDK |
+| **Validation**         | Zod                              |
+| **Accessibility**      | @axe-core/playwright             |
+| **Logging**            | Winston                          |
+| **Testing**            | @playwright/test                 |
+| **Linting**            | ESLint 9, Prettier               |
+
+## Architecture
+
+```text
+AI Client → MCP Protocol → Tool Handler → BrowserManager → Action Module → Playwright API
+                                ↑
+                         SessionManager (lifecycle, rate limiting)
+```
+
+### Layer Responsibilities
+
+| Layer           | Location                            | Purpose                                     |
+| --------------- | ----------------------------------- | ------------------------------------------- |
+| Entry           | `src/index.ts`                      | Bootstrap, graceful shutdown                |
+| MCP Server      | `src/server/mcp-server.ts`          | Tool/resource registration, session cleanup |
+| Handlers        | `src/server/handlers/`              | Tool definitions grouped by category        |
+| Browser Manager | `src/playwright/browser-manager.ts` | Orchestrates action modules                 |
+| Actions         | `src/playwright/actions/`           | Domain-specific Playwright operations       |
+| Session Manager | `src/playwright/session-manager.ts` | Session/page lifecycle, rate limiting       |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18 or higher
+- npm or yarn
 
 ### Installation
 
 ```bash
-cd .github/mcp-playwright-server
+# Clone the repository
+git clone https://github.com/j0hanz/playwright-mcp.git
+cd playwright-mcp
+
+# Install dependencies
 npm install
-npx playwright install
+
+# Install Playwright browsers
+npm run install:browsers
 ```
 
-### Build
+### Configuration
 
-```bash
-npm run build
+Create a `.env` file in the project root (optional):
+
+```env
+LOG_LEVEL=info              # debug, info, warn, error
+DEFAULT_BROWSER=chromium    # chromium, firefox, webkit
+HEADLESS=true               # Run headless mode
+MAX_SESSIONS=5              # Concurrent sessions (1-20)
+SESSION_TIMEOUT=1800000     # Session expiry in ms (30 min)
+TIMEOUT_ACTION=20000        # Element action timeout in ms
+TIMEOUT_NAVIGATION=30000    # Page navigation timeout in ms
 ```
 
-### Run
+### Running the Server
 
 ```bash
-npm start
-```
-
-### Development
-
-```bash
+# Development mode (with hot reload)
 npm run dev
-```
 
-## Available Tools
-
-### Browser Management
-
-| Tool                    | Description                         |
-| ----------------------- | ----------------------------------- |
-| `browser_launch`        | Launch a new browser instance       |
-| `browser_navigate`      | Navigate to a URL                   |
-| `browser_navigate_back` | Go back in browser history          |
-| `browser_resize`        | Resize the browser viewport         |
-| `browser_tabs`          | List, create, close, or select tabs |
-| `browser_handle_dialog` | Accept or dismiss dialogs           |
-| `browser_file_upload`   | Upload files to file inputs         |
-| `browser_close`         | Close a browser session             |
-| `sessions_list`         | List all active browser sessions    |
-
-### Role-Based Locators (Recommended)
-
-These tools follow Playwright's recommended locator hierarchy for stable, user-facing automation:
-
-| Tool                  | Description                                     | Priority |
-| --------------------- | ----------------------------------------------- | -------- |
-| `click_by_role`       | Click element by ARIA role (button, link, etc.) | ⭐ Best  |
-| `fill_by_label`       | Fill input by associated label                  | ⭐ Best  |
-| `click_by_text`       | Click element by visible text                   | Good     |
-| `fill_by_placeholder` | Fill input by placeholder text                  | Good     |
-| `click_by_testid`     | Click element by data-testid                    | Fallback |
-| `fill_by_testid`      | Fill input by data-testid                       | Fallback |
-| `click_by_alt_text`   | Click image by alt text                         | Specific |
-
-> **Best Practice**: Always prefer role-based and label-based locators over CSS selectors. They are more resilient to DOM changes and reflect how users interact with the UI.
-
-### Web-First Assertions
-
-Auto-waiting assertions that retry until the condition is met:
-
-| Tool               | Description                          |
-| ------------------ | ------------------------------------ |
-| `assert_visible`   | Assert element is visible            |
-| `assert_hidden`    | Assert element is hidden             |
-| `assert_text`      | Assert element has/contains text     |
-| `assert_attribute` | Assert element has attribute value   |
-| `assert_value`     | Assert input has value               |
-| `assert_checked`   | Assert checkbox is checked/unchecked |
-| `assert_url`       | Assert page URL                      |
-| `assert_title`     | Assert page title                    |
-
-### Wait & Load State
-
-| Tool                       | Description                                                    |
-| -------------------------- | -------------------------------------------------------------- |
-| `wait_for_selector`        | Wait for element to appear/disappear                           |
-| `wait_for_download`        | Wait for file download                                         |
-| `page_wait_for_load_state` | Wait for page load state (load, domcontentloaded, networkidle) |
-| `wait_for_network_idle`    | Wait until no network requests for 500ms                       |
-
-### Page Inspection
-
-| Tool              | Description                         |
-| ----------------- | ----------------------------------- |
-| `page_screenshot` | Take a screenshot                   |
-| `page_content`    | Get page HTML and text              |
-| `page_prepare`    | Configure page settings for testing |
-
-### Keyboard & Mouse
-
-| Tool             | Description                      |
-| ---------------- | -------------------------------- |
-| `keyboard_press` | Press a key or key combination   |
-| `keyboard_type`  | Type text character by character |
-| `mouse_move`     | Move mouse to coordinates        |
-| `mouse_click`    | Click at coordinates             |
-
-### Tracing & Debugging
-
-| Tool            | Description             |
-| --------------- | ----------------------- |
-| `tracing_start` | Start recording a trace |
-| `tracing_stop`  | Stop and save trace     |
-
-### Authentication
-
-| Tool                  | Description                              |
-| --------------------- | ---------------------------------------- |
-| `save_storage_state`  | Save cookies/localStorage for auth reuse |
-| `launch_with_auth`    | Launch browser with saved auth state     |
-| `session_reset_state` | Clear session cookies and storage        |
-
-### Accessibility Testing
-
-| Tool                     | Description                                  |
-| ------------------------ | -------------------------------------------- |
-| `accessibility_scan`     | Scan page for WCAG violations using axe-core |
-| `accessibility_report`   | Generate HTML accessibility report           |
-| `emulate_reduced_motion` | Test reduced motion preference               |
-| `emulate_color_scheme`   | Test light/dark color scheme                 |
-
-## Locator Priority Guide
-
-When automating browser interactions, use locators in this priority order:
-
-```text
-1. getByRole()       ← Buttons, links, headings, form elements (MOST PREFERRED)
-2. getByLabel()      ← Form inputs with labels
-3. getByPlaceholder  ← Inputs with placeholder text
-4. getByTestId()     ← When semantic locators aren't suitable
-5. getByText()       ← Unique visible text content
-❌ CSS/XPath         ← AVOID - brittle, breaks with UI changes
-```
-
-### Example: Filling a Login Form
-
-```txt
-User: "Log in with email test@example.com and password secret123"
-
-The AI will use role-based locators:
-1. Call fill_by_label with label "Email" and text "test@example.com"
-2. Call fill_by_label with label "Password" and text "secret123"
-3. Call click_by_role with role "button" and name "Sign in"
-4. Call assert_url to verify redirect to dashboard
-```
-
-## Configuration
-
-### VS Code / Copilot
-
-Add to your VS Code settings or `.vscode/settings.json`:
-
-```json
-{
-  "mcp": {
-    "servers": {
-      "playwright-custom": {
-        "command": "node",
-        "args": [".github/mcp-playwright-server/dist/index.js"],
-        "env": {
-          "LOG_LEVEL": "info",
-          "HEADLESS": "true"
-        }
-      }
-    }
-  }
-}
-```
-
-### Claude Desktop
-
-Add to `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "playwright": {
-      "command": "node",
-      "args": ["/path/to/.github/mcp-playwright-server/dist/index.js"],
-      "env": {
-        "LOG_LEVEL": "info",
-        "HEADLESS": "true"
-      }
-    }
-  }
-}
-```
-
-## Environment Variables
-
-| Variable          | Default  | Description                              |
-| ----------------- | -------- | ---------------------------------------- |
-| `LOG_LEVEL`       | info     | Logging level (debug, info, warn, error) |
-| `DEFAULT_BROWSER` | chromium | Default browser type                     |
-| `HEADLESS`        | true     | Run browsers in headless mode            |
-| `VIEWPORT_WIDTH`  | 1920     | Default viewport width                   |
-| `VIEWPORT_HEIGHT` | 1080     | Default viewport height                  |
-| `MAX_SESSIONS`    | 5        | Maximum concurrent browser sessions      |
-| `SESSION_TIMEOUT` | 1800000  | Session timeout in milliseconds          |
-| `TIMEOUT_DEFAULT` | 30000    | Default operation timeout                |
-
-## Usage Examples
-
-### Launch Browser and Navigate
-
-```txt
-User: "Open https://example.com in a browser"
-
-The AI will:
-1. Call browser_launch to start a browser
-2. Call browser_navigate with the URL
-3. Return page information
-```
-
-### Take Screenshot
-
-```txt
-User: "Take a screenshot of the current page"
-
-The AI will:
-1. Call page_screenshot with sessionId and pageId
-2. Return the screenshot as base64 image
-```
-
-### Fill Form (Using Best Practices)
-
-```txt
-User: "Fill the email field with test@example.com"
-
-The AI will:
-1. Call fill_by_label with label "Email" and text "test@example.com"
-   (or fill_by_placeholder if no label is available)
-2. Confirm the action was completed
-```
-
-## Security Considerations
-
-This MCP server follows security best practices:
-
-- **User-Facing Locators Only**: CSS-selector-based tools have been removed to encourage resilient, user-facing locators
-- **No Arbitrary Script Execution**: The `execute_script` tool has been removed to prevent code injection vulnerabilities
-- **No Network Interception**: Network routing tools have been removed to reduce complexity and attack surface
-- **URL Validation**: Only `http:` and `https:` protocols are allowed for navigation
-- **File Upload Restrictions**: Files must be in the designated `uploads/` directory
-- **Session Isolation**: Each browser session is isolated with configurable timeouts
-
-## Running Tests
-
-Run the portfolio test suite:
-
-```bash
-npm test
-```
-
-Run with UI:
-
-```bash
-npm run test:ui
-```
-
-## Docker
-
-Build and run with Docker:
-
-```bash
-docker build -t mcp-playwright .
-docker run -p 3000:3000 mcp-playwright
+# Production build and run
+npm run build
+npm start
 ```
 
 ## Project Structure
 
-```txt
-mcp-playwright-server/
+```text
 ├── src/
+│   ├── index.ts                    # Application entry point
 │   ├── config/
-│   │   └── server-config.ts    # Server configuration
-│   ├── playwright/
-│   │   └── browser-manager.ts  # Playwright browser management
+│   │   ├── server-config.ts        # Environment configuration
+│   │   └── types.ts                # TypeScript type definitions
 │   ├── server/
-│   │   └── mcp-server.ts       # MCP server with tools
-│   ├── types/
-│   │   └── index.ts            # TypeScript interfaces
-│   ├── utils/
-│   │   ├── error-handler.ts    # Error handling
-│   │   ├── logger.ts           # Logging utility
-│   │   ├── response-formatter.ts # Response formatting
-│   │   └── validation.ts       # Zod schemas
-│   └── index.ts                # Entry point
-├── tests/
-│   └── portfolio.test.ts       # Portfolio-specific tests
-├── package.json
-├── tsconfig.json
-├── Dockerfile
-└── .env.example
+│   │   ├── mcp-server.ts           # MCP server implementation
+│   │   └── handlers/               # Tool handler categories
+│   │       ├── browser-tools.ts    # Browser lifecycle tools
+│   │       ├── navigation-tools.ts # Navigation tools
+│   │       ├── interaction-tools.ts# Click, fill, hover tools
+│   │       ├── assertion-tools.ts  # Web-first assertions
+│   │       ├── page-tools.ts       # Screenshots, content, a11y
+│   │       ├── test-tools.ts       # Test file management
+│   │       ├── advanced-tools.ts   # Network, tracing, dialogs
+│   │       └── schemas.ts          # Zod validation schemas
+│   ├── playwright/
+│   │   ├── browser-manager.ts      # Central browser orchestration
+│   │   ├── session-manager.ts      # Session lifecycle
+│   │   ├── browser-launcher.ts     # Browser launch logic
+│   │   └── actions/                # Domain-specific actions
+│   │       ├── assertion-actions.ts
+│   │       ├── interaction-actions.ts
+│   │       ├── navigation-actions.ts
+│   │       └── ...
+│   └── utils/
+│       ├── error-handler.ts        # Centralized error handling
+│       └── logger.ts               # Winston logger
+├── tests/                          # Playwright test files
+├── specs/                          # Human-readable test plans
+├── .github/
+│   ├── agents/                     # AI agent definitions
+│   ├── prompts/                    # Agent prompts
+│   └── copilot-instructions.md     # Development guidelines
+└── playwright.config.ts            # Playwright test configuration
 ```
+
+## Available Tools
+
+### Browser Lifecycle
+
+| Tool                  | Description                                                         |
+| --------------------- | ------------------------------------------------------------------- |
+| `browser_launch`      | Launch browser (Chromium, Firefox, WebKit) with optional auth state |
+| `browser_close`       | Close browser session                                               |
+| `browser_tabs`        | List, create, close, or select browser tabs                         |
+| `sessions_list`       | List all active browser sessions                                    |
+| `save_storage_state`  | Save cookies/localStorage for auth reuse                            |
+| `session_reset_state` | Clear session data for test isolation                               |
+
+### Navigation
+
+| Tool               | Description                    |
+| ------------------ | ------------------------------ |
+| `browser_navigate` | Navigate to URL                |
+| `browser_history`  | Go back/forward in history     |
+| `browser_reload`   | Reload current page            |
+| `handle_dialog`    | Accept/dismiss browser dialogs |
+
+### Interaction
+
+| Tool             | Description                                    |
+| ---------------- | ---------------------------------------------- |
+| `element_click`  | Click by role, text, testid, or selector       |
+| `element_fill`   | Fill inputs by label, placeholder, or selector |
+| `element_hover`  | Hover over elements                            |
+| `select_option`  | Select dropdown options                        |
+| `keyboard_press` | Press keys (Enter, Tab, shortcuts)             |
+| `keyboard_type`  | Type text character by character               |
+| `checkbox_set`   | Check/uncheck checkboxes                       |
+| `file_upload`    | Upload files                                   |
+| `drag_and_drop`  | Drag and drop elements                         |
+
+### Assertions
+
+| Tool               | Description                                       |
+| ------------------ | ------------------------------------------------- |
+| `assert_element`   | Assert state (visible, hidden, enabled, disabled) |
+| `assert_text`      | Assert element text content                       |
+| `assert_value`     | Assert input value                                |
+| `assert_url`       | Assert page URL                                   |
+| `assert_title`     | Assert page title                                 |
+| `assert_attribute` | Assert element attribute                          |
+| `assert_css`       | Assert CSS property                               |
+| `assert_checked`   | Assert checkbox state                             |
+| `assert_count`     | Assert element count                              |
+
+### Page Operations
+
+| Tool                       | Description                                      |
+| -------------------------- | ------------------------------------------------ |
+| `page_screenshot`          | Capture screenshots (full page, element, region) |
+| `page_content`             | Get HTML and text content                        |
+| `page_evaluate`            | Execute JavaScript (read-only)                   |
+| `wait_for_selector`        | Wait for elements                                |
+| `page_wait_for_load_state` | Wait for page load                               |
+| `accessibility_scan`       | Run axe-core accessibility audit                 |
+| `browser_snapshot`         | Get accessibility tree snapshot                  |
+
+### Advanced
+
+| Tool                             | Description              |
+| -------------------------------- | ------------------------ |
+| `network_mock`                   | Mock network responses   |
+| `network_unroute`                | Remove network mocks     |
+| `tracing_start` / `tracing_stop` | Record execution traces  |
+| `console_capture`                | Capture console messages |
+| `har_record_start`               | Record HTTP archive      |
+| `clock_install`                  | Control time in tests    |
+
+## Locator Priority
+
+When interacting with elements, prefer user-facing locators (most reliable first):
+
+1. **Role** ⭐ - `element_click(locatorType: 'role', role: 'button', name: 'Submit')`
+2. **Label** ⭐ - `element_fill(locatorType: 'label', value: 'Email', text: '...')`
+3. **Text** - `element_click(locatorType: 'text', value: 'Learn more')`
+4. **Placeholder** - `element_fill(locatorType: 'placeholder', value: 'Search...')`
+5. **TestId** - `element_click(locatorType: 'testid', value: 'submit-btn')`
+6. **Selector** - CSS selector (last resort only)
+
+## Development Workflow
+
+```bash
+# Watch mode with hot reload
+npm run dev
+
+# Build TypeScript to dist/
+npm run build
+
+# Run ESLint
+npm run lint
+npm run lint:fix
+
+# Type check without emit
+npm run type-check
+
+# Format with Prettier
+npm run format
+
+# Run tests
+npm test
+npm run test:ui      # Interactive UI
+npm run test:headed  # Visible browser
+npm run test:debug   # Debug mode
+```
+
+**Before committing:** Run `npm run lint && npm run type-check && npm run build`
+
+## Coding Standards
+
+### Tool Registration Pattern
+
+```typescript
+server.registerTool(
+  'tool_name',
+  {
+    title: 'Human Title',
+    description: 'What this tool does',
+    inputSchema: {
+      /* Zod schemas */
+    },
+    outputSchema: {
+      /* Result shape */
+    },
+  },
+  createToolHandler(async (input) => {
+    const result = await browserManager.someMethod(input);
+    return {
+      content: [{ type: 'text', text: 'Human readable' }],
+      structuredContent: result, // Machine readable
+    };
+  }, 'Error prefix message')
+);
+```
+
+### Action Module Pattern
+
+```typescript
+export class MyActions extends BaseAction {
+  async myOperation(sessionId: string, pageId: string, options: Options) {
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'My operation',
+      async (page) => {
+        // Playwright operations
+        return { success: true, data: '...' };
+      }
+    );
+  }
+}
+```
+
+### Error Handling
+
+```typescript
+import {
+  ErrorCode,
+  ErrorHandler,
+  validateUUID,
+} from '../utils/error-handler.js';
+
+validateUUID(sessionId, 'sessionId'); // Throws on invalid
+throw ErrorHandler.sessionNotFound(id); // Factory methods
+throw ErrorHandler.handlePlaywrightError(e); // Maps Playwright errors
+```
+
+## Testing
+
+Tests use `@playwright/test` framework. Configuration is in `playwright.config.ts`.
+
+```bash
+npm test                 # Run all tests
+npm run test:ui          # Interactive test UI
+npm run test:headed      # With visible browser
+npm run test:debug       # Debug mode with inspector
+npm run test:trace       # Record traces
+npm run test:report      # Show HTML report
+```
+
+### Test Configuration
+
+- **Timeout**: 30 seconds per test
+- **Retries**: 2 on CI, 0 locally
+- **Browsers**: Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari
+- **Viewport**: 1366x900
+- **Test ID Attribute**: `data-testid`
+
+## AI Test Agents
+
+Three AI agents for automated test workflows:
+
+| Agent         | Input               | Output                  |
+| ------------- | ------------------- | ----------------------- |
+| **Planner**   | App URL + seed test | `specs/*.md` test plans |
+| **Generator** | Test plan           | `tests/*.spec.ts` files |
+| **Healer**    | Failing test        | Fixed test file         |
+
+### Usage
+
+1. **Planner**: Explore app and create test plans in `specs/`
+2. **Generator**: Transform plans into Playwright tests
+3. **Healer**: Debug and fix failing tests
+
+Agent definitions are in `.github/agents/` with prompts in `.github/prompts/`.
+
+## Security
+
+- **URL validation**: Only `http://` and `https://` protocols allowed
+- **UUID validation**: All session/page IDs validated
+- **Rate limiting**: Configurable `MAX_SESSIONS_PER_MINUTE`
+- **Session isolation**: Each browser context is isolated
+- **Script restrictions**: Only safe, read-only JavaScript evaluation
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Follow the coding standards in `.github/copilot-instructions.md`
+4. Run linting and type checking (`npm run lint && npm run type-check`)
+5. Ensure tests pass (`npm test`)
+6. Commit your changes (`git commit -m 'Add amazing feature'`)
+7. Push to the branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
+
+### Adding a New Tool
+
+1. Add method to action class in `src/playwright/actions/`
+2. Register in handler file in `src/server/handlers/`
+3. Add schemas to `schemas.ts` if new input shapes needed
+4. Add tests for the new functionality
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Playwright](https://playwright.dev/) - Browser automation framework
+- [Model Context Protocol](https://modelcontextprotocol.io/) - AI assistant protocol
+- [axe-core](https://github.com/dequelabs/axe-core) - Accessibility testing engine

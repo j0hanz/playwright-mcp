@@ -1,72 +1,54 @@
-import { expect, test } from '@playwright/test';
+/**
+ * Seed Test for Playwright Test Agents
+ *
+ * This seed test sets up the environment necessary for the Playwright test agents
+ * (Planner, Generator, Healer) to interact with the application.
+ *
+ * It:
+ * - Executes all initialization necessary for tests (global setup, project dependencies, fixtures)
+ * - Serves as a template for all generated tests
+ * - Provides a ready-to-use `page` context to bootstrap execution
+ *
+ * Usage:
+ * - The Planner agent runs this test to set up the page before exploring the app
+ * - The Generator agent uses this as a reference for generated tests
+ * - All tests should follow the same fixture patterns established here
+ */
+import { test, expect } from '@playwright/test';
 
 /**
- * Seed Test File
+ * Seed test - provides a ready-to-use page context for agents
  *
- * This test serves as a template and environment bootstrap for Playwright Test Agents.
- * The Planner, Generator, and Healer agents use this file to:
- *
- * 1. Understand your test environment setup (fixtures, global setup, dependencies)
- * 2. Learn your testing patterns and conventions
- * 3. Generate consistent, idiomatic tests aligned with your codebase
- *
- * Best Practices:
- * - Keep this test simple and focused on app initialization
- * - Include any necessary authentication or state setup
- * - Demonstrate custom fixtures usage if you have them
- * - Add comments explaining non-obvious setup steps
+ * This test is intentionally minimal. It sets up the initial page state
+ * that other agents can use as a starting point for exploration and test generation.
  */
+test.describe('Seed', () => {
+  test('environment setup', async ({ page }) => {
+    // Navigate to the base URL (configured in playwright.config.ts)
+    // This establishes the starting point for agent exploration
+    await page.goto('/');
 
-test('seed', async ({ page }) => {
-  // Navigate to your application
-  // Replace with your actual application URL
-  await page.goto('https://example.com');
+    // Wait for page to be interactive
+    await page.waitForLoadState('domcontentloaded');
 
-  // Verify basic page structure as a sanity check
-  // This ensures the test environment is properly configured
-  await expect(page).toHaveTitle(/Example/);
-
-  // Example: Add any app-specific initialization here
-  // For instance, if your app has a loading state:
-  // await page.waitForLoadState('networkidle');
-
-  // Example: Handle authentication if needed
-  // const username = process.env.TEST_USERNAME;
-  // const password = process.env.TEST_PASSWORD;
-  // if (username && password) {
-  //   await page.goto('https://example.com/login');
-  //   await page.fill('[data-testid="username"]', username);
-  //   await page.fill('[data-testid="password"]', password);
-  //   await page.click('[data-testid="login-btn"]');
-  //   await page.waitForNavigation();
-  // }
-
-  // Example: Demonstrate your test naming and assertion patterns
-  // Agents will learn from this and apply similar patterns in generated tests
-  // await page.click('[role="button"]');
-  // await expect(page.locator('[role="status"]')).toContainText('Success');
+    // Basic verification that the page loaded successfully
+    // Agents will use this state as the starting point
+    await expect(page).toHaveTitle(/.*/);
+  });
 });
 
 /**
- * Additional Seed Tests (Optional)
+ * Example authenticated seed test
  *
- * You can add more seed tests to demonstrate different patterns:
- * - Authentication workflows
- * - Complex multi-step interactions
- * - Custom assertion patterns
- * - API interactions combined with UI testing
+ * Uncomment and customize this section when testing authenticated flows.
+ * The Planner agent will use this to explore authenticated areas of the app.
  */
-
-// Example: Authenticated user scenario
-// test('seed - authenticated user', async ({ page }) => {
-//   // Load pre-authenticated state (e.g., from storageState)
-//   await page.goto('https://example.com/dashboard');
-//   await expect(page.locator('[data-testid="user-menu"]')).toBeVisible();
-// });
-
-// Example: Error handling demonstration
-// test('seed - error scenario', async ({ page }) => {
-//   await page.goto('https://example.com');
-//   await page.click('[data-testid="error-trigger"]');
-//   await expect(page.locator('[role="alert"]')).toContainText('Error');
+// test.describe('Seed - Authenticated', () => {
+//   test.use({ storageState: 'playwright/.auth/user.json' });
+//
+//   test('authenticated environment setup', async ({ page }) => {
+//     await page.goto('/dashboard');
+//     await page.waitForLoadState('domcontentloaded');
+//     await expect(page).toHaveURL(/dashboard/);
+//   });
 // });
