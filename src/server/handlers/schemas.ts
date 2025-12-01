@@ -338,6 +338,66 @@ export const testScenarioSchema = z.object({
 });
 
 // ============================================================================
+// Tool Annotation Schemas (MCP Spec Compliance)
+// @see https://modelcontextprotocol.io/specification/2025-06-18/server/tools#tool-annotations
+// ============================================================================
+
+/**
+ * Tool annotations provide hints about tool behavior to clients.
+ * These are hints and should not be relied upon for security decisions.
+ */
+export interface ToolAnnotations {
+  /** If true, the tool does not modify its environment */
+  readOnlyHint?: boolean;
+  /** If true, the tool may perform destructive updates (only meaningful when readOnlyHint is false) */
+  destructiveHint?: boolean;
+  /** If true, repeated calls with same args have no additional effect (only meaningful when readOnlyHint is false) */
+  idempotentHint?: boolean;
+  /** If true, the tool interacts with external entities */
+  openWorldHint?: boolean;
+}
+
+/** Annotations for read-only tools (assertions, screenshots, queries) */
+export const readOnlyAnnotations: ToolAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+};
+
+/** Annotations for browser interaction tools (click, fill, navigate) */
+export const interactionAnnotations: ToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
+};
+
+/** Annotations for browser lifecycle tools (launch, close) */
+export const lifecycleAnnotations: ToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
+};
+
+/** Annotations for destructive tools (close, clear) */
+export const destructiveAnnotations: ToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
+};
+
+/** Annotations for idempotent navigation tools */
+export const navigationAnnotations: ToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+};
+
+// ============================================================================
 // Type Exports (inferred from schemas)
 // ============================================================================
 

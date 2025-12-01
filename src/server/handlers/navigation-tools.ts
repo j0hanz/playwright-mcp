@@ -4,7 +4,11 @@
 import { z } from 'zod';
 
 import type { ToolContext } from '../../config/types.js';
-import { basePageInput, waitUntilSchema } from './schemas.js';
+import {
+  basePageInput,
+  navigationAnnotations,
+  waitUntilSchema,
+} from './schemas.js';
 import { textContent } from './types.js';
 
 // ============================================================================
@@ -61,6 +65,7 @@ export function registerNavigationTools(ctx: ToolContext): void {
     {
       title: 'Navigate to URL',
       description: 'Navigate to a URL in the browser',
+      annotations: navigationAnnotations,
       inputSchema: schemas.navigateInput,
       outputSchema: schemas.pageResult,
     },
@@ -87,6 +92,7 @@ export function registerNavigationTools(ctx: ToolContext): void {
     {
       title: 'Navigate Browser History',
       description: 'Navigate back or forward in browser history',
+      annotations: navigationAnnotations,
       inputSchema: schemas.historyInput,
       outputSchema: schemas.historyResult,
     },
@@ -122,6 +128,7 @@ export function registerNavigationTools(ctx: ToolContext): void {
     {
       title: 'Reload Page',
       description: 'Reload the current page',
+      annotations: navigationAnnotations,
       inputSchema: schemas.reloadInput,
       outputSchema: schemas.historyResult,
     },

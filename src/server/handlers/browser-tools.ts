@@ -8,8 +8,12 @@ import {
   basePageInput,
   browserTypeSchema,
   colorSchemeSchema,
+  destructiveAnnotations,
   geolocationSchema,
+  interactionAnnotations,
+  lifecycleAnnotations,
   proxySchema,
+  readOnlyAnnotations,
   recordVideoSchema,
   reducedMotionSchema,
   viewportSchema,
@@ -26,6 +30,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       title: 'Launch Browser',
       description:
         'Launch a new browser instance (Chromium, Firefox, or WebKit) with optional authentication state and video recording',
+      annotations: lifecycleAnnotations,
       inputSchema: {
         browserType: browserTypeSchema
           .default('chromium')
@@ -115,6 +120,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
     {
       title: 'Close Browser',
       description: 'Close a browser session',
+      annotations: destructiveAnnotations,
       inputSchema: {
         sessionId: z.string().describe('Browser session ID to close'),
       },
@@ -135,6 +141,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
     {
       title: 'Manage Browser Tabs',
       description: 'List, create, close, or select browser tabs',
+      annotations: interactionAnnotations,
       inputSchema: {
         sessionId: z.string().describe('Browser session ID'),
         action: z
@@ -191,6 +198,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
     {
       title: 'List Browser Sessions',
       description: 'List all active browser sessions',
+      annotations: readOnlyAnnotations,
       inputSchema: {},
       outputSchema: {
         sessions: z.array(
@@ -219,6 +227,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       title: 'Save Storage State',
       description:
         'Save browser storage state (cookies, localStorage) for authentication reuse',
+      annotations: readOnlyAnnotations,
       inputSchema: {
         sessionId: z.string().describe('Browser session ID'),
         path: z
@@ -244,6 +253,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       title: 'Reset Session State',
       description:
         'Clear cookies, localStorage, and sessionStorage for a browser session (useful for test isolation)',
+      annotations: destructiveAnnotations,
       inputSchema: { sessionId: z.string().describe('Browser session ID') },
       outputSchema: {
         success: z.boolean(),
@@ -272,6 +282,7 @@ export function registerBrowserTools(ctx: ToolContext): void {
       title: 'Prepare Page',
       description:
         'Configure page settings for testing (viewport, geolocation, permissions, color scheme, etc.)',
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         viewport: viewportSchema.optional().describe('Viewport size'),

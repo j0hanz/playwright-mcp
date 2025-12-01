@@ -468,4 +468,47 @@ export class PageOperations extends BaseAction {
       { scriptLength: script.length }
     );
   }
+
+  /**
+   * Get an accessibility snapshot of the page - returns a structured tree
+   * of accessible elements similar to Microsoft's Playwright MCP implementation.
+   * This is optimized for LLM consumption as it provides semantic structure.
+   */
+  async getAccessibilitySnapshot(
+    sessionId: string,
+    pageId: string,
+    options: {
+      interestingOnly?: boolean;
+      root?: string;
+    } = {}
+  ): Promise<{
+    success: boolean;
+    snapshot: string;
+    elementCount: number;
+  }> {
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Get accessibility snapshot',
+      async (page) => {
+        // Use ariaSnapshot which returns a YAML-like string representation
+        // of the accessibility tree - this is the modern Playwright approach
+        const rootLocator = options.root
+          ? page.locator(options.root)
+          : page.locator(':root');
+
+        const snapshot = await rootLocator.ariaSnapshot();
+
+        // Count elements by counting lines with roles (lines starting with '- ')
+        const elementCount = (snapshot.match(/^\s*- /gm) || []).length;
+
+        return {
+          success: true,
+          snapshot,
+          elementCount,
+        };
+      },
+      { interestingOnly: options.interestingOnly, root: options.root }
+    );
+  }
 }

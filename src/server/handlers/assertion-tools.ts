@@ -7,6 +7,7 @@ import type { ToolContext } from '../../config/types.js';
 import {
   baseLocatorInput,
   elementStateSchema,
+  readOnlyAnnotations,
   selectorWithTimeout,
 } from './schemas.js';
 import { textContent } from './types.js';
@@ -144,6 +145,7 @@ States:
 - 'editable': Element is editable (for inputs)
 - 'attached': Element is attached to DOM
 - 'inViewport': Element is visible in the viewport`,
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.withState,
       outputSchema: schemas.stateResult,
     },
@@ -239,6 +241,7 @@ States:
       title: 'Assert Element Text',
       description:
         'Assert that an element has or contains specific text (web-first assertion). Supports regex patterns.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.withExpectedText,
       outputSchema: schemas.comparisonResult('actualText'),
     },
@@ -290,6 +293,7 @@ States:
     {
       title: 'Assert Input Value',
       description: 'Assert that an input element has a specific value',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.withExpectedValue,
       outputSchema: schemas.comparisonResult('actualValue'),
     },
@@ -325,6 +329,7 @@ States:
     {
       title: 'Assert Element Attribute',
       description: 'Assert that an element has a specific attribute value',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.withAttribute,
       outputSchema: schemas.comparisonResult('actualValue'),
     },
@@ -368,6 +373,7 @@ States:
     {
       title: 'Assert CSS Property',
       description: 'Assert that an element has a specific CSS property value',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.withCssProperty,
       outputSchema: schemas.comparisonResult('actualValue'),
     },
@@ -416,6 +422,7 @@ States:
       title: 'Assert Page URL',
       description:
         'Assert that the page has a specific URL. Supports regex patterns.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.withExpectedUrl,
       outputSchema: schemas.comparisonResult('actualUrl'),
     },
@@ -458,6 +465,7 @@ States:
       title: 'Assert Page Title',
       description:
         'Assert that the page has a specific title. Supports regex patterns.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.withExpectedTitle,
       outputSchema: schemas.comparisonResult('actualTitle'),
     },
@@ -504,6 +512,7 @@ States:
       title: 'Assert Checkbox Checked',
       description:
         'Assert that a checkbox or radio button is checked or unchecked',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.withCheckedState,
       outputSchema: { success: z.boolean(), isChecked: z.boolean().optional() },
     },
@@ -541,6 +550,7 @@ States:
       title: 'Assert Element Count',
       description:
         'Assert that the number of elements matching the selector equals expected count',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.withExpectedCount,
       outputSchema: schemas.countResult,
     },

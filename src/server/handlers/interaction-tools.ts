@@ -7,9 +7,11 @@ import { ARIA_ROLES, type ToolContext } from '../../config/types.js';
 import {
   basePageInput,
   clickLocatorTypeSchema,
+  destructiveAnnotations,
   exactMatchOption,
   fillLocatorTypeSchema,
   hoverLocatorTypeSchema,
+  interactionAnnotations,
   keyModifiersSchema,
   mouseButtonSchema,
   retryOptions,
@@ -68,6 +70,7 @@ Locator types (in recommended priority order):
 - 'selector': CSS selector (least recommended, use as fallback)
 
 Supports automatic retries for flaky elements.`,
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         locatorType: clickLocatorTypeSchema.describe(
@@ -278,6 +281,7 @@ Locator types (in recommended priority order):
 - 'selector': CSS selector (least recommended, use as fallback)
 
 Supports automatic retries for flaky elements.`,
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         locatorType: fillLocatorTypeSchema.describe(
@@ -398,6 +402,7 @@ Locator types (in recommended priority order):
 - 'text': Visible text content
 - 'testid': data-testid attribute
 - 'selector': CSS selector (least recommended, use as fallback)`,
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         locatorType: hoverLocatorTypeSchema
@@ -496,6 +501,7 @@ Locator types (in recommended priority order):
     {
       title: 'Select Option',
       description: 'Select an option from a dropdown/select element',
+      annotations: interactionAnnotations,
       inputSchema: {
         ...selectorInput,
         value: z
@@ -532,6 +538,7 @@ Locator types (in recommended priority order):
     {
       title: 'Drag and Drop',
       description: 'Drag an element and drop it on another element',
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         sourceSelector: z
@@ -581,6 +588,7 @@ Locator types (in recommended priority order):
       description: `Press a keyboard key or key combination. 
 Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
 'Control+a', 'Control+c', 'Control+v', 'Shift+Tab', 'Alt+F4', 'Meta+Enter'`,
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         key: z
@@ -617,6 +625,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
       title: 'Type Text',
       description:
         'Type text character by character (simulates real typing). Use element_fill for faster input, use this for character-by-character typing simulation.',
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         text: z.string().describe('Text to type'),
@@ -653,6 +662,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
       title: 'Upload Files',
       description:
         'Upload one or more files to a file input element. The selector should target an <input type="file"> element.',
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         selector: z
@@ -696,6 +706,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
       title: 'Set Checkbox State',
       description:
         'Check or uncheck a checkbox element. Works with both <input type="checkbox"> and toggle-like elements.',
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         selector: z.string().describe('CSS selector for the checkbox element'),
@@ -736,6 +747,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
       title: 'Focus Element',
       description:
         'Focus an element (e.g., to trigger focus events or enable keyboard input)',
+      annotations: interactionAnnotations,
       inputSchema: {
         ...selectorInput,
         ...timeoutOption,
@@ -765,6 +777,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
     {
       title: 'Clear Input',
       description: 'Clear the contents of an input or textarea element',
+      annotations: destructiveAnnotations,
       inputSchema: {
         ...selectorInput,
         ...timeoutOption,

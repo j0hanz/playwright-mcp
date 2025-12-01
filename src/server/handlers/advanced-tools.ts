@@ -6,7 +6,13 @@
 import { z } from 'zod';
 
 import type { ToolContext } from '../../config/types.js';
-import { basePageInput, timeoutOption } from './schemas.js';
+import {
+  basePageInput,
+  destructiveAnnotations,
+  interactionAnnotations,
+  readOnlyAnnotations,
+  timeoutOption,
+} from './schemas.js';
 import { textContent } from './types.js';
 
 // ============================================================================
@@ -270,6 +276,7 @@ export function registerAdvancedTools(ctx: ToolContext): void {
       title: 'Start Tracing',
       description:
         'Start recording a trace for debugging. Captures screenshots, DOM snapshots, and action logs. View traces at trace.playwright.dev',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.tracingStartInput,
       outputSchema: schemas.successResult,
     },
@@ -299,6 +306,7 @@ export function registerAdvancedTools(ctx: ToolContext): void {
       title: 'Stop Tracing',
       description:
         'Stop recording and save the trace to a file. Open the trace file at https://trace.playwright.dev',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.tracingStopInput,
       outputSchema: schemas.pathResult,
     },
@@ -325,6 +333,7 @@ export function registerAdvancedTools(ctx: ToolContext): void {
       title: 'Start Trace Group',
       description:
         'Start a named group in the trace to organize related actions. Call tracing_group_end to close.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.tracingGroupInput,
       outputSchema: { success: z.boolean(), groupName: z.string() },
     },
@@ -346,6 +355,7 @@ export function registerAdvancedTools(ctx: ToolContext): void {
     {
       title: 'End Trace Group',
       description: 'End the current trace group started with tracing_group',
+      annotations: readOnlyAnnotations,
       inputSchema: { sessionId: z.string().describe('Browser session ID') },
       outputSchema: schemas.successResult,
     },
@@ -375,6 +385,7 @@ Actions:
 - 'continue': Modify and forward the request (change URL, method, postData)
 
 URL patterns: Use glob patterns like "**/api/**" or regex strings`,
+      annotations: interactionAnnotations,
       inputSchema: schemas.routeInput,
       outputSchema: schemas.successResult,
     },
@@ -438,6 +449,7 @@ URL patterns: Use glob patterns like "**/api/**" or regex strings`,
       title: 'Remove Network Route',
       description:
         'Remove previously set network routes. If no pattern specified, removes all routes.',
+      annotations: destructiveAnnotations,
       inputSchema: schemas.unrouteInput,
       outputSchema: schemas.successResult,
     },
@@ -473,6 +485,7 @@ URL patterns: Use glob patterns like "**/api/**" or regex strings`,
       title: 'Start HAR Recording',
       description:
         'Start recording HTTP Archive (HAR) for network analysis. Records all network requests during the session.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.harRecordInput,
       outputSchema: schemas.pathResult,
     },
@@ -504,6 +517,7 @@ URL patterns: Use glob patterns like "**/api/**" or regex strings`,
       title: 'Playback HAR File',
       description:
         'Use a HAR file to mock network responses. Requests matching the HAR will return recorded responses.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.harPlaybackInput,
       outputSchema: schemas.pathResult,
     },
@@ -543,6 +557,7 @@ URL patterns: Use glob patterns like "**/api/**" or regex strings`,
       title: 'Generate PDF',
       description:
         'Generate a PDF of the current page (Chromium only). Useful for reports, invoices, or archiving pages.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.pdfInput,
       outputSchema: schemas.pathResult,
     },
@@ -603,6 +618,7 @@ URL patterns: Use glob patterns like "**/api/**" or regex strings`,
       title: 'Capture Console Logs',
       description:
         'Capture browser console messages for debugging. Start capturing, then get logs, then stop when done.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.consoleCaptureInput,
       outputSchema: schemas.consoleResult,
     },
@@ -722,6 +738,7 @@ URL patterns: Use glob patterns like "**/api/**" or regex strings`,
       title: 'Locate Frame',
       description:
         'Get information about an iframe. Use this before performing actions inside frames.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.frameInput,
       outputSchema: schemas.frameResult,
     },
@@ -773,6 +790,7 @@ URL patterns: Use glob patterns like "**/api/**" or regex strings`,
       title: 'Perform Action in Frame',
       description:
         'Perform an action (click, fill, getText, waitForSelector) inside an iframe.',
+      annotations: interactionAnnotations,
       inputSchema: schemas.frameActionInput,
       outputSchema: schemas.frameResult,
     },

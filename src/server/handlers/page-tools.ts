@@ -9,8 +9,10 @@ import {
   basePageInput,
   clipRegionSchema,
   imageFormatSchema,
+  interactionAnnotations,
   loadStateSchema,
   longTimeoutOption,
+  readOnlyAnnotations,
   waitStateSchema,
 } from './schemas.js';
 import { textContent } from './types.js';
@@ -146,6 +148,28 @@ const schemas = {
     inapplicable: z.number(),
     reportPath: z.string().optional(),
   },
+
+  // Accessibility snapshot input/output (LLM-friendly structured tree)
+  snapshotInput: {
+    ...basePageInput,
+    interestingOnly: z
+      .boolean()
+      .default(true)
+      .describe(
+        'Only include interesting nodes (controls, links, headings, etc.)'
+      ),
+    root: z
+      .string()
+      .optional()
+      .describe('CSS selector to limit snapshot to a specific element subtree'),
+  },
+  snapshotOutput: {
+    success: z.boolean(),
+    snapshot: z
+      .string()
+      .describe('YAML-like accessibility tree representation'),
+    elementCount: z.number().describe('Number of elements in the tree'),
+  },
 } as const;
 
 export function registerPageTools(ctx: ToolContext): void {
@@ -161,6 +185,7 @@ export function registerPageTools(ctx: ToolContext): void {
       title: 'Take Page Screenshot',
       description:
         'Capture a screenshot of the page, a specific element, or a region. Returns base64-encoded image.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.screenshotInput,
       outputSchema: schemas.screenshotOutput,
     },
@@ -229,6 +254,7 @@ export function registerPageTools(ctx: ToolContext): void {
     {
       title: 'Get Page Content',
       description: 'Retrieve the HTML and text content of the page',
+      annotations: readOnlyAnnotations,
       inputSchema: basePageInput,
       outputSchema: {
         success: z.boolean(),
@@ -261,6 +287,7 @@ export function registerPageTools(ctx: ToolContext): void {
       title: 'Evaluate JavaScript',
       description:
         'Execute JavaScript in the page context. RESTRICTED: Only allows safe, read-only operations (DOM inspection, property retrieval).',
+      annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         script: z.string().describe('JavaScript code to execute'),
@@ -291,6 +318,7 @@ export function registerPageTools(ctx: ToolContext): void {
       title: 'Wait for Selector',
       description:
         'Wait for an element matching the selector to appear or reach a specific state',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.waitSelectorInput,
       outputSchema: schemas.waitSelectorOutput,
     },
@@ -324,6 +352,7 @@ export function registerPageTools(ctx: ToolContext): void {
       title: 'Wait for Download',
       description:
         'Wait for a file download to complete after triggering an action',
+      annotations: readOnlyAnnotations,
       inputSchema: { ...basePageInput, ...longTimeoutOption },
       outputSchema: {
         success: z.boolean(),
@@ -353,6 +382,7 @@ export function registerPageTools(ctx: ToolContext): void {
       title: 'Wait for Load State',
       description:
         'Wait for the page to reach a specific load state. Recommended: use domcontentloaded for SPAs, networkidle for pages with async data loading.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.loadStateInput,
       outputSchema: schemas.successResult,
     },
@@ -377,6 +407,7 @@ export function registerPageTools(ctx: ToolContext): void {
       title: 'Run Accessibility Scan',
       description:
         'Scan the page for accessibility violations using axe-core. Returns WCAG violations with remediation guidance. Optionally generates an HTML report.',
+      annotations: readOnlyAnnotations,
       inputSchema: schemas.a11yScanInput,
       outputSchema: schemas.a11yScanOutput,
     },
@@ -428,6 +459,53 @@ export function registerPageTools(ctx: ToolContext): void {
       },
       'Error running accessibility scan'
     )
+  );
+
+  // ============================================================================
+  // Accessibility Snapshot Tool (LLM-optimized)
+  // ============================================================================
+
+  server.registerTool(
+    'browser_snapshot',
+    {
+      title: 'Get Accessibility Snapshot',
+      description: `Get a structured accessibility tree snapshot of the page. Returns a hierarchical tree of accessible elements with their roles, names, and states.
+
+This is optimized for LLM consumption as it provides semantic structure rather than raw HTML. Use this to understand page structure before interactions.
+
+Key features:
+- Returns elements with ARIA roles (button, link, textbox, etc.)
+- Includes accessible names, values, and states
+- Shows hierarchy with parent-child relationships
+- Filters to "interesting" elements by default (controls, headings, links)
+
+Use interestingOnly=false for complete tree, or root selector to focus on a specific region.`,
+      annotations: readOnlyAnnotations,
+      inputSchema: schemas.snapshotInput,
+      outputSchema: schemas.snapshotOutput,
+    },
+    createToolHandler(async ({ sessionId, pageId, interestingOnly, root }) => {
+      const result =
+        await browserManager.pageOperations.getAccessibilitySnapshot(
+          sessionId,
+          pageId,
+          { interestingOnly, root }
+        );
+
+      // The snapshot is now a YAML-like string from ariaSnapshot()
+      // which is already human-readable and LLM-friendly
+      const displayText =
+        result.snapshot || 'Empty page or no accessible elements';
+
+      return {
+        content: [
+          textContent(
+            `Accessibility snapshot (${result.elementCount} elements):\n${displayText}`
+          ),
+        ],
+        structuredContent: result,
+      };
+    }, 'Error getting accessibility snapshot')
   );
 }
 
