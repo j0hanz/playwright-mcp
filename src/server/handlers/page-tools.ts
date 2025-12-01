@@ -74,7 +74,9 @@ const schemas = {
   waitSelectorInput: {
     ...basePageInput,
     selector: z.string().describe('CSS selector to wait for'),
-    state: waitStateSchema.default('visible').describe('Expected element state'),
+    state: waitStateSchema
+      .default('visible')
+      .describe('Expected element state'),
     ...longTimeoutOption,
   },
   waitSelectorOutput: {

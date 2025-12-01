@@ -2,18 +2,11 @@
 // @see https://playwright.dev/docs/actionability
 
 import type { ElementInteractionOptions } from '../../config/types.js';
-import { Logger } from '../../utils/logger.js';
 import * as pageActions from '../page-actions.js';
 import { validateUploadPath } from '../security.js';
-import { SessionManager } from '../session-manager.js';
-import { executePageOperation } from '../utils/execution-helper.js';
+import { BaseAction } from './base-action.js';
 
-export class InteractionActions {
-  constructor(
-    private sessionManager: SessionManager,
-    private logger: Logger
-  ) {}
-
+export class InteractionActions extends BaseAction {
   async clickElement(options: ElementInteractionOptions): Promise<{
     success: boolean;
     elementInfo?: Record<string, unknown> | null;
@@ -21,9 +14,7 @@ export class InteractionActions {
   }> {
     const { sessionId, pageId, selector, timeout, force, trial } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       trial ? 'Trial click element' : 'Click element',
@@ -41,9 +32,7 @@ export class InteractionActions {
     options: ElementInteractionOptions & { text: string }
   ): Promise<{ success: boolean }> {
     const { sessionId, pageId, selector, text, timeout } = options;
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Fill input',
@@ -59,9 +48,7 @@ export class InteractionActions {
     options: ElementInteractionOptions
   ): Promise<{ success: boolean; trialRun?: boolean }> {
     const { sessionId, pageId, selector, timeout, trial } = options;
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       trial ? 'Trial hover element' : 'Hover element',
@@ -81,9 +68,7 @@ export class InteractionActions {
     value: string | string[],
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; selectedValues: string[] }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Select option',
@@ -107,9 +92,7 @@ export class InteractionActions {
     targetSelector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Drag and drop',
@@ -132,9 +115,7 @@ export class InteractionActions {
     key: string,
     options: { delay?: number } = {}
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Keyboard press',
@@ -151,9 +132,7 @@ export class InteractionActions {
     text: string,
     options: { delay?: number } = {}
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Keyboard type',
@@ -171,9 +150,7 @@ export class InteractionActions {
     y: number,
     options: { steps?: number } = {}
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Mouse move',
@@ -195,9 +172,7 @@ export class InteractionActions {
       delay?: number;
     } = {}
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Mouse click',
@@ -213,9 +188,7 @@ export class InteractionActions {
   ): Promise<{ success: boolean; trialRun?: boolean }> {
     const { sessionId, pageId, selector, timeout, force, trial } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       trial ? 'Trial double-click element' : 'Double-click element',
@@ -233,9 +206,7 @@ export class InteractionActions {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Focus element',
@@ -253,9 +224,7 @@ export class InteractionActions {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Blur element',
@@ -273,9 +242,7 @@ export class InteractionActions {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Clear input',
@@ -293,9 +260,7 @@ export class InteractionActions {
     selector: string,
     filePaths: string[]
   ): Promise<{ success: boolean; filesUploaded: number }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Upload files',
@@ -318,9 +283,7 @@ export class InteractionActions {
     checked: boolean,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       checked ? 'Check element' : 'Uncheck element',

@@ -12,11 +12,10 @@ import type {
   ToolResponse,
 } from '../../config/types.js';
 import {
-  ErrorCode,
+  getRetryHint,
   isMCPPlaywrightError,
   toError,
 } from '../../utils/error-handler.js';
-import type { ErrorCode as ErrorCodeType } from '../../utils/error-handler.js';
 import {
   DEFAULT_PAGE,
   DEFAULT_PAGE_SIZE,
@@ -36,68 +35,13 @@ export {
   exactMatchOption,
 } from './schemas.js';
 
+// Re-export getRetryHint for backward compatibility
+export { getRetryHint } from '../../utils/error-handler.js';
+
 // Request ID Generation
 
 export function generateRequestId(): string {
   return uuidv4().slice(0, 8);
-}
-
-// Retry Hints - Actionable guidance for each error code
-const RETRY_HINTS: Readonly<Record<ErrorCodeType, string>> = {
-  [ErrorCode.BROWSER_LAUNCH_FAILED]:
-    'Run `npx playwright install` to install browsers. Check system resources and permissions.',
-  [ErrorCode.BROWSER_CLOSED]:
-    'Browser was closed unexpectedly. Launch a new browser session with browser_launch.',
-  [ErrorCode.PAGE_NAVIGATION_FAILED]:
-    'Check URL validity and network connectivity. Ensure the server is running.',
-  [ErrorCode.PAGE_CRASHED]:
-    'Page crashed. Close and recreate the page. Consider reducing memory usage.',
-  [ErrorCode.ELEMENT_NOT_FOUND]:
-    'Element not found. Use Playwright locators: getByRole(), getByLabel(), getByTestId(). Try wait_for_selector first.',
-  [ErrorCode.ELEMENT_NOT_VISIBLE]:
-    'Element exists but is hidden. Check CSS (display, visibility, opacity). May need to scroll or wait.',
-  [ErrorCode.ELEMENT_NOT_ENABLED]:
-    'Element is disabled. Wait for it to become enabled or check application state.',
-  [ErrorCode.ELEMENT_DETACHED]:
-    'Element was removed from DOM (common in SPAs). Re-query using a fresh locator.',
-  [ErrorCode.TIMEOUT_EXCEEDED]:
-    'Operation timed out. Increase timeout, check element visibility, or use networkidle wait.',
-  [ErrorCode.NAVIGATION_TIMEOUT]:
-    'Navigation timed out. Check network, increase timeout, or use domcontentloaded instead of load.',
-  [ErrorCode.SESSION_NOT_FOUND]:
-    'Session not found. It may have expired (30 min timeout). Launch a new session.',
-  [ErrorCode.SESSION_EXPIRED]:
-    'Session expired due to inactivity. Sessions timeout after 30 minutes.',
-  [ErrorCode.PAGE_NOT_FOUND]:
-    'Page was closed or never created. Use browser_tabs to list pages or browser_navigate to create one.',
-  [ErrorCode.VALIDATION_FAILED]:
-    'Input validation failed. Check parameter types and values against the schema.',
-  [ErrorCode.INVALID_SELECTOR]:
-    'Selector syntax is invalid. Prefer Playwright locators: getByRole(), getByLabel(), getByTestId().',
-  [ErrorCode.INVALID_URL]:
-    'URL is invalid. Must use http:// or https:// protocol. Check for typos.',
-  [ErrorCode.ASSERTION_FAILED]:
-    'Assertion failed. Verify expected vs actual values. Consider using soft assertions for debugging.',
-  [ErrorCode.SCREENSHOT_FAILED]:
-    'Screenshot failed. Ensure page is loaded and visible. Check disk space and permissions.',
-  [ErrorCode.NETWORK_ERROR]:
-    'Network error. Check internet connectivity, proxy settings, and firewall rules.',
-  [ErrorCode.INTERNAL_ERROR]:
-    'Internal error occurred. Check server logs for details. This may be a bug.',
-  [ErrorCode.TOOL_NOT_FOUND]:
-    'Tool not found. Use sessions_list to see available tools.',
-  [ErrorCode.RATE_LIMIT_EXCEEDED]:
-    'Rate limit exceeded. Wait a moment and retry. Consider batching operations.',
-  [ErrorCode.CAPACITY_EXCEEDED]:
-    'Maximum session capacity reached. Close unused sessions with browser_close before launching new ones.',
-  [ErrorCode.SECURITY_VIOLATION]:
-    'Security policy violation. This operation is not permitted for security reasons.',
-  [ErrorCode.DIALOG_ERROR]:
-    'Dialog handling failed. Ensure there is a pending dialog before calling handle_dialog. Dialogs auto-dismiss after timeout.',
-};
-
-export function getRetryHint(code: ErrorCodeType): string | undefined {
-  return RETRY_HINTS[code];
 }
 
 // Pagination Utilities
@@ -160,7 +104,7 @@ export function toolErrorResponse(
 
   // Add retry hint for known error codes
   if (isMCPPlaywrightError(err)) {
-    const hint = RETRY_HINTS[err.code];
+    const hint = getRetryHint(err.code);
     if (hint) {
       parts.push(` [Hint: ${hint}]`);
     }

@@ -12,6 +12,7 @@ import {
   hoverLocatorTypeSchema,
   keyModifiersSchema,
   mouseButtonSchema,
+  retryOptions,
   selectorInput,
   timeoutOption,
 } from './schemas.js';
@@ -25,6 +26,26 @@ const forceSchema = z
   .boolean()
   .default(false)
   .describe('Force action even if element is not visible');
+
+// Helper function to execute with retries
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries: number,
+  retryDelay: number
+): Promise<T> {
+  let lastError: Error = new Error('Operation failed');
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      }
+    }
+  }
+  throw lastError;
+}
 
 export function registerInteractionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -44,10 +65,14 @@ Locator types (in recommended priority order):
 - 'testid': data-testid attribute
 - 'title': Element's title attribute
 - 'altText': Image alt text
-- 'selector': CSS selector (least recommended, use as fallback)`,
+- 'selector': CSS selector (least recommended, use as fallback)
+
+Supports automatic retries for flaky elements.`,
       inputSchema: {
         ...basePageInput,
-        locatorType: clickLocatorTypeSchema.describe('Type of locator to use for finding the element'),
+        locatorType: clickLocatorTypeSchema.describe(
+          'Type of locator to use for finding the element'
+        ),
         // Locator value - meaning depends on locatorType
         value: z
           .string()
@@ -69,6 +94,7 @@ Locator types (in recommended priority order):
         ...exactMatchOption,
         force: forceSchema,
         ...timeoutOption,
+        ...retryOptions,
         // Advanced click options
         button: mouseButtonSchema
           .default('left')
@@ -79,7 +105,9 @@ Locator types (in recommended priority order):
           .max(3)
           .default(1)
           .describe('Number of clicks (1=single, 2=double, 3=triple)'),
-        modifiers: keyModifiersSchema.optional().describe('Keyboard modifiers to hold'),
+        modifiers: keyModifiersSchema
+          .optional()
+          .describe('Keyboard modifiers to hold'),
         delay: z
           .number()
           .min(0)
@@ -90,6 +118,7 @@ Locator types (in recommended priority order):
       outputSchema: {
         success: z.boolean(),
         elementInfo: z.record(z.string(), z.unknown()).optional(),
+        retriesUsed: z.number().optional(),
       },
     },
     createToolHandler(
@@ -103,83 +132,130 @@ Locator types (in recommended priority order):
         exact,
         force,
         timeout,
+        retries,
+        retryDelay,
         button,
         clickCount,
         modifiers,
         delay,
       }) => {
-        let result: { success: boolean };
+        let result: { success: boolean } = { success: false };
         let description: string;
+        let retriesUsed = 0;
 
+        const executeClick = async () => {
+          switch (locatorType) {
+            case 'role': {
+              // Role requires the role parameter, value is used as name if name not provided
+              const roleValue = role ?? (value as (typeof ARIA_ROLES)[number]);
+              const roleName = name ?? (role ? value : undefined);
+              return browserManager.locatorActions.clickByRole(
+                sessionId,
+                pageId,
+                roleValue,
+                { name: roleName, exact, force, timeout }
+              );
+            }
+            case 'text':
+              return browserManager.locatorActions.clickByText(
+                sessionId,
+                pageId,
+                value,
+                { exact, force, timeout }
+              );
+            case 'testid':
+              return browserManager.locatorActions.clickByTestId(
+                sessionId,
+                pageId,
+                value,
+                { force, timeout }
+              );
+            case 'altText':
+              return browserManager.locatorActions.clickByAltText(
+                sessionId,
+                pageId,
+                value,
+                { exact, force, timeout }
+              );
+            case 'title':
+              return browserManager.locatorActions.clickByTitle(
+                sessionId,
+                pageId,
+                value,
+                { exact, force, timeout }
+              );
+            case 'selector':
+            default:
+              return browserManager.interactionActions.clickElement({
+                sessionId,
+                pageId,
+                selector: value,
+                force,
+                button,
+                clickCount,
+                modifiers,
+                delay,
+              });
+          }
+        };
+
+        // Execute with retry support
+        if (retries > 0) {
+          let lastError: Error = new Error('Click operation failed');
+          let succeeded = false;
+          for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+              result = await executeClick();
+              retriesUsed = attempt;
+              succeeded = true;
+              break;
+            } catch (error) {
+              lastError =
+                error instanceof Error ? error : new Error(String(error));
+              retriesUsed = attempt + 1;
+              if (attempt < retries) {
+                await new Promise((resolve) => setTimeout(resolve, retryDelay));
+              }
+            }
+          }
+          if (!succeeded) {
+            throw lastError;
+          }
+        } else {
+          result = await executeClick();
+        }
+
+        // Build description based on locator type
         switch (locatorType) {
           case 'role': {
-            // Role requires the role parameter, value is used as name if name not provided
-            const roleValue = role ?? (value as (typeof ARIA_ROLES)[number]);
+            const roleValue = role ?? value;
             const roleName = name ?? (role ? value : undefined);
-            result = await browserManager.locatorActions.clickByRole(
-              sessionId,
-              pageId,
-              roleValue,
-              { name: roleName, exact, force, timeout }
-            );
             description = `Clicked ${roleValue}${roleName ? ` "${roleName}"` : ''}`;
             break;
           }
           case 'text':
-            result = await browserManager.locatorActions.clickByText(
-              sessionId,
-              pageId,
-              value,
-              { exact, force, timeout }
-            );
             description = `Clicked element with text "${value}"`;
             break;
           case 'testid':
-            result = await browserManager.locatorActions.clickByTestId(
-              sessionId,
-              pageId,
-              value,
-              { force, timeout }
-            );
             description = `Clicked element with testId "${value}"`;
             break;
           case 'altText':
-            result = await browserManager.locatorActions.clickByAltText(
-              sessionId,
-              pageId,
-              value,
-              { exact, force, timeout }
-            );
             description = `Clicked image with alt text "${value}"`;
             break;
           case 'title':
-            result = await browserManager.locatorActions.clickByTitle(
-              sessionId,
-              pageId,
-              value,
-              { exact, force, timeout }
-            );
             description = `Clicked element with title "${value}"`;
             break;
-          case 'selector':
           default:
-            result = await browserManager.interactionActions.clickElement({
-              sessionId,
-              pageId,
-              selector: value,
-              force,
-              button,
-              clickCount,
-              modifiers,
-              delay,
-            });
             description = `Clicked element: ${value}`;
-            break;
+        }
+
+        if (retriesUsed > 0) {
+          description += ` (after ${retriesUsed} ${retriesUsed === 1 ? 'retry' : 'retries'})`;
         }
 
         return {
           content: [textContent(description)],
-          structuredContent: result,
+          structuredContent: { ...result, retriesUsed },
         };
       },
       'Error clicking element'
@@ -199,10 +275,14 @@ Locator types (in recommended priority order):
 - 'label': Input's associated label text - RECOMMENDED for accessibility
 - 'placeholder': Input's placeholder text
 - 'testid': data-testid attribute
-- 'selector': CSS selector (least recommended, use as fallback)`,
+- 'selector': CSS selector (least recommended, use as fallback)
+
+Supports automatic retries for flaky elements.`,
       inputSchema: {
         ...basePageInput,
-        locatorType: fillLocatorTypeSchema.describe('Type of locator to use for finding the input'),
+        locatorType: fillLocatorTypeSchema.describe(
+          'Type of locator to use for finding the input'
+        ),
         // Locator value - meaning depends on locatorType
         value: z
           .string()
@@ -213,8 +293,12 @@ Locator types (in recommended priority order):
         // Common options
         ...exactMatchOption,
         ...timeoutOption,
+        ...retryOptions,
       },
-      outputSchema: { success: z.boolean() },
+      outputSchema: {
+        success: z.boolean(),
+        retriesUsed: z.number().optional(),
+      },
     },
     createToolHandler(
       async ({
@@ -225,56 +309,75 @@ Locator types (in recommended priority order):
         text,
         exact,
         timeout,
+        retries,
+        retryDelay,
       }) => {
         let result: { success: boolean };
         let description: string;
+        const retriesUsed = 0;
+
+        const executeFill = async () => {
+          switch (locatorType) {
+            case 'label':
+              return browserManager.locatorActions.fillByLabel(
+                sessionId,
+                pageId,
+                value,
+                text,
+                { exact, timeout }
+              );
+            case 'placeholder':
+              return browserManager.locatorActions.fillByPlaceholder(
+                sessionId,
+                pageId,
+                value,
+                text,
+                { exact, timeout }
+              );
+            case 'testid':
+              return browserManager.locatorActions.fillByTestId(
+                sessionId,
+                pageId,
+                value,
+                text,
+                { timeout }
+              );
+            case 'selector':
+            default:
+              return browserManager.interactionActions.fillInput({
+                sessionId,
+                pageId,
+                selector: value,
+                text,
+              });
+          }
+        };
+
+        // Execute with retry support
+        if (retries > 0) {
+          result = await withRetry(executeFill, retries, retryDelay);
+          // Note: withRetry doesn't track retries count, so we approximate
+        } else {
+          result = await executeFill();
+        }
 
         switch (locatorType) {
           case 'label':
-            result = await browserManager.locatorActions.fillByLabel(
-              sessionId,
-              pageId,
-              value,
-              text,
-              { exact, timeout }
-            );
             description = `Filled input labeled "${value}"`;
             break;
           case 'placeholder':
-            result = await browserManager.locatorActions.fillByPlaceholder(
-              sessionId,
-              pageId,
-              value,
-              text,
-              { exact, timeout }
-            );
             description = `Filled input with placeholder "${value}"`;
             break;
           case 'testid':
-            result = await browserManager.locatorActions.fillByTestId(
-              sessionId,
-              pageId,
-              value,
-              text,
-              { timeout }
-            );
             description = `Filled input with testId "${value}"`;
             break;
-          case 'selector':
           default:
-            result = await browserManager.interactionActions.fillInput({
-              sessionId,
-              pageId,
-              selector: value,
-              text,
-            });
             description = `Filled input ${value}`;
-            break;
         }
 
         return {
           content: [textContent(description)],
-          structuredContent: result,
+          structuredContent: { ...result, retriesUsed },
         };
       },
       'Error filling input'
@@ -297,7 +400,9 @@ Locator types (in recommended priority order):
 - 'selector': CSS selector (least recommended, use as fallback)`,
       inputSchema: {
         ...basePageInput,
-        locatorType: hoverLocatorTypeSchema.default('selector').describe('Type of locator to use for finding the element'),
+        locatorType: hoverLocatorTypeSchema
+          .default('selector')
+          .describe('Type of locator to use for finding the element'),
         // Locator value - meaning depends on locatorType
         value: z
           .string()

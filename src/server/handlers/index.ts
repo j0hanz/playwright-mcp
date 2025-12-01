@@ -6,6 +6,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ToolContext } from '../../config/types.js';
 import type { BrowserManager } from '../../playwright/browser-manager.js';
 import { Logger } from '../../utils/logger.js';
+import { registerAdvancedTools } from './advanced-tools.js';
 import { registerAssertionTools } from './assertion-tools.js';
 import { registerBrowserTools } from './browser-tools.js';
 import { registerInteractionTools } from './interaction-tools.js';
@@ -37,6 +38,7 @@ export function registerAllHandlers(
     { name: 'assertion', register: registerAssertionTools },
     { name: 'page', register: registerPageTools },
     { name: 'test', register: registerTestTools },
+    { name: 'advanced', register: registerAdvancedTools },
   ];
 
   for (const { name, register } of registrations) {

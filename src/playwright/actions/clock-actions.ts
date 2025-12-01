@@ -1,19 +1,13 @@
 // Clock Actions - Time manipulation for testing
 
-import { Logger } from '../../utils/logger.js';
-import { SessionManager } from '../session-manager.js';
+import { BaseAction } from './base-action.js';
 
 /** Converts various time inputs to ISO string */
 function toISOString(time: number | string | Date): string {
   return new Date(time).toISOString();
 }
 
-export class ClockActions {
-  constructor(
-    private sessionManager: SessionManager,
-    private logger: Logger
-  ) {}
-
+export class ClockActions extends BaseAction {
   async installClock(
     sessionId: string,
     pageId: string,

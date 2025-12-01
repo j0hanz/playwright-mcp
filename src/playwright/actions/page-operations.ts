@@ -5,28 +5,28 @@ import AxeBuilder from '@axe-core/playwright';
 
 import type { Viewport } from '../../config/types.js';
 import { ErrorCode, ErrorHandler } from '../../utils/error-handler.js';
-import { Logger } from '../../utils/logger.js';
+import type { Logger } from '../../utils/logger.js';
 import * as pageActions from '../page-actions.js';
 import * as security from '../security.js';
-import { DialogManager } from '../dialog-manager.js';
-import { SessionManager } from '../session-manager.js';
-import { executePageOperation } from '../utils/execution-helper.js';
+import type { DialogManager } from '../dialog-manager.js';
+import type { SessionManager } from '../session-manager.js';
+import { BaseAction } from './base-action.js';
 
-export class PageOperations {
+export class PageOperations extends BaseAction {
   constructor(
-    private sessionManager: SessionManager,
-    private logger: Logger,
-    private dialogManager: DialogManager
-  ) {}
+    sessionManager: SessionManager,
+    logger: Logger,
+    private readonly dialogManager: DialogManager
+  ) {
+    super(sessionManager, logger);
+  }
 
   async resizeViewport(
     sessionId: string,
     pageId: string,
     viewport: Viewport
   ): Promise<{ success: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Resize viewport',
@@ -182,9 +182,7 @@ export class PageOperations {
       quality,
       omitBackground,
     } = options;
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Take screenshot',
@@ -233,9 +231,7 @@ export class PageOperations {
     sessionId: string,
     pageId: string
   ): Promise<{ html: string; text: string }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Get page content',
@@ -254,9 +250,7 @@ export class PageOperations {
       timeout?: number;
     } = {}
   ): Promise<{ found: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Wait for selector',
@@ -276,9 +270,7 @@ export class PageOperations {
     suggestedFilename: string;
     path: string | null;
   }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Wait for download',
@@ -331,9 +323,7 @@ export class PageOperations {
       reducedMotion?: 'reduce' | 'no-preference';
     }
   ): Promise<{ success: boolean; appliedSettings: string[] }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Prepare page',
@@ -410,9 +400,7 @@ export class PageOperations {
     incomplete: number;
     inapplicable: number;
   }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Run accessibility scan',
@@ -470,9 +458,7 @@ export class PageOperations {
     pageId: string,
     script: string
   ): Promise<{ result: unknown }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Evaluate script',

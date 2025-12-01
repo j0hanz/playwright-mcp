@@ -279,7 +279,9 @@ export function registerBrowserTools(ctx: ToolContext): void {
           .record(z.string(), z.string())
           .optional()
           .describe('Extra HTTP headers to send'),
-        geolocation: geolocationSchema.optional().describe('Geolocation override'),
+        geolocation: geolocationSchema
+          .optional()
+          .describe('Geolocation override'),
         permissions: z
           .array(z.string())
           .optional()

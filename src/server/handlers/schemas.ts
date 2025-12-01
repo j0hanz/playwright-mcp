@@ -249,6 +249,32 @@ export const selectorWithTimeout = {
 } as const;
 
 // ============================================================================
+// Retry Configuration Schema
+// ============================================================================
+
+/** Retry configuration for flaky operations */
+export const retryOptions = {
+  retries: z
+    .number()
+    .min(0)
+    .max(5)
+    .default(0)
+    .describe('Number of retry attempts for flaky operations (0-5)'),
+  retryDelay: z
+    .number()
+    .min(100)
+    .max(5000)
+    .default(500)
+    .describe('Delay between retries in milliseconds'),
+} as const;
+
+/** Retry schema object for use in tool inputs */
+export const retrySchema = z.object({
+  retries: z.number().min(0).max(5).default(0),
+  retryDelay: z.number().min(100).max(5000).default(500),
+});
+
+// ============================================================================
 // Accessibility Scan Schemas
 // ============================================================================
 

@@ -3,21 +3,14 @@
 
 import config from '../../config/server-config.js';
 import type { AriaRole } from '../../config/types.js';
-import { Logger } from '../../utils/logger.js';
 import * as pageActions from '../page-actions.js';
-import { SessionManager } from '../session-manager.js';
-import { executePageOperation } from '../utils/execution-helper.js';
+import { BaseAction } from './base-action.js';
 
 const TIMEOUTS = {
   ACTION: config.timeouts.action,
 } as const;
 
-export class LocatorActions {
-  constructor(
-    private sessionManager: SessionManager,
-    private logger: Logger
-  ) {}
-
+export class LocatorActions extends BaseAction {
   async clickByRole(
     sessionId: string,
     pageId: string,
@@ -31,9 +24,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { timeout = TIMEOUTS.ACTION, ...roleOptions } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Click by role',
@@ -53,9 +44,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { timeout = TIMEOUTS.ACTION, ...labelOptions } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Fill by label',
@@ -77,9 +66,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { timeout = TIMEOUTS.ACTION, ...textOptions } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Click by text',
@@ -99,9 +86,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { timeout = TIMEOUTS.ACTION, ...placeholderOptions } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Fill by placeholder',
@@ -123,9 +108,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { timeout = TIMEOUTS.ACTION, ...testIdOptions } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Click by testId',
@@ -148,9 +131,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const timeout = options.timeout ?? TIMEOUTS.ACTION;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Fill by testId',
@@ -170,9 +151,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { exact, force, timeout = TIMEOUTS.ACTION } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Click by alt text',
@@ -192,9 +171,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { exact, force, timeout = TIMEOUTS.ACTION } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Click by title',
@@ -218,9 +195,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { name, exact, timeout = TIMEOUTS.ACTION } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Hover by role',
@@ -240,9 +215,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { exact, timeout = TIMEOUTS.ACTION } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Hover by text',
@@ -262,9 +235,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { timeout = TIMEOUTS.ACTION } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Hover by testId',
@@ -287,9 +258,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { force, timeout = TIMEOUTS.ACTION } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Click with AND locator',
@@ -312,9 +281,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { force, timeout = TIMEOUTS.ACTION } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Click with OR locator',
@@ -338,9 +305,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const timeout = options.timeout ?? TIMEOUTS.ACTION;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Fill with AND locator',
@@ -364,9 +329,7 @@ export class LocatorActions {
     count: number;
     textContent?: string;
   }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Get element with AND locator',
@@ -393,9 +356,7 @@ export class LocatorActions {
     selector1: string,
     selector2: string
   ): Promise<{ visible: boolean }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Check visibility with AND locator',
@@ -423,9 +384,7 @@ export class LocatorActions {
   ): Promise<{ success: boolean }> {
     const { name, exact, force, timeout = TIMEOUTS.ACTION } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Click by role with filter',

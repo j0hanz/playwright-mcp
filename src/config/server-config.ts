@@ -145,7 +145,7 @@ export const config: ServerConfig = Object.freeze({
         max: 120 * MS_PER_SECOND,
       }
     ),
-    action: parseNumber(process.env.TIMEOUT_ACTION, 5 * MS_PER_SECOND, {
+    action: parseNumber(process.env.TIMEOUT_ACTION, 20 * MS_PER_SECOND, {
       min: 1 * MS_PER_SECOND,
       max: 60 * MS_PER_SECOND,
     }),

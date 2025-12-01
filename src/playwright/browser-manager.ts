@@ -7,7 +7,6 @@
  */
 import { Page } from 'playwright';
 
-import config from '../config/server-config.js';
 import {
   ErrorCode,
   ErrorHandler,
@@ -134,26 +133,8 @@ export class BrowserManager {
     return this.sessionManager.listSessions();
   }
 
-  getServerStatus(): {
-    activeSessions: number;
-    maxSessions: number;
-    availableSlots: number;
-    sessions: Array<{
-      id: string;
-      browserType: string;
-      pageCount: number;
-      lastActivity: Date;
-    }>;
-  } {
-    const sessions = this.sessionManager.listSessions();
-    const maxSessions = config.maxConcurrentSessions;
-
-    return {
-      activeSessions: sessions.length,
-      maxSessions,
-      availableSlots: Math.max(0, maxSessions - sessions.length),
-      sessions,
-    };
+  getServerStatus() {
+    return this.sessionManager.getStatus();
   }
 
   // Dialogs

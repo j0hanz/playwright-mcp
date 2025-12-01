@@ -4,19 +4,21 @@ import { v4 as uuidv4 } from 'uuid';
 
 import type { NavigationOptions } from '../../config/types.js';
 import { ErrorHandler, toError } from '../../utils/error-handler.js';
-import { Logger } from '../../utils/logger.js';
+import type { Logger } from '../../utils/logger.js';
 import * as pageActions from '../page-actions.js';
 import * as security from '../security.js';
-import { DialogManager } from '../dialog-manager.js';
-import { SessionManager } from '../session-manager.js';
-import { executePageOperation } from '../utils/execution-helper.js';
+import type { DialogManager } from '../dialog-manager.js';
+import type { SessionManager } from '../session-manager.js';
+import { BaseAction } from './base-action.js';
 
-export class NavigationActions {
+export class NavigationActions extends BaseAction {
   constructor(
-    private sessionManager: SessionManager,
-    private logger: Logger,
-    private dialogManager: DialogManager
-  ) {}
+    sessionManager: SessionManager,
+    logger: Logger,
+    private readonly dialogManager: DialogManager
+  ) {
+    super(sessionManager, logger);
+  }
 
   async navigateToPage(
     options: NavigationOptions
@@ -69,9 +71,7 @@ export class NavigationActions {
     sessionId: string,
     pageId: string
   ): Promise<{ success: boolean; url?: string }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Navigate back',
@@ -86,9 +86,7 @@ export class NavigationActions {
     sessionId: string,
     pageId: string
   ): Promise<{ success: boolean; url?: string }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Navigate forward',
@@ -106,9 +104,7 @@ export class NavigationActions {
       waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
     }
   ): Promise<{ success: boolean; url?: string }> {
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Reload page',

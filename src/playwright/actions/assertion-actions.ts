@@ -5,9 +5,7 @@ import { expect, type Locator } from '@playwright/test';
 import type { Page } from 'playwright';
 
 import config from '../../config/server-config.js';
-import { Logger } from '../../utils/logger.js';
-import { SessionManager } from '../session-manager.js';
-import { executePageOperation } from '../utils/execution-helper.js';
+import { BaseAction } from './base-action.js';
 
 const DEFAULT_ASSERTION_TIMEOUT = config.timeouts.assertion;
 
@@ -21,8 +19,7 @@ function createResult<T extends Record<string, unknown>>(
 
 /** Generic assertion executor - eliminates duplication across all assertion methods */
 async function runAssertion<T extends Record<string, unknown>>(
-  sessionManager: SessionManager,
-  logger: Logger,
+  baseAction: BaseAction,
   sessionId: string,
   pageId: string,
   operationName: string,
@@ -31,29 +28,20 @@ async function runAssertion<T extends Record<string, unknown>>(
   successResult: T,
   meta?: Record<string, unknown>
 ): Promise<{ success: boolean } & T> {
-  return executePageOperation(
-    sessionManager,
-    logger,
+  return (baseAction as AssertionActions).runPageAssertion(
     sessionId,
     pageId,
     operationName,
-    async (page) => {
-      try {
-        await assertFn(page);
-        return createResult(true, successResult);
-      } catch {
-        const actual = await getActual(page);
-        return createResult(false, actual);
-      }
-    },
+    assertFn,
+    getActual,
+    successResult,
     meta
   );
 }
 
 /** Locator-based assertion executor for element assertions */
 async function runLocatorAssertion<T extends Record<string, unknown>>(
-  sessionManager: SessionManager,
-  logger: Logger,
+  baseAction: BaseAction,
   sessionId: string,
   pageId: string,
   selector: string,
@@ -63,31 +51,74 @@ async function runLocatorAssertion<T extends Record<string, unknown>>(
   successResult: T,
   timeout: number = DEFAULT_ASSERTION_TIMEOUT
 ): Promise<{ success: boolean } & T> {
-  return executePageOperation(
-    sessionManager,
-    logger,
+  return (baseAction as AssertionActions).runLocatorPageAssertion(
     sessionId,
     pageId,
+    selector,
     operationName,
-    async (page) => {
-      const locator = page.locator(selector);
-      try {
-        await assertFn(locator, timeout);
-        return createResult(true, successResult);
-      } catch {
-        const actual = await getActual(locator);
-        return createResult(false, actual);
-      }
-    },
-    { selector }
+    assertFn,
+    getActual,
+    successResult,
+    timeout
   );
 }
 
-export class AssertionActions {
-  constructor(
-    private sessionManager: SessionManager,
-    private logger: Logger
-  ) {}
+export class AssertionActions extends BaseAction {
+  /** Internal helper for page-level assertions */
+  async runPageAssertion<T extends Record<string, unknown>>(
+    sessionId: string,
+    pageId: string,
+    operationName: string,
+    assertFn: (page: Page) => Promise<void>,
+    getActual: (page: Page) => Promise<T>,
+    successResult: T,
+    meta?: Record<string, unknown>
+  ): Promise<{ success: boolean } & T> {
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      operationName,
+      async (page) => {
+        try {
+          await assertFn(page);
+          return createResult(true, successResult);
+        } catch {
+          const actual = await getActual(page);
+          return createResult(false, actual);
+        }
+      },
+      meta
+    );
+  }
+
+  /** Internal helper for locator-based assertions */
+  async runLocatorPageAssertion<T extends Record<string, unknown>>(
+    sessionId: string,
+    pageId: string,
+    selector: string,
+    operationName: string,
+    assertFn: (locator: Locator, timeout: number) => Promise<void>,
+    getActual: (locator: Locator) => Promise<T>,
+    successResult: T,
+    timeout: number = DEFAULT_ASSERTION_TIMEOUT
+  ): Promise<{ success: boolean } & T> {
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      operationName,
+      async (page) => {
+        const locator = page.locator(selector);
+        try {
+          await assertFn(locator, timeout);
+          return createResult(true, successResult);
+        } catch {
+          const actual = await getActual(locator);
+          return createResult(false, actual);
+        }
+      },
+      { selector }
+    );
+  }
 
   async assertHidden(
     sessionId: string,
@@ -96,8 +127,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; hidden: boolean }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -120,8 +150,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; visible: boolean }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -146,9 +175,7 @@ export class AssertionActions {
   ): Promise<{ success: boolean; actualText?: string }> {
     const { exact = false, timeout = DEFAULT_ASSERTION_TIMEOUT } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Assert text',
@@ -180,9 +207,7 @@ export class AssertionActions {
   ): Promise<{ success: boolean; actualValue?: string }> {
     const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Assert attribute',
@@ -212,8 +237,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualValue?: string }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -237,8 +261,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; isChecked?: boolean }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -263,8 +286,7 @@ export class AssertionActions {
     const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
 
     return runAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       'Assert URL',
@@ -286,8 +308,7 @@ export class AssertionActions {
     const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
 
     return runAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       'Assert title',
@@ -307,8 +328,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; enabled: boolean }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -331,8 +351,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; disabled: boolean }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -355,8 +374,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; focused: boolean }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -383,8 +401,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualCount: number }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -407,8 +424,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualValue?: string }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -436,8 +452,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; editable: boolean }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -460,8 +475,7 @@ export class AssertionActions {
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; attached: boolean }> {
     return runLocatorAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       selector,
@@ -485,9 +499,7 @@ export class AssertionActions {
   ): Promise<{ success: boolean; inViewport: boolean }> {
     const { ratio, timeout = DEFAULT_ASSERTION_TIMEOUT } = options;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Assert in viewport',
@@ -538,9 +550,7 @@ export class AssertionActions {
   ): Promise<{ success: boolean; actualText?: string }> {
     const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
 
-    return executePageOperation(
-      this.sessionManager,
-      this.logger,
+    return this.executePageOperation(
       sessionId,
       pageId,
       'Assert text with regex',
@@ -569,8 +579,7 @@ export class AssertionActions {
     const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
 
     return runAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       'Assert URL with regex',
@@ -593,8 +602,7 @@ export class AssertionActions {
     const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
 
     return runAssertion(
-      this.sessionManager,
-      this.logger,
+      this,
       sessionId,
       pageId,
       'Assert title with regex',

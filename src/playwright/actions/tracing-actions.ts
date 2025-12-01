@@ -1,14 +1,8 @@
 // Tracing Actions - Playwright trace recording and grouping
 
-import { Logger } from '../../utils/logger.js';
-import { SessionManager } from '../session-manager.js';
+import { BaseAction } from './base-action.js';
 
-export class TracingActions {
-  constructor(
-    private sessionManager: SessionManager,
-    private logger: Logger
-  ) {}
-
+export class TracingActions extends BaseAction {
   async startTracing(
     sessionId: string,
     options: {
