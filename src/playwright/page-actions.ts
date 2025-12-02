@@ -4,12 +4,7 @@
 import type { Page } from 'playwright';
 
 import { timeoutOptions } from '../config/playwright-config.js';
-import type {
-  AriaRole,
-  KeyModifier,
-  MouseButton,
-  WaitUntilState,
-} from '../config/types.js';
+import type { AriaRole, MouseButton, WaitUntilState } from '../config/types.js';
 
 // Navigation Actions
 
@@ -65,25 +60,6 @@ export async function reload(
 }
 
 // Element Interaction Actions
-
-export async function clickElement(
-  page: Page,
-  selector: string,
-  options: {
-    force?: boolean;
-    button?: MouseButton;
-    clickCount?: number;
-    modifiers?: KeyModifier[];
-    delay?: number;
-    timeout?: number;
-  } = {}
-): Promise<{ success: boolean }> {
-  const { timeout = timeoutOptions.action, ...clickOptions } = options;
-
-  await page.locator(selector).click({ ...clickOptions, timeout });
-
-  return { success: true };
-}
 
 export async function clickByRole(
   page: Page,
@@ -183,18 +159,6 @@ export async function fillByPlaceholder(
   return { success: true };
 }
 
-export async function hoverElement(
-  page: Page,
-  selector: string,
-  options: { timeout?: number } = {}
-): Promise<{ success: boolean }> {
-  const { timeout = timeoutOptions.action } = options;
-
-  await page.hover(selector, { timeout });
-
-  return { success: true };
-}
-
 export async function selectOption(
   page: Page,
   selector: string,
@@ -206,19 +170,6 @@ export async function selectOption(
   const selected = await page.selectOption(selector, value, { timeout });
 
   return { success: true, selected };
-}
-
-export async function setChecked(
-  page: Page,
-  selector: string,
-  checked: boolean,
-  options: { timeout?: number } = {}
-): Promise<{ success: boolean }> {
-  const { timeout = timeoutOptions.action } = options;
-
-  await page.setChecked(selector, checked, { timeout });
-
-  return { success: true };
 }
 
 // Keyboard Actions
@@ -305,33 +256,6 @@ export async function waitForSelector(
   }
 }
 
-export async function waitForNavigation(
-  page: Page,
-  options: {
-    url?: string | RegExp;
-    waitUntil?: WaitUntilState;
-    timeout?: number;
-  } = {}
-): Promise<{ url: string }> {
-  const { timeout = timeoutOptions.navigation, ...waitOptions } = options;
-
-  await page.waitForURL(waitOptions.url ?? '**/*', { timeout, ...waitOptions });
-
-  return { url: page.url() };
-}
-
-export async function waitForLoadState(
-  page: Page,
-  state: 'load' | 'domcontentloaded' | 'networkidle' = 'load',
-  options: { timeout?: number } = {}
-): Promise<{ success: boolean }> {
-  const { timeout = timeoutOptions.navigation } = options;
-
-  await page.waitForLoadState(state, { timeout });
-
-  return { success: true };
-}
-
 // Page Content Actions
 
 export async function getContent(
@@ -362,33 +286,6 @@ export async function takeScreenshot(
   };
 }
 
-export async function generatePdf(
-  page: Page,
-  options: {
-    path?: string;
-    format?: 'A4' | 'Letter' | 'Legal';
-    landscape?: boolean;
-    printBackground?: boolean;
-  } = {}
-): Promise<{ base64?: string; path?: string }> {
-  const buffer = await page.pdf(options);
-
-  return {
-    base64: buffer.toString('base64'),
-    path: options.path,
-  };
-}
-
-export async function evaluate<T>(
-  page: Page,
-  script: string | ((arg: unknown) => T),
-  arg?: unknown
-): Promise<{ result: T }> {
-  const result = await page.evaluate(script as (arg: unknown) => T, arg);
-
-  return { result };
-}
-
 // Element Info Actions
 
 export async function getElementInfo(
@@ -406,10 +303,8 @@ export async function getElementInfo(
       locator.evaluate((el: Element) => {
         const attrs: Record<string, string> = {};
         for (let i = 0; i < el.attributes.length; i++) {
-          const attr = el.attributes.item(i);
-          if (attr) {
-            attrs[attr.name] = attr.value;
-          }
+          const attr = el.attributes[i];
+          attrs[attr.name] = attr.value;
         }
         return attrs;
       }),
@@ -426,14 +321,4 @@ export async function getElementInfo(
     isVisible,
     isEnabled,
   };
-}
-
-export async function getElementCount(
-  page: Page,
-  selector: string
-): Promise<{ count: number }> {
-  const locator = page.locator(selector);
-  const count = await locator.count();
-
-  return { count };
 }

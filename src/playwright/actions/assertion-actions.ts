@@ -1,122 +1,74 @@
 // Assertion Actions - Web-first assertions with auto-retry
 // @see https://playwright.dev/docs/test-assertions
 
-import { expect, type Locator } from '@playwright/test';
-import type { Page } from 'playwright';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import config from '../../config/server-config.js';
 import { BaseAction } from './base-action.js';
 
-const DEFAULT_ASSERTION_TIMEOUT = config.timeouts.assertion;
+const DEFAULT_TIMEOUT = config.timeouts.assertion;
 
 /** Creates a standardized assertion result object */
-function createResult<T extends Record<string, unknown>>(
+function result<T extends Record<string, unknown>>(
   success: boolean,
-  result: T
+  data: T
 ): { success: boolean } & T {
-  return { success, ...result };
-}
-
-/** Generic assertion executor - eliminates duplication across all assertion methods */
-async function runAssertion<T extends Record<string, unknown>>(
-  baseAction: BaseAction,
-  sessionId: string,
-  pageId: string,
-  operationName: string,
-  assertFn: (page: Page) => Promise<void>,
-  getActual: (page: Page) => Promise<T>,
-  successResult: T,
-  meta?: Record<string, unknown>
-): Promise<{ success: boolean } & T> {
-  return (baseAction as AssertionActions).runPageAssertion(
-    sessionId,
-    pageId,
-    operationName,
-    assertFn,
-    getActual,
-    successResult,
-    meta
-  );
-}
-
-/** Locator-based assertion executor for element assertions */
-async function runLocatorAssertion<T extends Record<string, unknown>>(
-  baseAction: BaseAction,
-  sessionId: string,
-  pageId: string,
-  selector: string,
-  operationName: string,
-  assertFn: (locator: Locator, timeout: number) => Promise<void>,
-  getActual: (locator: Locator) => Promise<T>,
-  successResult: T,
-  timeout: number = DEFAULT_ASSERTION_TIMEOUT
-): Promise<{ success: boolean } & T> {
-  return (baseAction as AssertionActions).runLocatorPageAssertion(
-    sessionId,
-    pageId,
-    selector,
-    operationName,
-    assertFn,
-    getActual,
-    successResult,
-    timeout
-  );
+  return { success, ...data };
 }
 
 export class AssertionActions extends BaseAction {
-  /** Internal helper for page-level assertions */
-  async runPageAssertion<T extends Record<string, unknown>>(
+  /** Execute a locator-based assertion with standardized error handling */
+  private async assertLocator<T extends Record<string, unknown>>(
     sessionId: string,
     pageId: string,
-    operationName: string,
-    assertFn: (page: Page) => Promise<void>,
+    selector: string,
+    operation: string,
+    assertFn: (locator: Locator, timeout: number) => Promise<void>,
+    getActual: (locator: Locator) => Promise<T>,
+    successData: T,
+    timeout = DEFAULT_TIMEOUT
+  ): Promise<{ success: boolean } & T> {
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      operation,
+      async (page) => {
+        const locator = page.locator(selector);
+        try {
+          await assertFn(locator, timeout);
+          return result(true, successData);
+        } catch {
+          return result(false, await getActual(locator));
+        }
+      },
+      { selector }
+    );
+  }
+
+  /** Execute a page-level assertion with standardized error handling */
+  private async assertPage<T extends Record<string, unknown>>(
+    sessionId: string,
+    pageId: string,
+    operation: string,
+    assertFn: (page: Page, timeout: number) => Promise<void>,
     getActual: (page: Page) => Promise<T>,
-    successResult: T,
+    successData: T,
+    timeout = DEFAULT_TIMEOUT,
     meta?: Record<string, unknown>
   ): Promise<{ success: boolean } & T> {
     return this.executePageOperation(
       sessionId,
       pageId,
-      operationName,
+      operation,
       async (page) => {
         try {
-          await assertFn(page);
-          return createResult(true, successResult);
+          await assertFn(page, timeout);
+          return result(true, successData);
         } catch {
-          const actual = await getActual(page);
-          return createResult(false, actual);
+          return result(false, await getActual(page));
         }
       },
       meta
-    );
-  }
-
-  /** Internal helper for locator-based assertions */
-  async runLocatorPageAssertion<T extends Record<string, unknown>>(
-    sessionId: string,
-    pageId: string,
-    selector: string,
-    operationName: string,
-    assertFn: (locator: Locator, timeout: number) => Promise<void>,
-    getActual: (locator: Locator) => Promise<T>,
-    successResult: T,
-    timeout: number = DEFAULT_ASSERTION_TIMEOUT
-  ): Promise<{ success: boolean } & T> {
-    return this.executePageOperation(
-      sessionId,
-      pageId,
-      operationName,
-      async (page) => {
-        const locator = page.locator(selector);
-        try {
-          await assertFn(locator, timeout);
-          return createResult(true, successResult);
-        } catch {
-          const actual = await getActual(locator);
-          return createResult(false, actual);
-        }
-      },
-      { selector }
     );
   }
 
@@ -126,18 +78,13 @@ export class AssertionActions extends BaseAction {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; hidden: boolean }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert hidden',
-      async (locator, timeout) => {
-        await expect(locator).toBeHidden({ timeout });
-      },
-      async (locator) => ({
-        hidden: await locator.isHidden().catch(() => true),
-      }),
+      (loc, t) => expect(loc).toBeHidden({ timeout: t }),
+      async (loc) => ({ hidden: await loc.isHidden().catch(() => true) }),
       { hidden: true },
       options.timeout
     );
@@ -149,18 +96,13 @@ export class AssertionActions extends BaseAction {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; visible: boolean }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert visible',
-      async (locator, timeout) => {
-        await expect(locator).toBeVisible({ timeout });
-      },
-      async (locator) => ({
-        visible: await locator.isVisible().catch(() => false),
-      }),
+      (loc, t) => expect(loc).toBeVisible({ timeout: t }),
+      async (loc) => ({ visible: await loc.isVisible().catch(() => false) }),
       { visible: true },
       options.timeout
     );
@@ -173,27 +115,24 @@ export class AssertionActions extends BaseAction {
     expectedText: string,
     options: { exact?: boolean; timeout?: number } = {}
   ): Promise<{ success: boolean; actualText?: string }> {
-    const { exact = false, timeout = DEFAULT_ASSERTION_TIMEOUT } = options;
+    const { exact = false, timeout = DEFAULT_TIMEOUT } = options;
+    const assertFn = exact
+      ? (loc: Locator, t: number) =>
+          expect(loc).toHaveText(expectedText, { timeout: t })
+      : (loc: Locator, t: number) =>
+          expect(loc).toContainText(expectedText, { timeout: t });
 
-    return this.executePageOperation(
+    return this.assertLocator(
       sessionId,
       pageId,
+      selector,
       'Assert text',
-      async (page) => {
-        const locator = page.locator(selector);
-        try {
-          const assertion = exact
-            ? expect(locator).toHaveText(expectedText, { timeout })
-            : expect(locator).toContainText(expectedText, { timeout });
-          await assertion;
-          const actualText = (await locator.textContent()) ?? '';
-          return createResult(true, { actualText: actualText.trim() });
-        } catch {
-          const actualText = await locator.textContent().catch(() => undefined);
-          return createResult(false, { actualText: actualText?.trim() });
-        }
-      },
-      { selector, expectedText }
+      assertFn,
+      async (loc) => ({
+        actualText: (await loc.textContent().catch(() => undefined))?.trim(),
+      }),
+      { actualText: expectedText },
+      timeout
     );
   }
 
@@ -205,27 +144,19 @@ export class AssertionActions extends BaseAction {
     expectedValue: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualValue?: string }> {
-    const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
-
-    return this.executePageOperation(
+    return this.assertLocator(
       sessionId,
       pageId,
+      selector,
       'Assert attribute',
-      async (page) => {
-        const locator = page.locator(selector);
-        try {
-          await expect(locator).toHaveAttribute(attribute, expectedValue, {
-            timeout,
-          });
-          return createResult(true, { actualValue: expectedValue });
-        } catch {
-          const actualValue = await locator
-            .getAttribute(attribute)
-            .catch(() => null);
-          return createResult(false, { actualValue: actualValue ?? undefined });
-        }
-      },
-      { selector, attribute, expectedValue }
+      (loc, t) =>
+        expect(loc).toHaveAttribute(attribute, expectedValue, { timeout: t }),
+      async (loc) => ({
+        actualValue:
+          (await loc.getAttribute(attribute).catch(() => null)) ?? undefined,
+      }),
+      { actualValue: expectedValue },
+      options.timeout
     );
   }
 
@@ -236,17 +167,14 @@ export class AssertionActions extends BaseAction {
     expectedValue: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualValue?: string }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert value',
-      async (locator, timeout) => {
-        await expect(locator).toHaveValue(expectedValue, { timeout });
-      },
-      async (locator) => ({
-        actualValue: await locator.inputValue().catch(() => undefined),
+      (loc, t) => expect(loc).toHaveValue(expectedValue, { timeout: t }),
+      async (loc) => ({
+        actualValue: await loc.inputValue().catch(() => undefined),
       }),
       { actualValue: expectedValue },
       options.timeout
@@ -260,17 +188,14 @@ export class AssertionActions extends BaseAction {
     checked: boolean,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; isChecked?: boolean }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert checked',
-      async (locator, timeout) => {
-        await expect(locator).toBeChecked({ checked, timeout });
-      },
-      async (locator) => ({
-        isChecked: await locator.isChecked().catch(() => undefined),
+      (loc, t) => expect(loc).toBeChecked({ checked, timeout: t }),
+      async (loc) => ({
+        isChecked: await loc.isChecked().catch(() => undefined),
       }),
       { isChecked: checked },
       options.timeout
@@ -283,18 +208,14 @@ export class AssertionActions extends BaseAction {
     expectedUrl: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualUrl?: string }> {
-    const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
-
-    return runAssertion(
-      this,
+    return this.assertPage(
       sessionId,
       pageId,
       'Assert URL',
-      async (page) => {
-        await expect(page).toHaveURL(expectedUrl, { timeout });
-      },
+      (page, t) => expect(page).toHaveURL(expectedUrl, { timeout: t }),
       (page) => Promise.resolve({ actualUrl: page.url() }),
       { actualUrl: expectedUrl },
+      options.timeout,
       { expectedUrl }
     );
   }
@@ -305,18 +226,14 @@ export class AssertionActions extends BaseAction {
     expectedTitle: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualTitle?: string }> {
-    const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
-
-    return runAssertion(
-      this,
+    return this.assertPage(
       sessionId,
       pageId,
       'Assert title',
-      async (page) => {
-        await expect(page).toHaveTitle(expectedTitle, { timeout });
-      },
+      (page, t) => expect(page).toHaveTitle(expectedTitle, { timeout: t }),
       async (page) => ({ actualTitle: await page.title() }),
       { actualTitle: expectedTitle },
+      options.timeout,
       { expectedTitle }
     );
   }
@@ -327,18 +244,13 @@ export class AssertionActions extends BaseAction {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; enabled: boolean }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert enabled',
-      async (locator, timeout) => {
-        await expect(locator).toBeEnabled({ timeout });
-      },
-      async (locator) => ({
-        enabled: await locator.isEnabled().catch(() => false),
-      }),
+      (loc, t) => expect(loc).toBeEnabled({ timeout: t }),
+      async (loc) => ({ enabled: await loc.isEnabled().catch(() => false) }),
       { enabled: true },
       options.timeout
     );
@@ -350,18 +262,13 @@ export class AssertionActions extends BaseAction {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; disabled: boolean }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert disabled',
-      async (locator, timeout) => {
-        await expect(locator).toBeDisabled({ timeout });
-      },
-      async (locator) => ({
-        disabled: await locator.isDisabled().catch(() => false),
-      }),
+      (loc, t) => expect(loc).toBeDisabled({ timeout: t }),
+      async (loc) => ({ disabled: await loc.isDisabled().catch(() => false) }),
       { disabled: true },
       options.timeout
     );
@@ -373,21 +280,17 @@ export class AssertionActions extends BaseAction {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; focused: boolean }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert focused',
-      async (locator, timeout) => {
-        await expect(locator).toBeFocused({ timeout });
-      },
-      async (locator) => {
-        const focused = await locator
+      (loc, t) => expect(loc).toBeFocused({ timeout: t }),
+      async (loc) => ({
+        focused: await loc
           .evaluate((el) => document.activeElement === el)
-          .catch(() => false);
-        return { focused };
-      },
+          .catch(() => false),
+      }),
       { focused: true },
       options.timeout
     );
@@ -400,16 +303,13 @@ export class AssertionActions extends BaseAction {
     expectedCount: number,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualCount: number }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert count',
-      async (locator, timeout) => {
-        await expect(locator).toHaveCount(expectedCount, { timeout });
-      },
-      async (locator) => ({ actualCount: await locator.count() }),
+      (loc, t) => expect(loc).toHaveCount(expectedCount, { timeout: t }),
+      async (loc) => ({ actualCount: await loc.count() }),
       { actualCount: expectedCount },
       options.timeout
     );
@@ -423,17 +323,15 @@ export class AssertionActions extends BaseAction {
     expectedValue: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualValue?: string }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert CSS',
-      async (locator, timeout) => {
-        await expect(locator).toHaveCSS(property, expectedValue, { timeout });
-      },
-      async (locator) => ({
-        actualValue: await locator
+      (loc, t) =>
+        expect(loc).toHaveCSS(property, expectedValue, { timeout: t }),
+      async (loc) => ({
+        actualValue: await loc
           .evaluate(
             (el, prop) => getComputedStyle(el).getPropertyValue(prop),
             property
@@ -451,18 +349,13 @@ export class AssertionActions extends BaseAction {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; editable: boolean }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert editable',
-      async (locator, timeout) => {
-        await expect(locator).toBeEditable({ timeout });
-      },
-      async (locator) => ({
-        editable: await locator.isEditable().catch(() => false),
-      }),
+      (loc, t) => expect(loc).toBeEditable({ timeout: t }),
+      async (loc) => ({ editable: await loc.isEditable().catch(() => false) }),
       { editable: true },
       options.timeout
     );
@@ -474,18 +367,13 @@ export class AssertionActions extends BaseAction {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; attached: boolean }> {
-    return runLocatorAssertion(
-      this,
+    return this.assertLocator(
       sessionId,
       pageId,
       selector,
       'Assert attached',
-      async (locator, timeout) => {
-        await expect(locator).toBeAttached({ timeout });
-      },
-      async (locator) => ({
-        attached: (await locator.count()) > 0,
-      }),
+      (loc, t) => expect(loc).toBeAttached({ timeout: t }),
+      async (loc) => ({ attached: (await loc.count()) > 0 }),
       { attached: true },
       options.timeout
     );
@@ -497,7 +385,7 @@ export class AssertionActions extends BaseAction {
     selector: string,
     options: { timeout?: number; ratio?: number } = {}
   ): Promise<{ success: boolean; inViewport: boolean }> {
-    const { ratio, timeout = DEFAULT_ASSERTION_TIMEOUT } = options;
+    const { ratio, timeout = DEFAULT_TIMEOUT } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -507,34 +395,25 @@ export class AssertionActions extends BaseAction {
         const locator = page.locator(selector);
         try {
           await expect(locator).toBeInViewport({ timeout, ratio });
-          return createResult(true, { inViewport: true });
+          return result(true, { inViewport: true });
         } catch {
-          // Check actual viewport intersection
           const inViewport = await locator
             .evaluate((el, r) => {
               const rect = el.getBoundingClientRect();
-              const viewportHeight = window.innerHeight;
-              const viewportWidth = window.innerWidth;
-
-              // Calculate intersection area
+              const { innerHeight, innerWidth } = window;
               const visibleWidth =
-                Math.min(rect.right, viewportWidth) - Math.max(rect.left, 0);
+                Math.min(rect.right, innerWidth) - Math.max(rect.left, 0);
               const visibleHeight =
-                Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
-
+                Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0);
               if (visibleWidth <= 0 || visibleHeight <= 0) return false;
-
               const visibleArea = visibleWidth * visibleHeight;
               const totalArea = rect.width * rect.height;
-
               if (totalArea === 0) return false;
-
               const visibleRatio = visibleArea / totalArea;
               return r ? visibleRatio >= r : visibleRatio > 0;
             }, ratio)
             .catch(() => false);
-
-          return createResult(false, { inViewport });
+          return result(false, { inViewport });
         }
       },
       { selector, ratio }
@@ -548,25 +427,20 @@ export class AssertionActions extends BaseAction {
     pattern: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualText?: string }> {
-    const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
+    const timeout = options.timeout ?? DEFAULT_TIMEOUT;
+    const regex = new RegExp(pattern);
 
-    return this.executePageOperation(
+    return this.assertLocator(
       sessionId,
       pageId,
+      selector,
       'Assert text with regex',
-      async (page) => {
-        const locator = page.locator(selector);
-        try {
-          const regex = new RegExp(pattern);
-          await expect(locator).toHaveText(regex, { timeout });
-          const actualText = (await locator.textContent()) ?? '';
-          return createResult(true, { actualText: actualText.trim() });
-        } catch {
-          const actualText = await locator.textContent().catch(() => undefined);
-          return createResult(false, { actualText: actualText?.trim() });
-        }
-      },
-      { selector, pattern }
+      (loc, t) => expect(loc).toHaveText(regex, { timeout: t }),
+      async (loc) => ({
+        actualText: (await loc.textContent().catch(() => undefined))?.trim(),
+      }),
+      { actualText: pattern },
+      timeout
     );
   }
 
@@ -576,19 +450,16 @@ export class AssertionActions extends BaseAction {
     pattern: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualUrl?: string }> {
-    const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
+    const regex = new RegExp(pattern);
 
-    return runAssertion(
-      this,
+    return this.assertPage(
       sessionId,
       pageId,
       'Assert URL with regex',
-      async (page) => {
-        const regex = new RegExp(pattern);
-        await expect(page).toHaveURL(regex, { timeout });
-      },
+      (page, t) => expect(page).toHaveURL(regex, { timeout: t }),
       (page) => Promise.resolve({ actualUrl: page.url() }),
       { actualUrl: pattern },
+      options.timeout,
       { pattern }
     );
   }
@@ -599,19 +470,16 @@ export class AssertionActions extends BaseAction {
     pattern: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; actualTitle?: string }> {
-    const timeout = options.timeout ?? DEFAULT_ASSERTION_TIMEOUT;
+    const regex = new RegExp(pattern);
 
-    return runAssertion(
-      this,
+    return this.assertPage(
       sessionId,
       pageId,
       'Assert title with regex',
-      async (page) => {
-        const regex = new RegExp(pattern);
-        await expect(page).toHaveTitle(regex, { timeout });
-      },
+      (page, t) => expect(page).toHaveTitle(regex, { timeout: t }),
       async (page) => ({ actualTitle: await page.title() }),
       { actualTitle: pattern },
+      options.timeout,
       { pattern }
     );
   }

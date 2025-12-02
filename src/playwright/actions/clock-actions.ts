@@ -13,14 +13,19 @@ export class ClockActions extends BaseAction {
     pageId: string,
     options: { time?: number | string | Date } = {}
   ): Promise<{ success: boolean; installedTime?: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    const time = options.time ? new Date(options.time) : undefined;
-    await page.clock.install({ time });
-    this.sessionManager.updateActivity(sessionId);
-    return {
-      success: true,
-      installedTime: time ? toISOString(time) : toISOString(new Date()),
-    };
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Install clock',
+      async (page) => {
+        const time = options.time ? new Date(options.time) : undefined;
+        await page.clock.install({ time });
+        return {
+          success: true,
+          installedTime: time ? toISOString(time) : toISOString(new Date()),
+        };
+      }
+    );
   }
 
   async setFixedTime(
@@ -28,32 +33,48 @@ export class ClockActions extends BaseAction {
     pageId: string,
     time: number | string | Date
   ): Promise<{ success: boolean; fixedTime: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    const fixedDate = new Date(time);
-    await page.clock.setFixedTime(fixedDate);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, fixedTime: toISOString(fixedDate) };
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Set fixed time',
+      async (page) => {
+        const fixedDate = new Date(time);
+        await page.clock.setFixedTime(fixedDate);
+        return { success: true, fixedTime: toISOString(fixedDate) };
+      },
+      { time: toISOString(time) }
+    );
   }
 
   async pauseClock(
     sessionId: string,
     pageId: string
   ): Promise<{ success: boolean; pausedAt: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    const currentTime = await page.evaluate(() => Date.now());
-    await page.clock.pauseAt(currentTime);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, pausedAt: toISOString(currentTime) };
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Pause clock',
+      async (page) => {
+        const currentTime = await page.evaluate(() => Date.now());
+        await page.clock.pauseAt(currentTime);
+        return { success: true, pausedAt: toISOString(currentTime) };
+      }
+    );
   }
 
   async resumeClock(
     sessionId: string,
     pageId: string
   ): Promise<{ success: boolean }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.clock.resume();
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true };
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Resume clock',
+      async (page) => {
+        await page.clock.resume();
+        return { success: true };
+      }
+    );
   }
 
   async runClockFor(
@@ -61,13 +82,19 @@ export class ClockActions extends BaseAction {
     pageId: string,
     duration: number | string
   ): Promise<{ success: boolean; advancedBy: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.clock.runFor(duration);
-    this.sessionManager.updateActivity(sessionId);
-    return {
-      success: true,
-      advancedBy: typeof duration === 'number' ? `${duration}ms` : duration,
-    };
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Run clock for',
+      async (page) => {
+        await page.clock.runFor(duration);
+        return {
+          success: true,
+          advancedBy: typeof duration === 'number' ? `${duration}ms` : duration,
+        };
+      },
+      { duration: typeof duration === 'number' ? `${duration}ms` : duration }
+    );
   }
 
   async fastForwardClock(
@@ -75,13 +102,19 @@ export class ClockActions extends BaseAction {
     pageId: string,
     ticks: number | string
   ): Promise<{ success: boolean; fastForwardedBy: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.clock.fastForward(ticks);
-    this.sessionManager.updateActivity(sessionId);
-    return {
-      success: true,
-      fastForwardedBy: typeof ticks === 'number' ? `${ticks}ms` : ticks,
-    };
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Fast forward clock',
+      async (page) => {
+        await page.clock.fastForward(ticks);
+        return {
+          success: true,
+          fastForwardedBy: typeof ticks === 'number' ? `${ticks}ms` : ticks,
+        };
+      },
+      { ticks: typeof ticks === 'number' ? `${ticks}ms` : ticks }
+    );
   }
 
   async setSystemTime(
@@ -89,10 +122,16 @@ export class ClockActions extends BaseAction {
     pageId: string,
     time: number | string | Date
   ): Promise<{ success: boolean; systemTime: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    const newTime = new Date(time);
-    await page.clock.setSystemTime(newTime);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, systemTime: toISOString(newTime) };
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Set system time',
+      async (page) => {
+        const newTime = new Date(time);
+        await page.clock.setSystemTime(newTime);
+        return { success: true, systemTime: toISOString(newTime) };
+      },
+      { time: toISOString(time) }
+    );
   }
 }

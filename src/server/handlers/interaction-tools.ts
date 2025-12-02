@@ -29,16 +29,23 @@ const forceSchema = z
   .default(false)
   .describe('Force action even if element is not visible');
 
-// Helper function to execute with retries
+/** Result from retry operation including retry count */
+interface RetryResult<T> {
+  result: T;
+  retriesUsed: number;
+}
+
+/** Execute function with retry support, returning both result and retry count */
 async function withRetry<T>(
   fn: () => Promise<T>,
   retries: number,
   retryDelay: number
-): Promise<T> {
+): Promise<RetryResult<T>> {
   let lastError: Error = new Error('Operation failed');
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      return await fn();
+      const result = await fn();
+      return { result, retriesUsed: attempt };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt < retries) {
@@ -318,7 +325,7 @@ Supports automatic retries for flaky elements.`,
       }) => {
         let result: { success: boolean };
         let description: string;
-        const retriesUsed = 0;
+        let retriesUsed = 0;
 
         const executeFill = async () => {
           switch (locatorType) {
@@ -359,8 +366,9 @@ Supports automatic retries for flaky elements.`,
 
         // Execute with retry support
         if (retries > 0) {
-          result = await withRetry(executeFill, retries, retryDelay);
-          // Note: withRetry doesn't track retries count, so we approximate
+          const retryResult = await withRetry(executeFill, retries, retryDelay);
+          result = retryResult.result;
+          retriesUsed = retryResult.retriesUsed;
         } else {
           result = await executeFill();
         }
@@ -377,6 +385,10 @@ Supports automatic retries for flaky elements.`,
             break;
           default:
             description = `Filled input ${value}`;
+        }
+
+        if (retriesUsed > 0) {
+          description += ` (after ${retriesUsed} ${retriesUsed === 1 ? 'retry' : 'retries'})`;
         }
 
         return {

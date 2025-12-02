@@ -215,47 +215,53 @@ export function isPlaywrightTimeoutError(error: unknown): boolean {
 
 // Error Pattern Mapping - Grouped by category for maintainability
 
-const STRING_ERROR_PATTERNS = new Map<string, ErrorCode>([
+const STRING_ERROR_PATTERNS: ReadonlyArray<{
+  pattern: string;
+  code: ErrorCode;
+}> = [
   // Timeout errors
-  ['TimeoutError', ErrorCode.TIMEOUT_EXCEEDED],
-  ['Timeout', ErrorCode.TIMEOUT_EXCEEDED],
+  { pattern: 'TimeoutError', code: ErrorCode.TIMEOUT_EXCEEDED },
+  { pattern: 'Timeout', code: ErrorCode.TIMEOUT_EXCEEDED },
   // Navigation errors
-  ['Navigation failed', ErrorCode.PAGE_NAVIGATION_FAILED],
-  ['net::ERR_', ErrorCode.PAGE_NAVIGATION_FAILED],
-  ['ERR_NAME_NOT_RESOLVED', ErrorCode.PAGE_NAVIGATION_FAILED],
-  ['ERR_CONNECTION_REFUSED', ErrorCode.NETWORK_ERROR],
-  ['ERR_INTERNET_DISCONNECTED', ErrorCode.NETWORK_ERROR],
+  { pattern: 'Navigation failed', code: ErrorCode.PAGE_NAVIGATION_FAILED },
+  { pattern: 'net::ERR_', code: ErrorCode.PAGE_NAVIGATION_FAILED },
+  { pattern: 'ERR_NAME_NOT_RESOLVED', code: ErrorCode.PAGE_NAVIGATION_FAILED },
+  { pattern: 'ERR_CONNECTION_REFUSED', code: ErrorCode.NETWORK_ERROR },
+  { pattern: 'ERR_INTERNET_DISCONNECTED', code: ErrorCode.NETWORK_ERROR },
   // Element errors
-  ['waiting for selector', ErrorCode.ELEMENT_NOT_FOUND],
-  ['waiting for locator', ErrorCode.ELEMENT_NOT_FOUND],
-  ['Element not found', ErrorCode.ELEMENT_NOT_FOUND],
-  ['no element matches', ErrorCode.ELEMENT_NOT_FOUND],
-  ['strict mode violation', ErrorCode.ELEMENT_NOT_FOUND],
-  ['resolved to', ErrorCode.ELEMENT_NOT_FOUND],
-  ['element is not visible', ErrorCode.ELEMENT_NOT_VISIBLE],
-  ['element is not enabled', ErrorCode.ELEMENT_NOT_ENABLED],
-  ['Element is detached', ErrorCode.ELEMENT_DETACHED],
+  { pattern: 'waiting for selector', code: ErrorCode.ELEMENT_NOT_FOUND },
+  { pattern: 'waiting for locator', code: ErrorCode.ELEMENT_NOT_FOUND },
+  { pattern: 'Element not found', code: ErrorCode.ELEMENT_NOT_FOUND },
+  { pattern: 'no element matches', code: ErrorCode.ELEMENT_NOT_FOUND },
+  { pattern: 'strict mode violation', code: ErrorCode.ELEMENT_NOT_FOUND },
+  { pattern: 'resolved to', code: ErrorCode.ELEMENT_NOT_FOUND },
+  { pattern: 'element is not visible', code: ErrorCode.ELEMENT_NOT_VISIBLE },
+  { pattern: 'element is not enabled', code: ErrorCode.ELEMENT_NOT_ENABLED },
+  { pattern: 'Element is detached', code: ErrorCode.ELEMENT_DETACHED },
   // Session errors
-  ['Session not found', ErrorCode.SESSION_NOT_FOUND],
-  ['Page not found', ErrorCode.PAGE_NOT_FOUND],
-  ['Browser closed', ErrorCode.BROWSER_CLOSED],
-  ['Target closed', ErrorCode.SESSION_NOT_FOUND],
-  ['Context destroyed', ErrorCode.SESSION_NOT_FOUND],
-  ['Frame detached', ErrorCode.ELEMENT_DETACHED],
-  ['Page crashed', ErrorCode.PAGE_CRASHED],
+  { pattern: 'Session not found', code: ErrorCode.SESSION_NOT_FOUND },
+  { pattern: 'Page not found', code: ErrorCode.PAGE_NOT_FOUND },
+  { pattern: 'Browser closed', code: ErrorCode.BROWSER_CLOSED },
+  { pattern: 'Target closed', code: ErrorCode.SESSION_NOT_FOUND },
+  { pattern: 'Context destroyed', code: ErrorCode.SESSION_NOT_FOUND },
+  { pattern: 'Frame detached', code: ErrorCode.ELEMENT_DETACHED },
+  { pattern: 'Page crashed', code: ErrorCode.PAGE_CRASHED },
   // Execution context errors
-  ['Execution context was destroyed', ErrorCode.PAGE_NAVIGATION_FAILED],
-  ['Protocol error', ErrorCode.INTERNAL_ERROR],
+  {
+    pattern: 'Execution context was destroyed',
+    code: ErrorCode.PAGE_NAVIGATION_FAILED,
+  },
+  { pattern: 'Protocol error', code: ErrorCode.INTERNAL_ERROR },
   // Browser launch errors
-  ['browserType.launch', ErrorCode.BROWSER_LAUNCH_FAILED],
-  ['Failed to launch', ErrorCode.BROWSER_LAUNCH_FAILED],
-  ['executable doesn', ErrorCode.BROWSER_LAUNCH_FAILED],
+  { pattern: 'browserType.launch', code: ErrorCode.BROWSER_LAUNCH_FAILED },
+  { pattern: 'Failed to launch', code: ErrorCode.BROWSER_LAUNCH_FAILED },
+  { pattern: 'executable doesn', code: ErrorCode.BROWSER_LAUNCH_FAILED },
   // Selector errors
-  ['Selector resolved to', ErrorCode.INVALID_SELECTOR],
-  ['Unknown engine', ErrorCode.INVALID_SELECTOR],
+  { pattern: 'Selector resolved to', code: ErrorCode.INVALID_SELECTOR },
+  { pattern: 'Unknown engine', code: ErrorCode.INVALID_SELECTOR },
   // Screenshot errors
-  ['screenshot', ErrorCode.SCREENSHOT_FAILED],
-]);
+  { pattern: 'screenshot', code: ErrorCode.SCREENSHOT_FAILED },
+];
 
 const REGEX_ERROR_PATTERNS: ReadonlyArray<{
   pattern: RegExp;
@@ -265,8 +271,8 @@ const REGEX_ERROR_PATTERNS: ReadonlyArray<{
 function mapErrorToCode(error: Error): ErrorCode {
   const errorString = `${error.name} ${error.message}`;
 
-  // Check string patterns first (O(n) but very fast for small strings)
-  for (const [pattern, code] of STRING_ERROR_PATTERNS) {
+  // Check string patterns (linear scan but patterns are short)
+  for (const { pattern, code } of STRING_ERROR_PATTERNS) {
     if (errorString.includes(pattern)) {
       return code;
     }

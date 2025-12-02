@@ -15,10 +15,16 @@ export class NetworkActions extends BaseAction {
       updateMode?: 'full' | 'minimal';
     } = {}
   ): Promise<{ success: boolean; harPath: string }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.routeFromHAR(harPath, options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, harPath };
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Route from HAR',
+      async (page) => {
+        await page.routeFromHAR(harPath, options);
+        return { success: true, harPath };
+      },
+      { harPath, ...options }
+    );
   }
 
   async contextRouteFromHAR(
@@ -32,10 +38,15 @@ export class NetworkActions extends BaseAction {
       updateMode?: 'full' | 'minimal';
     } = {}
   ): Promise<{ success: boolean; harPath: string }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.routeFromHAR(harPath, options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, harPath };
+    return this.executeContextOperation(
+      sessionId,
+      'Context route from HAR',
+      async (context) => {
+        await context.routeFromHAR(harPath, options);
+        return { success: true, harPath };
+      },
+      { harPath, ...options }
+    );
   }
 
   async unrouteAll(
@@ -43,9 +54,15 @@ export class NetworkActions extends BaseAction {
     pageId: string,
     options: { behavior?: 'wait' | 'ignoreErrors' | 'default' } = {}
   ): Promise<{ success: boolean }> {
-    const page = this.sessionManager.getPage(sessionId, pageId);
-    await page.unrouteAll(options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true };
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Unroute all',
+      async (page) => {
+        await page.unrouteAll(options);
+        return { success: true };
+      },
+      { ...options }
+    );
   }
 }

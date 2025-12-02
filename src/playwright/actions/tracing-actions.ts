@@ -11,20 +11,30 @@ export class TracingActions extends BaseAction {
       sources?: boolean;
     } = {}
   ): Promise<{ success: boolean }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.tracing.start(options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true };
+    return this.executeContextOperation(
+      sessionId,
+      'Start tracing',
+      async (context) => {
+        await context.tracing.start(options);
+        return { success: true };
+      },
+      { options }
+    );
   }
 
   async stopTracing(
     sessionId: string,
     path: string
   ): Promise<{ success: boolean; path: string }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.tracing.stop({ path });
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, path };
+    return this.executeContextOperation(
+      sessionId,
+      'Stop tracing',
+      async (context) => {
+        await context.tracing.stop({ path });
+        return { success: true, path };
+      },
+      { path }
+    );
   }
 
   async startTracingGroup(
@@ -34,16 +44,25 @@ export class TracingActions extends BaseAction {
       location?: { file: string; line?: number; column?: number };
     } = {}
   ): Promise<{ success: boolean; groupName: string }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.tracing.group(name, options);
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true, groupName: name };
+    return this.executeContextOperation(
+      sessionId,
+      'Start tracing group',
+      async (context) => {
+        await context.tracing.group(name, options);
+        return { success: true, groupName: name };
+      },
+      { groupName: name }
+    );
   }
 
   async endTracingGroup(sessionId: string): Promise<{ success: boolean }> {
-    const session = this.sessionManager.getSession(sessionId);
-    await session.context.tracing.groupEnd();
-    this.sessionManager.updateActivity(sessionId);
-    return { success: true };
+    return this.executeContextOperation(
+      sessionId,
+      'End tracing group',
+      async (context) => {
+        await context.tracing.groupEnd();
+        return { success: true };
+      }
+    );
   }
 }

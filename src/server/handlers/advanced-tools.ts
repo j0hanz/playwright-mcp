@@ -264,7 +264,7 @@ function getConsoleKey(sessionId: string, pageId: string): string {
 }
 
 export function registerAdvancedTools(ctx: ToolContext): void {
-  const { server, browserManager, createToolHandler, logger: _logger } = ctx;
+  const { server, browserManager, createToolHandler } = ctx;
 
   // ============================================================================
   // Tracing Tools

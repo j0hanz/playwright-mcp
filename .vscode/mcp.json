@@ -1,5 +1,17 @@
 {
   "servers": {
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github-pat}"
+      }
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
     "apify": {
       "type": "http",
       "url": "https://mcp.apify.com",
@@ -11,11 +23,6 @@
       "type": "stdio",
       "command": "node",
       "args": ["dist/src/index.js"]
-    },
-    "playwright-test": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["playwright", "run-test-mcp-server"]
     },
     "mui-mcp": {
       "type": "stdio",
@@ -53,6 +60,12 @@
     }
   },
   "inputs": [
+    {
+      "password": true,
+      "id": "github-pat",
+      "type": "promptString",
+      "description": "GitHub Personal Access Token"
+    },
     {
       "password": true,
       "id": "apify-api-key",

@@ -76,8 +76,8 @@ export class NavigationActions extends BaseAction {
       pageId,
       'Navigate back',
       async (page) => {
-        const result = await pageActions.navigateBack(page);
-        return { success: true, url: result.url };
+        await pageActions.navigateBack(page);
+        return { success: true, url: page.url() };
       }
     );
   }
@@ -91,8 +91,8 @@ export class NavigationActions extends BaseAction {
       pageId,
       'Navigate forward',
       async (page) => {
-        const result = await pageActions.navigateForward(page);
-        return { success: true, url: result.url };
+        await pageActions.navigateForward(page);
+        return { success: true, url: page.url() };
       }
     );
   }

@@ -102,6 +102,58 @@ export abstract class BaseAction {
       throw ErrorHandler.handlePlaywrightError(err);
     }
   }
+
+  /**
+   * Executes an operation on a browser context with standardized error handling and logging.
+   *
+   * Similar to executePageOperation but operates at the context level.
+   *
+   * @param sessionId - The session ID to operate on
+   * @param operation - Human-readable operation name for logging
+   * @param action - Async function that performs the context operation
+   * @param meta - Optional metadata to include in log entries
+   * @returns The result of the action function
+   * @throws MCPPlaywrightError on failure
+   */
+  protected async executeContextOperation<T>(
+    sessionId: string,
+    operation: string,
+    action: (
+      context: import('playwright').BrowserContext,
+      session: import('../../config/types.js').BrowserSession
+    ) => Promise<T>,
+    meta?: Record<string, unknown>
+  ): Promise<T> {
+    const startTime = Date.now();
+    const session = this.sessionManager.getSession(sessionId);
+
+    try {
+      const result = await action(session.context, session);
+      const duration = Date.now() - startTime;
+      this.sessionManager.updateActivity(sessionId);
+
+      this.logger.info(`${operation} completed`, {
+        sessionId,
+        duration,
+        ...meta,
+      });
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const err = toError(error);
+
+      this.logger.error(`${operation} failed`, {
+        sessionId,
+        duration,
+        error: err.message,
+        stack: err.stack,
+        ...meta,
+      });
+
+      throw ErrorHandler.handlePlaywrightError(err);
+    }
+  }
 }
 
 export default BaseAction;

@@ -1,8 +1,5 @@
 /**
- * Shared Constants Module - Single source of truth for time and size constants
- *
- * This module eliminates duplication of magic numbers across the codebase.
- * Import these constants instead of defining them locally.
+ * Commonly used constants across the application.
  */
 
 // Time Constants (milliseconds)
@@ -36,13 +33,6 @@ export const DEFAULT_PAGE = 1;
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 
-// Default Timeouts (milliseconds) - fallbacks when config is not available
-// Note: For runtime use, prefer importing from server-config.ts
-export const DEFAULT_TIMEOUT_ACTION = 20 * MS_PER_SECOND;
-export const DEFAULT_TIMEOUT_NAVIGATION = 30 * MS_PER_SECOND;
-export const DEFAULT_TIMEOUT_ASSERTION = 5 * MS_PER_SECOND;
-export const DEFAULT_TIMEOUT_DOWNLOAD = 60 * MS_PER_SECOND;
-
 // Retry Configuration
 export const DEFAULT_MAX_RETRIES = 3;
 export const DEFAULT_RETRY_DELAY = 500; // ms
@@ -55,14 +45,6 @@ export const DEFAULT_MAX_CONCURRENT_SESSIONS = 5;
 export const MIN_CONCURRENT_SESSIONS = 1;
 export const MAX_CONCURRENT_SESSIONS = 20;
 export const DEFAULT_SESSION_TIMEOUT = 30 * MS_PER_MINUTE;
-
-// Viewport Limits
-export const MIN_VIEWPORT_WIDTH = 320;
-export const MAX_VIEWPORT_WIDTH = 3840;
-export const MIN_VIEWPORT_HEIGHT = 240;
-export const MAX_VIEWPORT_HEIGHT = 2160;
-export const DEFAULT_VIEWPORT_WIDTH = 1366;
-export const DEFAULT_VIEWPORT_HEIGHT = 900;
 
 // UUID Regex for validation
 export const UUID_V4_REGEX =
