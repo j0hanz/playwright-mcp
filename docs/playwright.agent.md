@@ -75,52 +75,241 @@ Deliver reliable, maintainable Playwright tests through:
 
 ## Tool Reference
 
-### 🎭 Playwright MCP Tools
+### 🎭 Playwright MCP Tools (56 Total)
 
-Browser automation via accessibility tree for LLM-friendly element targeting.
+Complete reference for all browser automation tools available via the Playwright MCP server.
 
-#### Core Workflow Tools
+---
 
-| Tool               | Description                              | When to Use                                                                        |
-| ------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------- |
-| `browser_snapshot` | **PRIMARY** — Capture accessibility tree | **Always before interactions** — Returns semantic structure (roles, names, states) |
-| `browser_navigate` | Navigate to URL                          | Opening pages, section navigation                                                  |
-| `browser_click`    | Click element by ref                     | Buttons, links, toggles (use ref from snapshot)                                    |
-| `browser_type`     | Type into input                          | Form filling (`submit: true` for Enter key)                                        |
-| `keyboard_press`   | Press key combination                    | `Enter`, `Escape`, `Tab`, `Control+a`                                              |
+#### 🚀 Browser Lifecycle (7 tools)
 
-#### Verification Tools
+| Tool                  | Description                            | When to Use                                                            | Example Scenario                                   |
+| --------------------- | -------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+| `browser_launch`      | Launch browser instance                | **Start of every session** — First step before any browser interaction | Starting test exploration, debugging a page        |
+| `browser_close`       | Close browser session                  | **End of every session** — Always close to free memory and resources   | Cleanup after test run, preventing memory leaks    |
+| `browser_tabs`        | Manage tabs (list/create/close/select) | Multi-tab workflows, popup handling, new window verification           | Testing "Open in new tab" links, OAuth popups      |
+| `sessions_list`       | List all active sessions               | Debugging, checking for orphaned sessions, resource monitoring         | Before launching new session, cleanup scripts      |
+| `save_storage_state`  | Save cookies/localStorage              | Persisting auth state for reuse across tests                           | Save login session after authentication flow       |
+| `session_reset_state` | Clear all storage/cookies              | Test isolation, starting fresh without logout                          | Before each test to ensure clean state             |
+| `page_prepare`        | Configure page settings                | Set viewport, geolocation, permissions, color scheme                   | Mobile testing, dark mode, location-based features |
 
-| Tool                             | Description                         | Use Case                                  |
-| -------------------------------- | ----------------------------------- | ----------------------------------------- |
-| `browser_verify_element_visible` | Assert element visible by role/name | Visibility assertions with ARIA semantics |
-| `browser_verify_text_visible`    | Assert text on page                 | Content verification                      |
-| `browser_verify_value`           | Assert input value                  | Form validation, checkbox states          |
-| `browser_verify_list_visible`    | Assert list items                   | Menu items, table rows, search results    |
+**Lifecycle Flow:**
 
-#### Analysis & Debugging
+```text
+browser_launch → [test actions] → save_storage_state (optional) → browser_close
+```
 
-| Tool                       | Description           | Use Case                               |
-| -------------------------- | --------------------- | -------------------------------------- |
-| `browser_console_messages` | Get console output    | JavaScript errors (`onlyErrors: true`) |
-| `browser_network_requests` | List network requests | API debugging, failed requests         |
-| `browser_evaluate`         | Execute JS in page    | Read computed values (read-only)       |
-| `accessibility_scan`       | Run axe-core scan     | WCAG violations with remediation       |
+---
 
-#### Session Management
+#### 🧭 Navigation (3 tools)
 
-| Tool             | Description                  | Use Case                                |
-| ---------------- | ---------------------------- | --------------------------------------- |
-| `browser_launch` | Launch browser instance      | Start session (Chromium/Firefox/WebKit) |
-| `browser_tabs`   | Manage tabs                  | Multi-tab flows, verify new tab content |
-| `page_prepare`   | Configure page settings      | Viewport, geolocation, permissions      |
-| `browser_close`  | **REQUIRED** — Close session | Always close to free memory             |
+| Tool               | Description                | When to Use                                     | Example Scenario                                |
+| ------------------ | -------------------------- | ----------------------------------------------- | ----------------------------------------------- |
+| `browser_navigate` | Navigate to URL            | Opening pages, deep linking, section navigation | Go to login page, navigate to specific product  |
+| `browser_history`  | Go back/forward in history | Testing browser navigation, multi-step flows    | Verify back button works after form submission  |
+| `browser_reload`   | Reload current page        | Testing page refresh behavior, cache validation | Verify form persists after reload, test caching |
+
+---
+
+#### 👆 Interactions (11 tools)
+
+| Tool             | Description                            | When to Use                                     | Example Scenario                              |
+| ---------------- | -------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
+| `element_click`  | Click element using locator strategies | Buttons, links, toggles, menu items             | Submit form, open dropdown, toggle switch     |
+| `element_fill`   | Fill text into input                   | Form fields, search boxes, text areas           | Enter email, type search query, fill address  |
+| `element_hover`  | Hover over element                     | Reveal hidden content, tooltips, dropdown menus | Show user profile card, reveal action buttons |
+| `element_focus`  | Focus an element                       | Trigger focus events, keyboard navigation setup | Prepare for keyboard input, test focus styles |
+| `element_clear`  | Clear input field                      | Reset form fields before new input              | Clear search box, reset text field            |
+| `select_option`  | Select from dropdown                   | `<select>` elements, comboboxes                 | Choose country, select category, pick date    |
+| `checkbox_set`   | Check/uncheck checkbox                 | Toggle checkboxes and radio buttons             | Accept terms, select preferences              |
+| `keyboard_press` | Press single key or combination        | Submit forms, keyboard shortcuts, navigation    | Press Enter, Escape, Tab, Ctrl+A, Cmd+S       |
+| `keyboard_type`  | Type text character-by-character       | Simulating real typing, autocomplete testing    | Test typeahead search, input masking          |
+| `drag_and_drop`  | Drag element to target                 | Sortable lists, file drop zones, kanban boards  | Reorder items, drag file to upload zone       |
+| `file_upload`    | Upload files to input                  | File input elements, document uploads           | Upload avatar, attach documents               |
+
+**Locator Strategy Priority (element_click, element_fill):**
+
+```text
+1. role + name (best)  → getByRole('button', { name: 'Submit' })
+2. label               → getByLabel('Email')
+3. placeholder         → getByPlaceholder('Search...')
+4. testid              → getByTestId('submit-btn')
+5. text                → getByText('Learn more')
+6. selector (last)     → locator('.btn-primary')
+```
+
+---
+
+#### 📸 Page Operations (5 tools)
+
+| Tool               | Description                          | When to Use                                              | Example Scenario                                      |
+| ------------------ | ------------------------------------ | -------------------------------------------------------- | ----------------------------------------------------- |
+| `browser_snapshot` | **PRIMARY** — Get accessibility tree | **Before every interaction** — Understand page structure | Find element roles/names, discover available actions  |
+| `page_screenshot`  | Capture page image                   | Visual documentation, debugging, failure evidence        | Save screenshot on error, document test steps         |
+| `page_content`     | Get HTML and text content            | Content extraction, SEO validation, scraping             | Verify meta tags, extract page text                   |
+| `page_evaluate`    | Execute JavaScript (read-only)       | Read computed values, complex DOM queries                | Get scroll position, check CSS values, count elements |
+| `page_pdf`         | Generate PDF of page                 | Report generation, document archival                     | Export invoice, save receipt                          |
+
+**page_evaluate Templates (use these for common operations):**
+
+```javascript
+'getTitle'; // → document.title
+'getURL'; // → window.location.href
+'getViewport'; // → { width, height }
+'getScrollPosition'; // → { x, y }
+'getBodyText'; // → All visible text
+'getDocumentReadyState'; // → 'loading' | 'interactive' | 'complete'
+```
+
+**Allowed Script Patterns:**
+
+```javascript
+document.querySelector('.element').textContent; // ✅ DOM query + property
+document.querySelectorAll('li').length; // ✅ Count elements
+window.getComputedStyle(element).color; // ✅ Computed styles
+navigator.userAgent; // ✅ Browser info
+```
+
+---
+
+#### ⏳ Wait Operations (3 tools)
+
+| Tool                       | Description                          | When to Use                               | Example Scenario                           |
+| -------------------------- | ------------------------------------ | ----------------------------------------- | ------------------------------------------ |
+| `wait_for_selector`        | Wait for element to appear/disappear | Dynamic content, lazy loading, animations | Wait for modal, loading spinner to hide    |
+| `wait_for_download`        | Wait for download to complete        | File download flows                       | Download PDF, export CSV                   |
+| `page_wait_for_load_state` | Wait for page load state             | SPA navigation, async data loading        | Wait for `domcontentloaded`, `networkidle` |
+
+**Load States:**
+
+```text
+'domcontentloaded' → DOM ready (fast, good for SPAs)
+'load'             → All resources loaded
+'networkidle'      → No network requests for 500ms (use sparingly)
+```
+
+---
+
+#### ✅ Assertions (9 tools)
+
+| Tool               | Description                                            | When to Use                          | Example Scenario                           |
+| ------------------ | ------------------------------------------------------ | ------------------------------------ | ------------------------------------------ |
+| `assert_element`   | Assert element state (visible/hidden/enabled/disabled) | Visibility, interactivity checks     | Verify button is disabled, modal is hidden |
+| `assert_text`      | Assert element contains text                           | Content verification, label checking | Verify success message, error text         |
+| `assert_value`     | Assert input has value                                 | Form validation, data persistence    | Check email field has value after blur     |
+| `assert_attribute` | Assert element attribute                               | HTML attribute verification          | Verify `href`, `src`, `aria-*` attributes  |
+| `assert_css`       | Assert CSS property value                              | Style verification                   | Check color, visibility, display property  |
+| `assert_url`       | Assert current URL (supports regex)                    | Navigation verification              | Verify redirect to dashboard, URL params   |
+| `assert_title`     | Assert page title (supports regex)                     | SEO, page identification             | Verify page title matches expected         |
+| `assert_checked`   | Assert checkbox/radio state                            | Form state verification              | Verify checkbox is checked after click     |
+| `assert_count`     | Assert number of matching elements                     | List validation, search results      | Verify 5 items in cart, 10 search results  |
+
+**Assertion Flow:**
+
+```text
+action → wait (if needed) → assert → continue or fail
+```
+
+---
+
+#### ♿ Accessibility (2 tools)
+
+| Tool                 | Description                      | When to Use                   | Example Scenario                           |
+| -------------------- | -------------------------------- | ----------------------------- | ------------------------------------------ |
+| `accessibility_scan` | Run axe-core accessibility audit | WCAG compliance, a11y testing | Find violations, generate a11y report      |
+| `browser_snapshot`   | Get accessibility tree           | Understand semantic structure | Discover ARIA roles, find accessible names |
+
+**Scan Options:**
+
+```javascript
+{
+  tags: ['wcag2a', 'wcag2aa', 'wcag21aa'],  // WCAG versions
+  includedImpacts: ['critical', 'serious'], // Filter by severity
+  selector: '#main-content',                // Limit scope
+  generateReport: true,                     // Save HTML report
+  reportPath: 'reports/a11y.html'
+}
+```
+
+---
+
+#### 🌐 Network (4 tools)
+
+| Tool               | Description                       | When to Use                                 | Example Scenario                                 |
+| ------------------ | --------------------------------- | ------------------------------------------- | ------------------------------------------------ |
+| `network_route`    | Intercept/modify network requests | Mock APIs, block resources, simulate errors | Mock API response, block analytics, test offline |
+| `network_unroute`  | Remove network interception       | Restore normal network behavior             | Cleanup after mocking                            |
+| `har_record_start` | Start recording network traffic   | API debugging, performance analysis         | Capture all requests during flow                 |
+| `har_playback`     | Replay requests from HAR file     | Deterministic testing, offline testing      | Replay recorded API responses                    |
+
+**Route Actions:**
+
+```javascript
+{ action: 'abort' }     // Block request entirely
+{ action: 'fulfill', status: 200, body: '{}' }  // Return custom response
+{ action: 'continue', url: '/api/v2/...' }      // Modify and forward
+```
+
+---
+
+#### 🔍 Debugging (5 tools)
+
+| Tool                | Description                      | When to Use                | Example Scenario                     |
+| ------------------- | -------------------------------- | -------------------------- | ------------------------------------ |
+| `console_capture`   | Capture browser console messages | JavaScript error detection | Find console.error, detect warnings  |
+| `tracing_start`     | Start recording trace            | Debugging complex failures | Record actions, screenshots, network |
+| `tracing_stop`      | Stop and save trace              | Save trace for analysis    | View at trace.playwright.dev         |
+| `tracing_group`     | Group actions in trace           | Organize trace by feature  | Group "Login Flow", "Checkout"       |
+| `tracing_group_end` | End current trace group          | Close the grouping         | After completing a logical section   |
+
+**Debug Flow:**
+
+```text
+tracing_start → tracing_group('Feature') → [actions] → tracing_group_end → tracing_stop
+```
+
+---
+
+#### 🖼️ Frames (2 tools)
+
+| Tool            | Description                  | When to Use                       | Example Scenario                                |
+| --------------- | ---------------------------- | --------------------------------- | ----------------------------------------------- |
+| `frame_locator` | Get iframe information       | Identify frame before interacting | Find embedded content, payment frames           |
+| `frame_action`  | Perform action inside iframe | Interact with iframe content      | Click button in embedded form, read iframe text |
+
+**Frame Actions:**
+
+```javascript
+{ action: 'click', selector: 'button' }
+{ action: 'fill', selector: 'input', value: 'text' }
+{ action: 'getText', selector: 'body' }
+{ action: 'waitForSelector', selector: '.loaded' }
+```
+
+---
+
+#### 📝 Test Management (6 tools)
+
+| Tool                   | Description               | When to Use                           | Example Scenario               |
+| ---------------------- | ------------------------- | ------------------------------------- | ------------------------------ |
+| `test_plan_create`     | Create Markdown test plan | Planning phase, documenting scenarios | Generate spec from exploration |
+| `test_file_create`     | Create new test file      | Generate tests from plan              | Create `login.spec.ts`         |
+| `test_file_update`     | Update existing test file | Fix failing tests, add cases          | Heal broken locators           |
+| `test_file_read`       | Read test file content    | Understand existing tests             | Analyze test before healing    |
+| `test_artifacts_list`  | List all specs and tests  | Discover existing test coverage       | Find related tests             |
+| `test_artifact_delete` | Delete test or spec file  | Remove obsolete tests                 | Clean up deprecated tests      |
+
+**Test File Locations:**
+
+```text
+specs/           # Markdown test plans
+tests/           # TypeScript test files
+tests/seed.spec.ts  # Template/bootstrap test
+```
 
 ---
 
 ### 📁 File System Tools
-
-**Prefer batch operations** for efficiency.
 
 | Tool                  | Priority   | Use Case                                 |
 | --------------------- | ---------- | ---------------------------------------- |
@@ -183,7 +372,7 @@ Create comprehensive test plans from application exploration.
 
 **Flow:**
 
-```
+```text
 1. Launch browser → Navigate to target URL
 2. Capture accessibility snapshot
 3. Explore interactive elements via clicks
@@ -250,7 +439,7 @@ Transform Markdown plans into executable Playwright tests with verified locators
 
 **Flow:**
 
-```
+```text
 1. Read test plan from specs/
 2. Launch browser for scenario
 3. Execute steps interactively with MCP tools
@@ -292,7 +481,7 @@ Diagnose and repair failing tests automatically.
 
 **Flow:**
 
-```
+```text
 1. Run tests to identify failures
 2. Capture snapshot at failure point
 3. Inspect current UI for equivalent elements
@@ -440,7 +629,7 @@ test.fixme('Scenario Name', async ({ page }) => {
 
 ## Project Structure
 
-```
+```text
 playwright-mcp/
 ├── fixtures/                 # Custom test fixtures
 │   ├── index.ts              # Fixture exports
@@ -531,34 +720,96 @@ npx playwright test --project=chromium
 
 ## Tool Selection Quick Reference
 
-### Exploration Phase
+### By Workflow Phase
 
-```
-browser_launch → browser_navigate → browser_snapshot → browser_click → browser_snapshot → browser_close
-```
+#### 🔍 Exploration Phase
 
-### Test Generation
-
-```
-read_multiple_files (specs/) → browser_launch → browser_* (execute steps) → write_file → browser_close
+```text
+browser_launch → browser_navigate → browser_snapshot → element_click → browser_snapshot → browser_close
 ```
 
-### Debugging Failures
+#### 📝 Test Generation
 
-```
-testFailure → browser_launch → browser_snapshot → browser_console_messages → edit_file → browser_close
+```text
+read_multiple_files (specs/) → browser_launch → browser_* (execute steps) → test_file_create → browser_close
 ```
 
-### Documentation Lookup
+#### 🩹 Debugging Failures
 
+```text
+testFailure → browser_launch → browser_snapshot → console_capture → page_evaluate → edit_file → browser_close
 ```
+
+#### 📚 Documentation Lookup
+
+```text
 ref_search_documentation → ref_read_url → apply knowledge
 ```
 
-### Knowledge Retention
+#### 🧠 Knowledge Retention
 
-```
+```text
 create_entities → add_observations → create_relations
+```
+
+### By Scenario
+
+| Scenario                | Tool Sequence                                                                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Login flow**          | `browser_navigate` → `element_fill` (username) → `element_fill` (password) → `element_click` (submit) → `assert_url`               |
+| **Form validation**     | `element_fill` (invalid) → `element_click` (submit) → `assert_text` (error message) → `assert_element` (field state)               |
+| **Dropdown selection**  | `element_click` (dropdown) → `browser_snapshot` → `select_option` (value) → `assert_value`                                         |
+| **Modal dialog**        | `element_click` (trigger) → `wait_for_selector` (modal) → `browser_snapshot` → `element_click` (close) → `assert_element` (hidden) |
+| **File upload**         | `browser_navigate` → `file_upload` → `assert_text` (success message)                                                               |
+| **Multi-tab flow**      | `element_click` (link) → `browser_tabs` (list) → `browser_tabs` (select) → `assert_url`                                            |
+| **API mocking**         | `network_route` (mock response) → `browser_navigate` → `assert_text` (mocked data) → `network_unroute`                             |
+| **Accessibility audit** | `browser_navigate` → `accessibility_scan` → analyze violations → `assert_count` (0 violations)                                     |
+| **Debug flaky test**    | `tracing_start` → run test steps → `tracing_stop` → view trace.playwright.dev                                                      |
+| **Iframe interaction**  | `frame_locator` → `frame_action` (click/fill/getText)                                                                              |
+| **Keyboard shortcuts**  | `element_focus` → `keyboard_press` (Ctrl+A) → `keyboard_press` (Ctrl+C)                                                            |
+| **Drag and drop**       | `browser_snapshot` → `drag_and_drop` (source, target) → `assert_element` (new position)                                            |
+| **Download file**       | `element_click` (download button) → `wait_for_download` → verify file                                                              |
+| **Persist login**       | login flow → `save_storage_state` → reuse in other tests                                                                           |
+| **Mobile testing**      | `page_prepare` (viewport: 375x667) → `browser_navigate` → `browser_snapshot`                                                       |
+
+### Decision Tree
+
+```text
+Need to interact with element?
+├─ Click/Toggle → element_click (use role locator)
+├─ Type text → element_fill (use label locator)
+├─ Select option → select_option
+├─ Check/uncheck → checkbox_set
+├─ Hover → element_hover
+└─ Drag → drag_and_drop
+
+Need to verify something?
+├─ Element visible/hidden → assert_element
+├─ Text content → assert_text
+├─ Input value → assert_value
+├─ Current URL → assert_url
+├─ Page title → assert_title
+├─ Checkbox state → assert_checked
+├─ Element count → assert_count
+├─ CSS property → assert_css
+└─ Attribute value → assert_attribute
+
+Need to wait for something?
+├─ Element appears → wait_for_selector (state: visible)
+├─ Element disappears → wait_for_selector (state: hidden)
+├─ Page loads → page_wait_for_load_state
+└─ Download completes → wait_for_download
+
+Need to debug?
+├─ Console errors → console_capture
+├─ Record actions → tracing_start/stop
+├─ Execute JS → page_evaluate
+├─ Network issues → network_route (inspect)
+└─ Take screenshot → page_screenshot
+
+Working with frames?
+├─ Identify frame → frame_locator
+└─ Interact inside → frame_action
 ```
 
 ---

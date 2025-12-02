@@ -25,6 +25,15 @@ export const SAFE_SCRIPT_TEMPLATES: Record<string, string> = {
   getScrollPosition: 'JSON.stringify({ x: window.scrollX, y: window.scrollY })',
   getBodyText: 'document.body?.innerText || ""',
   getDocumentReadyState: 'document.readyState',
+  getActiveElement:
+    'JSON.stringify({ tagName: document.activeElement?.tagName, id: document.activeElement?.id, className: document.activeElement?.className })',
+  getPageDimensions:
+    'JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight, clientWidth: document.documentElement.clientWidth, clientHeight: document.documentElement.clientHeight })',
+  getFormCount: 'document.forms.length',
+  getLinkCount: 'document.links.length',
+  getImageCount: 'document.images.length',
+  getUserAgent: 'navigator.userAgent',
+  getLanguage: 'navigator.language',
 };
 
 const STRICT_BLOCKLIST = [
@@ -116,17 +125,39 @@ const STRICT_BLOCKLIST = [
   'history.replaceState',
 ];
 
+// Patterns for allowed safe scripts
 const SAFE_PATTERNS = [
-  /^\s*document\.querySelector\s*\(/,
-  /^\s*document\.querySelectorAll\s*\(/,
-  /^\s*document\.getElementById\s*\(/,
-  /^\s*document\.getElementsByClassName\s*\(/,
-  /^\s*document\.getElementsByTagName\s*\(/,
+  /^\s*document\.querySelector\s*\([^)]+\)(\s*\?\.\s*|\s*\.\s*|\s*$)/,
+  /^\s*document\.querySelectorAll\s*\([^)]+\)/,
+  /^\s*document\.getElementById\s*\([^)]+\)(\s*\?\.\s*|\s*\.\s*|\s*$)/,
+  /^\s*document\.getElementsByClassName\s*\([^)]+\)/,
+  /^\s*document\.getElementsByTagName\s*\([^)]+\)/,
   /^\s*document\.title\s*$/,
+  /^\s*document\.readyState\s*$/,
+  /^\s*document\.body\s*(\?\.)?\s*\w+/,
+  /^\s*document\.documentElement\s*(\?\.)?\s*\w+/,
+  /^\s*document\.activeElement\s*(\?\.)?\s*\w+/,
+  /^\s*document\.forms\b/,
+  /^\s*document\.links\b/,
+  /^\s*document\.images\b/,
+  /^\s*document\.head\b/,
   /^\s*window\.innerWidth\s*$/,
   /^\s*window\.innerHeight\s*$/,
   /^\s*window\.scrollY\s*$/,
   /^\s*window\.scrollX\s*$/,
+  /^\s*window\.pageYOffset\s*$/,
+  /^\s*window\.pageXOffset\s*$/,
+  /^\s*window\.screen\s*\.\s*\w+/,
+  /^\s*window\.devicePixelRatio\s*$/,
+  /^\s*window\.getComputedStyle\s*\(/,
+  /^\s*Array\.from\s*\(\s*document\.(querySelector|getElementById|getElementsBy)/,
+  /^\s*\[\s*\.\.\.document\.(querySelector|getElementById|getElementsBy)/,
+  /^\s*JSON\.stringify\s*\(/,
+  /\.(textContent|innerText|value|checked|selected|disabled|hidden|id|className|classList|tagName|nodeName|nodeType|href|src|alt|title|placeholder|name|type|getAttribute|hasAttribute|dataset|style\.\w+|offsetWidth|offsetHeight|offsetTop|offsetLeft|clientWidth|clientHeight|scrollWidth|scrollHeight|getBoundingClientRect)\s*(\(|$)/,
+  /^\s*\(\s*\)\s*=>\s*(document|window)\./,
+  /^\s*\(function\s*\(\)\s*\{[^}]*return\s+(document|window)\./,
+  /^\s*navigator\.(userAgent|language|languages|platform|vendor|onLine|cookieEnabled|hardwareConcurrency|maxTouchPoints)\s*$/,
+  /^\s*performance\.(now|timeOrigin|navigation|timing)\b/,
 ];
 
 function isBlockedOperation(script: string): boolean {
@@ -137,7 +168,10 @@ function isBlockedOperation(script: string): boolean {
 }
 
 function isSafeScript(script: string): boolean {
-  return SAFE_PATTERNS.some((pattern) => pattern.test(script.trim()));
+  const trimmed = script.trim();
+
+  // Check against safe patterns
+  return SAFE_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
 const ALLOWED_UPLOAD_DIR = fileURLToPath(
@@ -190,9 +224,10 @@ export async function evaluateScript(
   const scriptToExecute = templateScript || script;
 
   if (!templateScript && !isSafeScript(script)) {
+    const templateList = Object.keys(SAFE_SCRIPT_TEMPLATES).join(', ');
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,
-      `Script does not match allowed patterns. Use predefined templates: ${Object.keys(SAFE_SCRIPT_TEMPLATES).join(', ')}`
+      `Script does not match allowed patterns. Use template shortcuts (${templateList}) or DOM query patterns like: document.querySelector('.selector').textContent`
     );
   }
 

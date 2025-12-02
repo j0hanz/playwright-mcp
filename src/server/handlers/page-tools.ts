@@ -285,12 +285,29 @@ export function registerPageTools(ctx: ToolContext): void {
     'page_evaluate',
     {
       title: 'Evaluate JavaScript',
-      description:
-        'Execute JavaScript in the page context. RESTRICTED: Only allows safe, read-only operations (DOM inspection, property retrieval).',
+      description: [
+        'Execute JavaScript in the page context for read-only DOM inspection.',
+        '',
+        'ALLOWED operations:',
+        "- Template shortcuts: 'getTitle', 'getURL', 'getViewport', 'getScrollPosition', 'getBodyText', 'getDocumentReadyState'",
+        "- DOM queries: document.querySelector('.foo').textContent, document.querySelectorAll('li')",
+        '- Element properties: .textContent, .innerText, .value, .checked, .getAttribute(), .getBoundingClientRect()',
+        '- Window properties: window.innerWidth, window.scrollY, window.getComputedStyle()',
+        "- Array operations: Array.from(document.querySelectorAll('li'))",
+        '',
+        'BLOCKED for security:',
+        '- eval, Function(), setTimeout, setInterval',
+        '- fetch, XMLHttpRequest, WebSocket',
+        '- innerHTML, outerHTML, document.write',
+        '- localStorage, sessionStorage, document.cookie',
+        '- location.href, history.pushState',
+      ].join('\n'),
       annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
-        script: z.string().describe('JavaScript code to execute'),
+        script: z
+          .string()
+          .describe('JavaScript code to execute (read-only operations only)'),
       },
       outputSchema: { result: z.unknown() },
     },
@@ -469,17 +486,19 @@ export function registerPageTools(ctx: ToolContext): void {
     'browser_snapshot',
     {
       title: 'Get Accessibility Snapshot',
-      description: `Get a structured accessibility tree snapshot of the page. Returns a hierarchical tree of accessible elements with their roles, names, and states.
-
-This is optimized for LLM consumption as it provides semantic structure rather than raw HTML. Use this to understand page structure before interactions.
-
-Key features:
-- Returns elements with ARIA roles (button, link, textbox, etc.)
-- Includes accessible names, values, and states
-- Shows hierarchy with parent-child relationships
-- Filters to "interesting" elements by default (controls, headings, links)
-
-Use interestingOnly=false for complete tree, or root selector to focus on a specific region.`,
+      description: [
+        'Get a structured accessibility tree snapshot of the page. Returns a hierarchical tree of accessible elements with their roles, names, and states.',
+        '',
+        'This is optimized for LLM consumption as it provides semantic structure rather than raw HTML. Use this to understand page structure before interactions.',
+        '',
+        'Key features:',
+        '- Returns elements with ARIA roles (button, link, textbox, etc.)',
+        '- Includes accessible names, values, and states',
+        '- Shows hierarchy with parent-child relationships',
+        '- Filters to "interesting" elements by default (controls, headings, links)',
+        '',
+        'Use interestingOnly=false for complete tree, or root selector to focus on a specific region.',
+      ].join('\n'),
       annotations: readOnlyAnnotations,
       inputSchema: schemas.snapshotInput,
       outputSchema: schemas.snapshotOutput,
