@@ -69,6 +69,29 @@ export default defineConfig(
     },
   },
 
+  // Playwright test best practices - enforce stable test patterns
+  {
+    files: ['tests/**/*.spec.ts', 'tests/**/*.test.ts'],
+    rules: {
+      // Ban .only() and .skip() to prevent accidental test filtering
+      'no-restricted-properties': [
+        'warn',
+        {
+          object: 'test',
+          property: 'only',
+          message:
+            '⚠️  test.only() will skip all other tests. Remove before committing.',
+        },
+        {
+          object: 'test',
+          property: 'skip',
+          message:
+            '⚠️  test.skip() found. Ensure this is intentional - add comment explaining why. Use test.fixme() for known issues.',
+        },
+      ],
+    },
+  },
+
   // Relax unsafe-any rules for handler files (ToolContext uses `any` to avoid circular deps)
   {
     files: ['src/server/handlers/*.ts'],

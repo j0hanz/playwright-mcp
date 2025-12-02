@@ -205,6 +205,54 @@ npm start
 | `har_record_start`               | Record HTTP archive      |
 | `clock_install`                  | Control time in tests    |
 
+## Best Practices for Stable Tests
+
+Following these practices will ensure your tests are resilient, maintainable, and less prone to flakiness. See the full [Best Practices Guide](./docs/best-practices.md) for detailed examples.
+
+### Core Principles
+
+1. **Use Semantic, User-Facing Locators**
+   - Role-based locators are most reliable: `getByRole('button', { name: 'Submit' })`
+   - Avoid CSS selectors and XPath — these break when styling changes
+   - Priority: Role → Label → Placeholder → Text → TestId → CSS (last resort)
+
+2. **Use Locator Chaining and Filtering**
+   - Chain locators to narrow searches: `page.getByRole('listitem').filter({ hasText: 'Product 2' })`
+   - Filter by text or other locators for dynamic content
+   - This reduces strict mode violations and increases clarity
+
+3. **Always Use Web-First Assertions**
+   - Use `expect()` assertions which auto-wait: `await expect(page.getByText('Success')).toBeVisible()`
+   - Don't use direct checks like `isVisible()` without expect
+   - Assertions wait up to 5 seconds (configurable) before failing
+
+4. **Avoid Common Pitfalls**
+   - ❌ `waitForTimeout()` — use specific waits instead
+   - ❌ `waitForLoadState('networkidle')` — use `'domcontentloaded'` or wait for elements
+   - ❌ CSS class selectors — use role/label/text locators
+   - ❌ Screenshots as selectors — use `browser_snapshot` for finding elements
+   - ❌ `test.only()` or `test.skip()` — remove before committing
+
+### Example: Good Test Structure
+
+```typescript
+test('Add todo and verify', async ({ page }) => {
+  // Navigate
+  await page.goto('/');
+
+  // Get accessibility snapshot to understand page structure
+  const snapshot = await page.accessibility.snapshot();
+
+  // Interact using semantic locators (role > label > text)
+  await page.getByPlaceholder('What needs to be done?').fill('Buy groceries');
+  await page.getByRole('button', { name: 'Add' }).click();
+
+  // Verify using web-first assertions (auto-wait)
+  await expect(page.getByText('Buy groceries')).toBeVisible();
+  await expect(page.getByRole('listitem')).toHaveCount(1);
+});
+```
+
 ## Locator Priority
 
 When interacting with elements, prefer user-facing locators (most reliable first):
