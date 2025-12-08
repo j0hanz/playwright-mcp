@@ -45,6 +45,7 @@ const STRICT_BLOCKLIST = [
   'setImmediate',
   'requestAnimationFrame',
   'requestIdleCallback',
+
   // Storage access
   'document.cookie',
   'localStorage',
@@ -52,6 +53,7 @@ const STRICT_BLOCKLIST = [
   'indexedDB',
   'openDatabase',
   'caches',
+
   // Network requests
   'XMLHttpRequest',
   'fetch(',
@@ -59,6 +61,7 @@ const STRICT_BLOCKLIST = [
   'navigator.sendBeacon',
   'EventSource',
   'WebSocket',
+
   // DOM manipulation (XSS vectors)
   'window.open',
   'document.write',
@@ -69,6 +72,7 @@ const STRICT_BLOCKLIST = [
   'createContextualFragment',
   'document.domain',
   'document.implementation',
+
   // Prototype pollution
   '__proto__',
   '.constructor',
@@ -78,6 +82,7 @@ const STRICT_BLOCKLIST = [
   'Object.setPrototypeOf',
   'Reflect.',
   'Proxy',
+
   // Script injection
   'script>',
   '<script',
@@ -88,11 +93,13 @@ const STRICT_BLOCKLIST = [
   'onerror',
   'onload',
   'onclick',
+
   // URI schemes
   'javascript:',
   'data:',
   'vbscript:',
   'blob:',
+
   // Encoding bypass attempts
   'atob',
   'btoa',
@@ -101,6 +108,7 @@ const STRICT_BLOCKLIST = [
   'decodeURIComponent',
   'String.fromCharCode',
   'String.fromCodePoint',
+
   // Dangerous APIs
   'execCommand',
   'document.execCommand',
@@ -110,19 +118,69 @@ const STRICT_BLOCKLIST = [
   'Worker(',
   'ServiceWorker',
   'navigator.serviceWorker',
+
   // Module loading
   'import(',
   'require(',
   'define(',
+
   // Clipboard access
   'navigator.clipboard',
   'document.getSelection',
+
   // Location manipulation
   'location.href',
   'location.assign',
   'location.replace',
   'history.pushState',
   'history.replaceState',
+
+  // Web Crypto (side-channel attacks, fingerprinting)
+  'crypto.subtle',
+  'window.crypto.subtle',
+  'SubtleCrypto',
+
+  // WebAssembly (arbitrary code execution)
+  'WebAssembly',
+  'wasm',
+  '.wasm',
+
+  // Sensor APIs (privacy leaks, fingerprinting)
+  'navigator.geolocation',
+  'navigator.mediaDevices',
+  'DeviceOrientationEvent',
+  'DeviceMotionEvent',
+  'DeviceProximityEvent',
+  'AmbientLightSensor',
+  'Accelerometer',
+  'Gyroscope',
+  'Magnetometer',
+
+  // Payment APIs
+  'PaymentRequest',
+  'PaymentResponse',
+
+  // Web Authentication (credential access)
+  'navigator.credentials',
+  'PublicKeyCredential',
+  'CredentialsContainer',
+
+  // Notification APIs
+  'Notification',
+  'navigator.notifications',
+  'PushManager',
+
+  // Modal dialogs (UX disruption)
+  'window.alert',
+  'window.confirm',
+  'window.prompt',
+  'window.showModalDialog',
+
+  // Frame busting (clickjacking)
+  'window.top',
+  'window.parent',
+  'window.frames',
+  'window.opener',
 ];
 
 // Patterns for allowed safe scripts
@@ -242,8 +300,10 @@ export async function evaluateScript(
 }
 
 export async function validateUploadPath(filePath: string): Promise<string> {
+  let fileHandle: fs.FileHandle | null = null;
+
   try {
-    // First check: resolve path before symlink resolution
+    // First check: resolve path before opening file descriptor
     const initialResolved = path.resolve(filePath);
     if (!initialResolved.startsWith(ALLOWED_UPLOAD_DIR)) {
       throw ErrorHandler.createError(
@@ -252,24 +312,18 @@ export async function validateUploadPath(filePath: string): Promise<string> {
       );
     }
 
-    // Second check: resolve symlinks and verify still in upload dir (TOCTOU mitigation)
-    const resolvedPath = await fs.realpath(initialResolved);
-    if (!resolvedPath.startsWith(ALLOWED_UPLOAD_DIR)) {
-      throw ErrorHandler.createError(
-        ErrorCode.VALIDATION_FAILED,
-        `Symlink points outside upload directory: ${filePath}`
-      );
-    }
+    // TOCTOU mitigation: Open file descriptor BEFORE any validation
+    // This ensures we're validating the exact file that will be used
+    fileHandle = await fs.open(initialResolved, fsConstants.O_RDONLY);
 
-    // Check file exists and is readable
-    await fs.access(resolvedPath, fsConstants.R_OK);
+    // Validate using file descriptor to prevent symlink race conditions
+    const stats = await fileHandle.stat();
 
-    // Verify it's a regular file, not a directory
-    const stats = await fs.stat(resolvedPath);
+    // Verify it's a regular file, not a directory or special file
     if (!stats.isFile()) {
       throw ErrorHandler.createError(
         ErrorCode.VALIDATION_FAILED,
-        `Path is not a file: ${filePath}`
+        `Path is not a regular file: ${filePath}`
       );
     }
 
@@ -285,12 +339,44 @@ export async function validateUploadPath(filePath: string): Promise<string> {
       );
     }
 
+    // Resolve real path using file descriptor to check symlink targets
+    // This works on Linux/macOS; Windows doesn't support /proc/self/fd
+    let resolvedPath: string;
+    try {
+      // Try /proc/self/fd approach (Linux/macOS)
+      const fd = fileHandle.fd;
+      resolvedPath = await fs.realpath(`/proc/self/fd/${fd}`);
+    } catch {
+      // Fallback for Windows or systems without /proc
+      resolvedPath = await fs.realpath(initialResolved);
+    }
+
+    // Final check: ensure resolved path is still in upload directory
+    if (!resolvedPath.startsWith(ALLOWED_UPLOAD_DIR)) {
+      throw ErrorHandler.createError(
+        ErrorCode.VALIDATION_FAILED,
+        `Symlink or resolved path points outside upload directory: ${filePath}`
+      );
+    }
+
     return resolvedPath;
   } catch (error) {
     if (isMCPPlaywrightError(error)) throw error;
+
+    const err = toError(error);
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,
-      `File not found or not accessible: ${filePath}`
+      `File not found or not accessible: ${filePath} (${err.message})`
     );
+  } finally {
+    // Always close file handle to prevent resource leaks
+    if (fileHandle) {
+      await fileHandle.close().catch((err: unknown) => {
+        logger.error('Failed to close file handle', {
+          filePath,
+          error: toError(err).message,
+        });
+      });
+    }
   }
 }

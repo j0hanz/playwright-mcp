@@ -54,8 +54,36 @@ export class AssertionActions extends BaseAction {
         try {
           await assertFn(locator, timeout);
           return result(true, successData);
-        } catch {
-          return result(false, await getActual(locator));
+        } catch (error: unknown) {
+          const err = error instanceof Error ? error : new Error(String(error));
+
+          // Expected: assertion timeout or condition not met
+          if (err.name === 'TimeoutError' || err.message.includes('expect.')) {
+            try {
+              return result(false, await getActual(locator));
+            } catch (getError: unknown) {
+              const getErr =
+                getError instanceof Error
+                  ? getError
+                  : new Error(String(getError));
+              this.logger.warn('Element disappeared during assertion', {
+                selector,
+                operation,
+                error: getErr.message,
+              });
+              // Return failure with empty actual values
+              return result(false, {} as T);
+            }
+          }
+
+          // Unexpected errors - log with full details
+          this.logger.error('Unexpected assertion error', {
+            operation,
+            selector,
+            error: err.message,
+            stack: err.stack,
+          });
+          throw err;
         }
       },
       { selector }
@@ -81,8 +109,35 @@ export class AssertionActions extends BaseAction {
         try {
           await assertFn(page, timeout);
           return result(true, successData);
-        } catch {
-          return result(false, await getActual(page));
+        } catch (error: unknown) {
+          const err = error instanceof Error ? error : new Error(String(error));
+
+          // Expected: assertion timeout or condition not met
+          if (err.name === 'TimeoutError' || err.message.includes('expect.')) {
+            try {
+              return result(false, await getActual(page));
+            } catch (getError: unknown) {
+              const getErr =
+                getError instanceof Error
+                  ? getError
+                  : new Error(String(getError));
+              this.logger.warn('Page state unavailable during assertion', {
+                operation,
+                error: getErr.message,
+              });
+              // Return failure with empty actual values
+              return result(false, {} as T);
+            }
+          }
+
+          // Unexpected errors - log with full details
+          this.logger.error('Unexpected page assertion error', {
+            operation,
+            error: err.message,
+            stack: err.stack,
+            meta,
+          });
+          throw err;
         }
       },
       meta

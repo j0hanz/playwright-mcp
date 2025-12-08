@@ -12,10 +12,6 @@ import type { DialogManager } from '../dialog-manager.js';
 import type { SessionManager } from '../session-manager.js';
 import { BaseAction } from './base-action.js';
 
-const TIMEOUTS = {
-  NAVIGATION: config.timeouts.navigation,
-} as const;
-
 /**
  * Action module for page navigation with URL validation.
  *
@@ -40,7 +36,7 @@ export class NavigationActions extends BaseAction {
       sessionId,
       url,
       waitUntil = 'load',
-      timeout = TIMEOUTS.NAVIGATION,
+      timeout = config.timeouts.navigation,
     } = options;
     const startTime = Date.now();
 
@@ -93,7 +89,7 @@ export class NavigationActions extends BaseAction {
     pageId: string,
     options: { timeout?: number; waitUntil?: WaitUntilState } = {}
   ): Promise<{ success: boolean; url: string }> {
-    const { timeout = TIMEOUTS.NAVIGATION, waitUntil } = options;
+    const { timeout = config.timeouts.navigation, waitUntil } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -111,7 +107,7 @@ export class NavigationActions extends BaseAction {
     pageId: string,
     options: { timeout?: number; waitUntil?: WaitUntilState } = {}
   ): Promise<{ success: boolean; url: string }> {
-    const { timeout = TIMEOUTS.NAVIGATION, waitUntil } = options;
+    const { timeout = config.timeouts.navigation, waitUntil } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -129,7 +125,8 @@ export class NavigationActions extends BaseAction {
     pageId: string,
     options: { timeout?: number; waitUntil?: WaitUntilState } = {}
   ): Promise<{ success: boolean; url: string; title: string }> {
-    const { timeout = TIMEOUTS.NAVIGATION, waitUntil = 'load' } = options;
+    const { timeout = config.timeouts.navigation, waitUntil = 'load' } =
+      options;
 
     return this.executePageOperation(
       sessionId,

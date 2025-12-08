@@ -15,11 +15,6 @@ import type { DialogManager } from '../dialog-manager.js';
 import type { SessionManager } from '../session-manager.js';
 import { BaseAction } from './base-action.js';
 
-const TIMEOUTS = {
-  NAVIGATION: config.timeouts.navigation,
-  ACTION: config.timeouts.action,
-} as const;
-
 export class PageOperations extends BaseAction {
   constructor(
     sessionManager: SessionManager,
@@ -89,7 +84,7 @@ export class PageOperations extends BaseAction {
     if (url) {
       // Validate URL before navigation
       security.validateUrlProtocol(url);
-      await newPage.goto(url, { timeout: TIMEOUTS.NAVIGATION });
+      await newPage.goto(url, { timeout: config.timeouts.navigation });
     }
 
     this.sessionManager.updateActivity(sessionId);
@@ -152,12 +147,32 @@ export class PageOperations extends BaseAction {
       try {
         title = await page.title();
       } catch (error) {
-        // Page may be closed or crashed - log at debug level and provide fallback
-        this.logger.debug('Failed to get page title, page may be closed', {
-          pageId: pid,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        title = '<unavailable>';
+        const err = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = err.message.toLowerCase();
+
+        // Categorize errors: expected (closed/detached) vs unexpected
+        const isExpectedError =
+          errorMessage.includes('closed') ||
+          errorMessage.includes('detached') ||
+          errorMessage.includes('target') ||
+          errorMessage.includes('context destroyed');
+
+        if (isExpectedError) {
+          // Expected: page was closed or context destroyed
+          this.logger.info('Page unavailable during title retrieval', {
+            pageId: pid,
+            reason: err.message,
+          });
+          title = '<closed>';
+        } else {
+          // Unexpected error: log with stack trace for debugging
+          this.logger.warn('Unexpected error getting page title', {
+            pageId: pid,
+            error: err.message,
+            stack: err.stack,
+          });
+          title = '<error>';
+        }
       }
       tabs.push({
         pageId: pid,
@@ -255,7 +270,7 @@ export class PageOperations extends BaseAction {
       timeout?: number;
     } = {}
   ): Promise<{ found: boolean }> {
-    const { state = 'visible', timeout = TIMEOUTS.ACTION } = options;
+    const { state = 'visible', timeout = config.timeouts.action } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -298,25 +313,71 @@ export class PageOperations extends BaseAction {
     success: boolean;
     clearedCookies: boolean;
     clearedStorage: boolean;
+    storageResults: {
+      cleared: number;
+      restricted: number;
+      failed: number;
+    };
   }> {
     const session = this.sessionManager.getSession(sessionId);
     await session.context.clearCookies();
 
-    // Clear storage for all pages
+    const storageResults = { cleared: 0, restricted: 0, failed: 0 };
+
+    // Clear storage for all pages with detailed error categorization
     for (const page of session.pages.values()) {
-      await page.evaluate(() => {
-        try {
-          localStorage.clear();
-          sessionStorage.clear();
-        } catch {
-          // Storage may not be accessible (e.g., file:// URLs, sandboxed iframes)
-          // This is expected behavior in some contexts, not an error condition
+      try {
+        const result = await page.evaluate(() => {
+          try {
+            localStorage.clear();
+            sessionStorage.clear();
+            return { success: true, restricted: false };
+          } catch (err) {
+            const error = err as Error;
+            // SecurityError is expected for file:// URLs, sandboxed iframes, etc.
+            const isSecurityError =
+              error.name === 'SecurityError' ||
+              error.message.includes('security') ||
+              error.message.includes('sandbox');
+            return { success: false, restricted: isSecurityError };
+          }
+        });
+
+        if (result.success) {
+          storageResults.cleared++;
+        } else if (result.restricted) {
+          storageResults.restricted++;
+        } else {
+          storageResults.failed++;
         }
+      } catch (error) {
+        // Unexpected error during page.evaluate itself
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.logger.warn('Unexpected error clearing storage', {
+          url: page.url(),
+          error: err.message,
+          stack: err.stack,
+        });
+        storageResults.failed++;
+      }
+    }
+
+    // Log summary if there were any issues
+    if (storageResults.restricted > 0 || storageResults.failed > 0) {
+      this.logger.info('Storage clearing completed with restrictions', {
+        cleared: storageResults.cleared,
+        restricted: storageResults.restricted,
+        failed: storageResults.failed,
       });
     }
 
     this.sessionManager.updateActivity(sessionId);
-    return { success: true, clearedCookies: true, clearedStorage: true };
+    return {
+      success: true,
+      clearedCookies: true,
+      clearedStorage: storageResults.cleared > 0,
+      storageResults,
+    };
   }
 
   async preparePage(

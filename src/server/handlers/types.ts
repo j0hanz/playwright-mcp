@@ -40,8 +40,27 @@ export { getRetryHint } from '../../utils/error-handler.js';
 
 // Request ID Generation
 
+export type RequestIdGenerator = () => string;
+
+let requestIdGenerator: RequestIdGenerator = () => uuidv4().slice(0, 8);
+
 export function generateRequestId(): string {
-  return uuidv4().slice(0, 8);
+  return requestIdGenerator();
+}
+
+/**
+ * Set a custom request ID generator (primarily for testing).
+ * @param generator - Custom generator function
+ */
+export function setRequestIdGenerator(generator: RequestIdGenerator): void {
+  requestIdGenerator = generator;
+}
+
+/**
+ * Reset request ID generator to default UUID-based implementation.
+ */
+export function resetRequestIdGenerator(): void {
+  requestIdGenerator = () => uuidv4().slice(0, 8);
 }
 
 // Pagination Utilities

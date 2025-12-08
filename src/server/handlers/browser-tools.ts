@@ -259,15 +259,24 @@ export function registerBrowserTools(ctx: ToolContext): void {
         success: z.boolean(),
         clearedCookies: z.boolean(),
         clearedStorage: z.boolean(),
+        storageResults: z.object({
+          cleared: z.number(),
+          restricted: z.number(),
+          failed: z.number(),
+        }),
       },
     },
     createToolHandler(async ({ sessionId }) => {
       const result =
         await browserManager.pageOperations.resetSessionState(sessionId);
+      const storageMsg =
+        result.storageResults.restricted > 0 || result.storageResults.failed > 0
+          ? ` (${result.storageResults.cleared} cleared, ${result.storageResults.restricted} restricted, ${result.storageResults.failed} failed)`
+          : '';
       return {
         content: [
           textContent(
-            'Session state cleared (cookies, localStorage, sessionStorage)'
+            `Session state cleared (cookies, localStorage, sessionStorage)${storageMsg}`
           ),
         ],
         structuredContent: result,

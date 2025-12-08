@@ -16,7 +16,10 @@ export default defineConfig({
   timeout: 45_000,
   reportSlowTests: { max: 5, threshold: 15_000 },
   reporter: [
-    ['html', { outputFolder: './reports', open: isCI ? 'never' : 'on-failure' }],
+    [
+      'html',
+      { outputFolder: './reports', open: isCI ? 'never' : 'on-failure' },
+    ],
     ['json', { outputFile: './reports/results.json' }],
     ['list', { printSteps: true }],
     ...(isCI ? [['github'] as const] : []),

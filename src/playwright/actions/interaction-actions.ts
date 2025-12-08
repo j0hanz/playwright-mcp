@@ -11,11 +11,8 @@ import type {
   AriaRole,
 } from '../../config/types.js';
 import { validateUploadPath } from '../security.js';
+import { filterDefined } from '../../utils/object-utils.js';
 import { BaseAction } from './base-action.js';
-
-const TIMEOUTS = {
-  ACTION: config.timeouts.action,
-} as const;
 
 /** Re-export ElementIndex for convenience */
 export type { ElementIndex };
@@ -94,7 +91,7 @@ export class InteractionActions extends BaseAction {
       sessionId,
       pageId,
       selector,
-      timeout = TIMEOUTS.ACTION,
+      timeout = config.timeouts.action,
       force,
       trial,
       button,
@@ -133,7 +130,7 @@ export class InteractionActions extends BaseAction {
       pageId,
       selector,
       text,
-      timeout = TIMEOUTS.ACTION,
+      timeout = config.timeouts.action,
     } = options;
 
     return this.executePageOperation(
@@ -155,7 +152,7 @@ export class InteractionActions extends BaseAction {
       sessionId,
       pageId,
       selector,
-      timeout = TIMEOUTS.ACTION,
+      timeout = config.timeouts.action,
       trial,
     } = options;
 
@@ -188,7 +185,7 @@ export class InteractionActions extends BaseAction {
       name,
       exact,
       force,
-      timeout = TIMEOUTS.ACTION,
+      timeout = config.timeouts.action,
       index,
       // Role filter options
       disabled,
@@ -206,9 +203,8 @@ export class InteractionActions extends BaseAction {
       pageId,
       'Click by role',
       async (page) => {
-        const baseLocator = page.getByRole(role, {
-          name,
-          exact,
+        // Pre-filter role options to reduce object allocation in hot path
+        const roleFilters = filterDefined({
           disabled,
           expanded,
           pressed,
@@ -216,6 +212,11 @@ export class InteractionActions extends BaseAction {
           checked,
           level,
           includeHidden,
+        });
+        const baseLocator = page.getByRole(role, {
+          name,
+          exact,
+          ...roleFilters,
         });
         const locator = this.applyIndex(baseLocator, index);
         await locator.click({ force, timeout, ...clickOpts });
@@ -234,7 +235,7 @@ export class InteractionActions extends BaseAction {
     const {
       name,
       exact,
-      timeout = TIMEOUTS.ACTION,
+      timeout = config.timeouts.action,
       index,
       // Role filter options
       disabled,
@@ -251,9 +252,8 @@ export class InteractionActions extends BaseAction {
       pageId,
       'Hover by role',
       async (page) => {
-        const baseLocator = page.getByRole(role, {
-          name,
-          exact,
+        // Pre-filter role options to reduce object allocation in hot path
+        const roleFilters = filterDefined({
           disabled,
           expanded,
           pressed,
@@ -261,6 +261,11 @@ export class InteractionActions extends BaseAction {
           checked,
           level,
           includeHidden,
+        });
+        const baseLocator = page.getByRole(role, {
+          name,
+          exact,
+          ...roleFilters,
         });
         const locator = this.applyIndex(baseLocator, index);
         await locator.hover({ timeout });
@@ -281,7 +286,7 @@ export class InteractionActions extends BaseAction {
     text: string,
     options: TextMatchOptions = {}
   ): Promise<{ success: boolean }> {
-    const { exact, timeout = TIMEOUTS.ACTION } = options;
+    const { exact, timeout = config.timeouts.action } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -305,7 +310,7 @@ export class InteractionActions extends BaseAction {
     text: string,
     options: ClickOptions & { exact?: boolean } = {}
   ): Promise<{ success: boolean }> {
-    const { exact, force, timeout = TIMEOUTS.ACTION, index } = options;
+    const { exact, force, timeout = config.timeouts.action, index } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -327,7 +332,7 @@ export class InteractionActions extends BaseAction {
     text: string,
     options: TextMatchOptions = {}
   ): Promise<{ success: boolean }> {
-    const { exact, timeout = TIMEOUTS.ACTION, index } = options;
+    const { exact, timeout = config.timeouts.action, index } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -354,7 +359,7 @@ export class InteractionActions extends BaseAction {
     text: string,
     options: TextMatchOptions = {}
   ): Promise<{ success: boolean }> {
-    const { exact, timeout = TIMEOUTS.ACTION } = options;
+    const { exact, timeout = config.timeouts.action } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -380,7 +385,7 @@ export class InteractionActions extends BaseAction {
     testId: string,
     options: ClickOptions = {}
   ): Promise<{ success: boolean }> {
-    const { force, timeout = TIMEOUTS.ACTION, index } = options;
+    const { force, timeout = config.timeouts.action, index } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -403,7 +408,7 @@ export class InteractionActions extends BaseAction {
     text: string,
     options: { timeout?: number; index?: ElementIndex } = {}
   ): Promise<{ success: boolean }> {
-    const { timeout = TIMEOUTS.ACTION, index } = options;
+    const { timeout = config.timeouts.action, index } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -425,7 +430,7 @@ export class InteractionActions extends BaseAction {
     testId: string,
     options: { timeout?: number; index?: ElementIndex } = {}
   ): Promise<{ success: boolean }> {
-    const { timeout = TIMEOUTS.ACTION, index } = options;
+    const { timeout = config.timeouts.action, index } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -451,7 +456,7 @@ export class InteractionActions extends BaseAction {
     altText: string,
     options: ClickOptions & { exact?: boolean } = {}
   ): Promise<{ success: boolean }> {
-    const { exact, force, timeout = TIMEOUTS.ACTION, index } = options;
+    const { exact, force, timeout = config.timeouts.action, index } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -473,7 +478,7 @@ export class InteractionActions extends BaseAction {
     title: string,
     options: ClickOptions & { exact?: boolean } = {}
   ): Promise<{ success: boolean }> {
-    const { exact, force, timeout = TIMEOUTS.ACTION, index } = options;
+    const { exact, force, timeout = config.timeouts.action, index } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -500,7 +505,7 @@ export class InteractionActions extends BaseAction {
     value: string | string[],
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean; selectedValues: string[] }> {
-    const { timeout = TIMEOUTS.ACTION } = options;
+    const { timeout = config.timeouts.action } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -523,7 +528,7 @@ export class InteractionActions extends BaseAction {
     checked: boolean,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean }> {
-    const { timeout = TIMEOUTS.ACTION } = options;
+    const { timeout = config.timeouts.action } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -588,7 +593,7 @@ export class InteractionActions extends BaseAction {
     targetSelector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean }> {
-    const { timeout = TIMEOUTS.ACTION } = options;
+    const { timeout = config.timeouts.action } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -608,7 +613,7 @@ export class InteractionActions extends BaseAction {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean }> {
-    const { timeout = TIMEOUTS.ACTION } = options;
+    const { timeout = config.timeouts.action } = options;
 
     return this.executePageOperation(
       sessionId,
@@ -628,7 +633,7 @@ export class InteractionActions extends BaseAction {
     selector: string,
     options: { timeout?: number } = {}
   ): Promise<{ success: boolean }> {
-    const { timeout = TIMEOUTS.ACTION } = options;
+    const { timeout = config.timeouts.action } = options;
 
     return this.executePageOperation(
       sessionId,

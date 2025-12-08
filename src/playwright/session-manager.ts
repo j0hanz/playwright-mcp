@@ -36,6 +36,13 @@ export class SessionManager {
   private readonly rateLimiter: RateLimiter;
   private readonly config: SessionManagerConfig;
 
+  // Session list cache with TTL
+  private sessionListCache: SessionInfo[] | null = null;
+  private cacheTimestamp = 0;
+  private readonly CACHE_TTL = 1000; // 1 second
+  private cacheHits = 0;
+  private cacheMisses = 0;
+
   constructor(
     private readonly logger: Logger,
     configOverrides?: Partial<SessionManagerConfig>
@@ -58,7 +65,7 @@ export class SessionManager {
   // Capacity and Rate Limiting
 
   checkRateLimit(): void {
-    this.rateLimiter.checkLimit();
+    this.rateLimiter.consumeToken();
   }
 
   checkCapacity(): void {
@@ -94,6 +101,7 @@ export class SessionManager {
     };
 
     this.sessions.set(sessionId, session);
+    this.invalidateCache();
     this.logger.info('Browser session created', {
       sessionId,
       browserType,
@@ -123,11 +131,14 @@ export class SessionManager {
     const session = this.sessions.get(sessionId);
     if (session) {
       session.metadata.lastActivity = new Date();
+      this.invalidateCache(); // Activity changes affect idleMs
     }
   }
 
   deleteSession(sessionId: string): boolean {
-    return this.sessions.delete(sessionId);
+    const deleted = this.sessions.delete(sessionId);
+    if (deleted) this.invalidateCache();
+    return deleted;
   }
 
   getAllSessions(): BrowserSession[] {
@@ -136,6 +147,14 @@ export class SessionManager {
 
   get size(): number {
     return this.sessions.size;
+  }
+
+  /**
+   * Invalidate the session list cache.
+   * Called when session state changes that would affect the list.
+   */
+  private invalidateCache(): void {
+    this.sessionListCache = null;
   }
 
   // Session Reporting
@@ -152,7 +171,21 @@ export class SessionManager {
   };
 
   listSessions(): SessionInfo[] {
-    return Array.from(this.sessions.values()).map(this.sessionToInfo);
+    const now = Date.now();
+
+    // Check cache validity (TTL-based)
+    if (this.sessionListCache && now - this.cacheTimestamp < this.CACHE_TTL) {
+      this.cacheHits++;
+      return this.sessionListCache;
+    }
+
+    // Cache miss - rebuild list
+    this.cacheMisses++;
+    this.sessionListCache = Array.from(this.sessions.values()).map(
+      this.sessionToInfo
+    );
+    this.cacheTimestamp = now;
+    return this.sessionListCache;
   }
 
   getStatus(): {
@@ -161,13 +194,30 @@ export class SessionManager {
     availableSlots: number;
     sessions: SessionInfo[];
   } {
-    const sessions = Array.from(this.sessions.values()).map(this.sessionToInfo);
+    const sessions = this.listSessions(); // Use cached version
 
     return {
       activeSessions: this.sessions.size,
       maxSessions: this.config.maxConcurrentSessions,
       availableSlots: this.getRemainingCapacity(),
       sessions,
+    };
+  }
+
+  /**
+   * Get cache statistics for monitoring performance.
+   * @returns Cache hit/miss counts and hit rate
+   */
+  getCacheStats(): {
+    hits: number;
+    misses: number;
+    hitRate: number;
+  } {
+    const total = this.cacheHits + this.cacheMisses;
+    return {
+      hits: this.cacheHits,
+      misses: this.cacheMisses,
+      hitRate: total > 0 ? this.cacheHits / total : 0,
     };
   }
 

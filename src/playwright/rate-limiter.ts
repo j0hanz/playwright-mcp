@@ -37,7 +37,12 @@ export class RateLimiter {
     this.maxTracked = config.maxTracked ?? DEFAULT_MAX_TRACKED_REQUESTS;
   }
 
-  checkLimit(): void {
+  /**
+   * Consume a token from the rate limiter.
+   * Records a request timestamp and throws if rate limit is exceeded.
+   * @throws {MCPPlaywrightError} If rate limit is exceeded
+   */
+  consumeToken(): void {
     const status = this.getStatus();
 
     if (!status.allowed) {
@@ -49,6 +54,22 @@ export class RateLimiter {
 
     // Consume a token by recording timestamp
     this.timestamps.push(Date.now());
+  }
+
+  /**
+   * Check if a request can be accepted without consuming a token (read-only).
+   * @returns true if request would be allowed
+   */
+  canAccept(): boolean {
+    this.pruneExpired();
+    return this.timestamps.length < this.maxRequests;
+  }
+
+  /**
+   * @deprecated Use consumeToken() instead for clarity about side effects
+   */
+  checkLimit(): void {
+    this.consumeToken();
   }
 
   getStatus(): RateLimitStatus {
