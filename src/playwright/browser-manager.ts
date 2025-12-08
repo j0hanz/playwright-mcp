@@ -5,8 +5,27 @@
  * @see https://playwright.dev/docs/test-assertions
  * @see https://playwright.dev/docs/browser-contexts
  */
-import { Page } from 'playwright';
+/**
+ * Browser Manager - Core browser automation for MCP Playwright Server
+ *
+ * @see https://playwright.dev/docs/locators
+ * @see https://playwright.dev/docs/test-assertions
+ * @see https://playwright.dev/docs/browser-contexts
+ */
+import { promises as fs } from 'fs';
+import path from 'path';
+import {
+  Browser,
+  BrowserContext,
+  LaunchOptions,
+  Page,
+  chromium,
+  firefox,
+  webkit,
+} from 'playwright';
 
+import config from '../config/server-config.js';
+import type { BrowserLaunchOptions, BrowserType } from '../config/types.js';
 import {
   ErrorCode,
   ErrorHandler,
@@ -15,18 +34,43 @@ import {
 } from '../utils/error-handler.js';
 import { Logger } from '../utils/logger.js';
 import { AssertionActions } from './actions/assertion-actions.js';
-import { ClockActions } from './actions/clock-actions.js';
 import { InteractionActions } from './actions/interaction-actions.js';
 import { NavigationActions } from './actions/navigation-actions.js';
 import { NetworkActions } from './actions/network-actions.js';
 import { PageOperations } from './actions/page-operations.js';
 import { TracingActions } from './actions/tracing-actions.js';
-import * as browserLauncher from './browser-launcher.js';
-import type { BrowserLaunchOptions } from './browser-launcher.js';
 import { DialogManager } from './dialog-manager.js';
 import { SessionManager } from './session-manager.js';
 
 export type { BrowserLaunchOptions };
+
+const BROWSER_LAUNCHERS: Readonly<
+  Record<BrowserType, (options?: LaunchOptions) => Promise<Browser>>
+> = {
+  chromium: chromium.launch.bind(chromium),
+  firefox: firefox.launch.bind(firefox),
+  webkit: webkit.launch.bind(webkit),
+};
+
+function isPathWithinDirectory(filePath: string, allowedDir: string): boolean {
+  const normalizedAllowed = path.normalize(allowedDir);
+  const normalizedPath = path.normalize(filePath);
+  const relative = path.relative(normalizedAllowed, normalizedPath);
+  return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function validateOutputPath(filePath: string): string {
+  const resolved = path.resolve(filePath);
+  const videoRoot = path.resolve(process.cwd(), config.video.directory);
+
+  if (!isPathWithinDirectory(resolved, videoRoot)) {
+    throw ErrorHandler.createError(
+      ErrorCode.VALIDATION_FAILED,
+      `Output path must be within the video directory: ${config.video.directory}`
+    );
+  }
+  return resolved;
+}
 
 export class BrowserManager {
   private readonly sessionManager: SessionManager;
@@ -35,7 +79,6 @@ export class BrowserManager {
 
   // Action modules - consolidated for cleaner API
   public readonly assertionActions: AssertionActions;
-  public readonly clockActions: ClockActions;
   public readonly interactionActions: InteractionActions;
   public readonly navigationActions: NavigationActions;
   public readonly networkActions: NetworkActions;
@@ -51,7 +94,6 @@ export class BrowserManager {
       this.sessionManager,
       this.logger
     );
-    this.clockActions = new ClockActions(this.sessionManager, this.logger);
     this.interactionActions = new InteractionActions(
       this.sessionManager,
       this.logger
@@ -80,18 +122,99 @@ export class BrowserManager {
     this.sessionManager.checkRateLimit();
     this.sessionManager.checkCapacity();
 
-    const { browser, context, browserType, headless, recordingVideo } =
-      await browserLauncher.launch(options);
+    const {
+      browserType = config.defaultBrowser,
+      headless = config.headless,
+      viewport = config.defaultViewport,
+      userAgent,
+      channel,
+      slowMo,
+      proxy,
+      timeout,
+      recordVideo,
+      storageState,
+    } = options;
 
-    const sessionId = this.sessionManager.createSession({
-      browser,
-      context,
-      browserType,
-      headless,
-      viewport: options.viewport,
-    });
+    try {
+      const launcher = BROWSER_LAUNCHERS[browserType];
+      const launchOptions: LaunchOptions = {
+        headless,
+      };
 
-    return { sessionId, browserType, recordingVideo };
+      if (typeof timeout === 'number') {
+        launchOptions.timeout = timeout;
+      }
+
+      if (typeof slowMo === 'number') {
+        launchOptions.slowMo = slowMo;
+      }
+
+      if (proxy) {
+        launchOptions.proxy = proxy;
+      }
+
+      if (channel) {
+        if (browserType === 'chromium') {
+          launchOptions.channel = channel;
+        } else {
+          this.logger.warn('Channel option ignored for non-Chromium browsers', {
+            browserType,
+            channel,
+          });
+        }
+      }
+
+      const browser = await launcher(launchOptions);
+
+      const contextOptions: Parameters<Browser['newContext']>[0] = {
+        viewport,
+        ignoreHTTPSErrors: config.ignoreHTTPSErrors,
+        locale: config.locale,
+        timezoneId: config.timezoneId,
+      };
+
+      if (userAgent) {
+        contextOptions.userAgent = userAgent;
+      }
+
+      if (storageState) {
+        contextOptions.storageState = storageState;
+      }
+
+      if (recordVideo) {
+        const videoDir = validateOutputPath(recordVideo.dir);
+        await fs.mkdir(videoDir, { recursive: true });
+        contextOptions.recordVideo = {
+          dir: videoDir,
+          size: recordVideo.size,
+        };
+      }
+
+      const context = await browser.newContext(contextOptions);
+
+      const sessionId = this.sessionManager.createSession({
+        browser,
+        context,
+        browserType,
+        headless,
+        viewport: options.viewport,
+      });
+
+      return {
+        sessionId,
+        browserType,
+        recordingVideo: !!contextOptions.recordVideo,
+      };
+    } catch (error) {
+      const err = toError(error);
+      this.logger.error('Failed to launch browser', {
+        error: err.message,
+      });
+      throw ErrorHandler.createError(
+        ErrorCode.BROWSER_LAUNCH_FAILED,
+        `Browser launch failed: ${err.message}`
+      );
+    }
   }
 
   async closeBrowser(sessionId: string): Promise<{ success: boolean }> {

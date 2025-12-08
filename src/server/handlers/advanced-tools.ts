@@ -4,9 +4,9 @@
 // @see https://playwright.dev/docs/frames
 
 import { z } from 'zod';
+import type { ConsoleMessage, Page } from 'playwright';
 
 import type { ToolContext } from '../../config/types.js';
-import { ConsoleCaptureService } from '../services/console-capture-service.js';
 import {
   basePageInput,
   destructiveAnnotations,
@@ -243,6 +243,129 @@ const schemas = {
     result: z.unknown().optional(),
   },
 } as const;
+
+// ============================================================================
+// Console Capture Service (Inlined)
+// ============================================================================
+
+interface CapturedMessage {
+  type: string;
+  text: string;
+  timestamp: string;
+  location?: string;
+}
+
+interface CaptureState {
+  messages: CapturedMessage[];
+  maxMessages: number;
+  types: Set<string>;
+  listener?: (msg: ConsoleMessage) => void;
+}
+
+interface CaptureOptions {
+  types?: string[];
+  maxMessages?: number;
+}
+
+interface CaptureResult {
+  success: boolean;
+  messages?: CapturedMessage[];
+  count?: number;
+}
+
+const DEFAULT_TYPES = ['log', 'info', 'warn', 'error', 'debug', 'trace'];
+const DEFAULT_MAX_MESSAGES = 100;
+
+class ConsoleCaptureService {
+  private static instance: ConsoleCaptureService | null = null;
+  private readonly captures = new Map<string, CaptureState>();
+
+  private constructor() {}
+
+  static getInstance(): ConsoleCaptureService {
+    if (!ConsoleCaptureService.instance) {
+      ConsoleCaptureService.instance = new ConsoleCaptureService();
+    }
+    return ConsoleCaptureService.instance;
+  }
+
+  private createKey(sessionId: string, pageId: string): string {
+    return `${sessionId}:${pageId}`;
+  }
+
+  start(
+    page: Page,
+    sessionId: string,
+    pageId: string,
+    options: CaptureOptions = {}
+  ): CaptureResult {
+    const key = this.createKey(sessionId, pageId);
+    this.stopInternal(page, key);
+
+    const capture: CaptureState = {
+      messages: [],
+      maxMessages: options.maxMessages ?? DEFAULT_MAX_MESSAGES,
+      types: new Set(options.types ?? DEFAULT_TYPES),
+    };
+
+    capture.listener = (msg: ConsoleMessage) => {
+      const msgType = msg.type();
+      if (!capture.types.has(msgType)) return;
+
+      const loc = msg.location();
+      capture.messages.push({
+        type: msgType,
+        text: msg.text(),
+        timestamp: new Date().toISOString(),
+        location: loc.url ? `${loc.url}:${loc.lineNumber}` : undefined,
+      });
+
+      if (capture.messages.length > capture.maxMessages) {
+        capture.messages.shift();
+      }
+    };
+
+    page.on('console', capture.listener);
+    this.captures.set(key, capture);
+
+    page.once('close', () => {
+      this.captures.delete(key);
+    });
+
+    return { success: true, count: 0 };
+  }
+
+  stop(page: Page, sessionId: string, pageId: string): CaptureResult {
+    const key = this.createKey(sessionId, pageId);
+    const capture = this.captures.get(key);
+    const count = capture?.messages.length ?? 0;
+    this.stopInternal(page, key);
+    return { success: true, count };
+  }
+
+  private stopInternal(page: Page, key: string): void {
+    const capture = this.captures.get(key);
+    if (capture?.listener) {
+      page.off('console', capture.listener);
+    }
+    this.captures.delete(key);
+  }
+
+  get(sessionId: string, pageId: string): CaptureResult {
+    const key = this.createKey(sessionId, pageId);
+    const capture = this.captures.get(key);
+    const messages = capture?.messages ?? [];
+    return { success: true, messages, count: messages.length };
+  }
+
+  static formatMessages(messages: CapturedMessage[], limit = 20): string {
+    if (messages.length === 0) return 'No console messages captured';
+    return messages
+      .slice(-limit)
+      .map((m) => `[${m.type.toUpperCase()}] ${m.text}`)
+      .join('\n');
+  }
+}
 
 // Console capture service singleton instance (shared across all registrations)
 const consoleCaptureService = ConsoleCaptureService.getInstance();

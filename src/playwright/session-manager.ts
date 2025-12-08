@@ -27,8 +27,83 @@ import {
   validateUUID,
 } from '../utils/error-handler.js';
 import type { Logger } from '../utils/logger.js';
-import { MS_PER_MINUTE } from '../utils/constants.js';
-import { RateLimiter } from './rate-limiter.js';
+import { RateLimiterConfig, RateLimitStatus } from '../config/types.js';
+import {
+  DEFAULT_MAX_TRACKED_REQUESTS,
+  MS_PER_MINUTE,
+} from '../utils/constants.js';
+
+/**
+ * Sliding window rate limiter with memory bounds.
+ */
+class RateLimiter {
+  private timestamps: number[] = [];
+  private readonly maxRequests: number;
+  private readonly windowMs: number;
+  private readonly maxTracked: number;
+
+  constructor(config: RateLimiterConfig) {
+    this.maxRequests = config.maxRequests;
+    this.windowMs = config.windowMs;
+    this.maxTracked = config.maxTracked ?? DEFAULT_MAX_TRACKED_REQUESTS;
+  }
+
+  consumeToken(): void {
+    const status = this.getStatus();
+
+    if (!status.allowed) {
+      throw ErrorHandler.rateLimitExceeded(
+        this.maxRequests,
+        Math.round(this.windowMs / 1000)
+      );
+    }
+    this.timestamps.push(Date.now());
+  }
+
+  canAccept(): boolean {
+    this.pruneExpired();
+    return this.timestamps.length < this.maxRequests;
+  }
+
+  getStatus(): RateLimitStatus {
+    this.pruneExpired();
+    const remaining = Math.max(0, this.maxRequests - this.timestamps.length);
+    const oldestTimestamp = this.timestamps[0];
+    const resetMs = oldestTimestamp
+      ? Math.max(0, oldestTimestamp + this.windowMs - Date.now())
+      : 0;
+
+    return {
+      allowed: this.timestamps.length < this.maxRequests,
+      remaining,
+      resetMs,
+    };
+  }
+
+  reset(): void {
+    this.timestamps = [];
+  }
+
+  private pruneExpired(): void {
+    const cutoff = Date.now() - this.windowMs;
+    let left = 0;
+    let right = this.timestamps.length;
+    while (left < right) {
+      const mid = (left + right) >>> 1;
+      if (this.timestamps[mid] <= cutoff) {
+        left = mid + 1;
+      } else {
+        right = mid;
+      }
+    }
+    if (left > 0) {
+      this.timestamps.splice(0, left);
+    }
+    if (this.timestamps.length > this.maxTracked) {
+      this.timestamps.splice(0, this.timestamps.length - this.maxTracked);
+    }
+  }
+}
 
 export class SessionManager {
   private readonly sessions = new Map<string, BrowserSession>();

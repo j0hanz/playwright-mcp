@@ -48,21 +48,6 @@ export function generateRequestId(): string {
   return requestIdGenerator();
 }
 
-/**
- * Set a custom request ID generator (primarily for testing).
- * @param generator - Custom generator function
- */
-export function setRequestIdGenerator(generator: RequestIdGenerator): void {
-  requestIdGenerator = generator;
-}
-
-/**
- * Reset request ID generator to default UUID-based implementation.
- */
-export function resetRequestIdGenerator(): void {
-  requestIdGenerator = () => uuidv4().slice(0, 8);
-}
-
 // Pagination Utilities
 
 function normalizePageParams(params: PaginationParams): {

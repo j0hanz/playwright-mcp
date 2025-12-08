@@ -11,7 +11,6 @@ import type {
   AriaRole,
 } from '../../config/types.js';
 import { validateUploadPath } from '../security.js';
-import { filterDefined } from '../../utils/object-utils.js';
 import { BaseAction } from './base-action.js';
 
 /** Re-export ElementIndex for convenience */
@@ -667,4 +666,10 @@ export class InteractionActions extends BaseAction {
       { selector, fileCount: filePaths.length }
     );
   }
+}
+
+function filterDefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, value]) => value !== undefined)
+  ) as Partial<T>;
 }

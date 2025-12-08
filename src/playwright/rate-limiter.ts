@@ -22,7 +22,7 @@ export type { RateLimiterConfig, RateLimitStatus };
  *   maxTracked: 100
  * });
  *
- * limiter.checkLimit(); // Throws if rate limit exceeded
+ * limiter.consumeToken(); // Throws if rate limit exceeded
  * ```
  */
 export class RateLimiter {
@@ -63,13 +63,6 @@ export class RateLimiter {
   canAccept(): boolean {
     this.pruneExpired();
     return this.timestamps.length < this.maxRequests;
-  }
-
-  /**
-   * @deprecated Use consumeToken() instead for clarity about side effects
-   */
-  checkLimit(): void {
-    this.consumeToken();
   }
 
   getStatus(): RateLimitStatus {
