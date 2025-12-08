@@ -30,7 +30,10 @@ const BROWSER_LAUNCHERS: Readonly<
 };
 
 function isPathWithinDirectory(filePath: string, allowedDir: string): boolean {
-  return filePath.startsWith(allowedDir);
+  const normalizedAllowed = path.normalize(allowedDir);
+  const normalizedPath = path.normalize(filePath);
+  const relative = path.relative(normalizedAllowed, normalizedPath);
+  return !relative.startsWith('..') && !path.isAbsolute(relative);
 }
 
 function validateOutputPath(filePath: string): string {

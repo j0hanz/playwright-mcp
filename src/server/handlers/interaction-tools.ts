@@ -4,6 +4,7 @@
 import { z } from 'zod';
 
 import { ARIA_ROLES, type ToolContext } from '../../config/types.js';
+import { withRetry, formatRetryInfo } from '../../utils/retry.js';
 import {
   basePageInput,
   clickLocatorTypeSchema,
@@ -28,33 +29,6 @@ const forceSchema = z
   .boolean()
   .default(false)
   .describe('Force action even if element is not visible');
-
-/** Result from retry operation including retry count */
-interface RetryResult<T> {
-  result: T;
-  retriesUsed: number;
-}
-
-/** Execute function with retry support, returning both result and retry count */
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  retries: number,
-  retryDelay: number
-): Promise<RetryResult<T>> {
-  let lastError: Error = new Error('Operation failed');
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const result = await fn();
-      return { result, retriesUsed: attempt };
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < retries) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      }
-    }
-  }
-  throw lastError;
-}
 
 export function registerInteractionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -211,11 +185,10 @@ Supports automatic retries for flaky elements.`,
 
         // Execute with retry support
         if (retries > 0) {
-          const retryResult = await withRetry(
-            executeClick,
+          const retryResult = await withRetry(executeClick, {
             retries,
-            retryDelay
-          );
+            retryDelay,
+          });
           result = retryResult.result;
           retriesUsed = retryResult.retriesUsed;
         } else {
@@ -247,7 +220,7 @@ Supports automatic retries for flaky elements.`,
         }
 
         if (retriesUsed > 0) {
-          description += ` (after ${retriesUsed} ${retriesUsed === 1 ? 'retry' : 'retries'})`;
+          description += ` ${formatRetryInfo(retriesUsed)}`;
         }
 
         return {
@@ -353,7 +326,10 @@ Supports automatic retries for flaky elements.`,
 
         // Execute with retry support
         if (retries > 0) {
-          const retryResult = await withRetry(executeFill, retries, retryDelay);
+          const retryResult = await withRetry(executeFill, {
+            retries,
+            retryDelay,
+          });
           result = retryResult.result;
           retriesUsed = retryResult.retriesUsed;
         } else {
@@ -375,7 +351,7 @@ Supports automatic retries for flaky elements.`,
         }
 
         if (retriesUsed > 0) {
-          description += ` (after ${retriesUsed} ${retriesUsed === 1 ? 'retry' : 'retries'})`;
+          description += ` ${formatRetryInfo(retriesUsed)}`;
         }
 
         return {

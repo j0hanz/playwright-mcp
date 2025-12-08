@@ -6,6 +6,7 @@
 import { z } from 'zod';
 
 import type { ToolContext } from '../../config/types.js';
+import { ConsoleCaptureService } from '../services/console-capture-service.js';
 import {
   basePageInput,
   destructiveAnnotations,
@@ -243,25 +244,8 @@ const schemas = {
   },
 } as const;
 
-// Console message storage (per page)
-const consoleCaptures = new Map<
-  string,
-  {
-    messages: Array<{
-      type: string;
-      text: string;
-      timestamp: string;
-      location?: string;
-    }>;
-    maxMessages: number;
-    types: Set<string>;
-    listener?: (msg: import('playwright').ConsoleMessage) => void;
-  }
->();
-
-function getConsoleKey(sessionId: string, pageId: string): string {
-  return `${sessionId}:${pageId}`;
-}
+// Console capture service instance (shared across all registrations)
+const consoleCaptureService = new ConsoleCaptureService();
 
 export function registerAdvancedTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
@@ -625,100 +609,55 @@ URL patterns: Use glob patterns like "**/api/**" or regex strings`,
     createToolHandler(
       async ({ sessionId, pageId, action, types, maxMessages }) => {
         const page = browserManager.getPageForTool(sessionId, pageId);
-        const key = getConsoleKey(sessionId, pageId);
 
-        // Ensure async context (required by createToolHandler)
+        // Ensure async context for tool handler contract
         await Promise.resolve();
 
         switch (action) {
           case 'start': {
-            // Remove existing listener if any
-            const existing = consoleCaptures.get(key);
-            if (existing?.listener) {
-              page.off('console', existing.listener);
-            }
-
-            const capture = {
-              messages: [] as Array<{
-                type: string;
-                text: string;
-                timestamp: string;
-                location?: string;
-              }>,
+            consoleCaptureService.start(page, sessionId, pageId, {
+              types,
               maxMessages,
-              types: new Set(
-                types ?? ['log', 'info', 'warn', 'error', 'debug', 'trace']
-              ),
-              listener: (msg: import('playwright').ConsoleMessage) => {
-                const msgType = msg.type();
-                if (!capture.types.has(msgType)) return;
-
-                const loc = msg.location();
-                capture.messages.push({
-                  type: msgType,
-                  text: msg.text(),
-                  timestamp: new Date().toISOString(),
-                  location: `${loc.url}:${loc.lineNumber}`,
-                });
-
-                // Enforce max messages
-                if (capture.messages.length > capture.maxMessages) {
-                  capture.messages.shift();
-                }
-              },
-            };
-
-            page.on('console', capture.listener);
-            consoleCaptures.set(key, capture);
+            });
             browserManager.markSessionActive(sessionId);
 
+            const typeList =
+              types?.join(', ') || 'log, info, warn, error, debug, trace';
             return {
               content: [
-                textContent(
-                  `Console capture started. Types: ${Array.from(capture.types).join(', ')}`
-                ),
+                textContent(`Console capture started. Types: ${typeList}`),
               ],
               structuredContent: { success: true, count: 0 },
             };
           }
 
           case 'stop': {
-            const capture = consoleCaptures.get(key);
-            if (capture?.listener) {
-              page.off('console', capture.listener);
-              consoleCaptures.delete(key);
-            }
+            const result = consoleCaptureService.stop(page, sessionId, pageId);
             browserManager.markSessionActive(sessionId);
 
             return {
               content: [textContent('Console capture stopped')],
               structuredContent: {
                 success: true,
-                count: capture?.messages.length ?? 0,
+                count: result.count,
               },
             };
           }
 
           case 'get': {
-            const capture = consoleCaptures.get(key);
-            const messages = capture?.messages ?? [];
+            const result = consoleCaptureService.get(sessionId, pageId);
             browserManager.markSessionActive(sessionId);
 
-            // Format for display
-            const displayText =
-              messages.length === 0
-                ? 'No console messages captured'
-                : messages
-                    .slice(-20)
-                    .map((m) => `[${m.type.toUpperCase()}] ${m.text}`)
-                    .join('\n');
+            const displayText = ConsoleCaptureService.formatMessages(
+              result.messages ?? []
+            );
 
             return {
               content: [textContent(displayText)],
               structuredContent: {
                 success: true,
-                messages,
-                count: messages.length,
+                messages: result.messages,
+                count: result.count,
               },
             };
           }

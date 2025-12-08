@@ -174,9 +174,9 @@ function isSafeScript(script: string): boolean {
   return SAFE_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
-const ALLOWED_UPLOAD_DIR = fileURLToPath(
-  new URL('../../uploads', import.meta.url)
-);
+const ALLOWED_UPLOAD_DIR = process.env.ALLOWED_UPLOAD_DIR
+  ? path.resolve(process.env.ALLOWED_UPLOAD_DIR)
+  : fileURLToPath(new URL('../../uploads', import.meta.url));
 
 export function validateUrlProtocol(url: string): void {
   try {

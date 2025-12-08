@@ -109,14 +109,17 @@ export const geolocationSchema = z.object({
 // Locator Type Schemas
 // ============================================================================
 
-// Helper for creating non-empty tuples from const arrays
-function toNonEmptyTuple<T extends readonly [string, ...string[]]>(arr: T): T {
+/**
+ * Helper to cast a readonly string array to a Zod-compatible non-empty tuple.
+ * Zod's z.enum() requires at least one element, so this ensures type safety.
+ */
+function asZodEnumTuple<T extends readonly [string, ...string[]]>(arr: T): T {
   return arr;
 }
 
 /** ARIA roles for accessibility locators */
 export const ariaRoleSchema = z.enum(
-  toNonEmptyTuple(ARIA_ROLES as readonly [string, ...string[]])
+  asZodEnumTuple(ARIA_ROLES as readonly [string, ...string[]])
 );
 
 /** Click locator types */
