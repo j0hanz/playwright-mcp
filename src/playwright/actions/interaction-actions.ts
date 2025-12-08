@@ -74,17 +74,15 @@ export class InteractionActions extends BaseAction {
       pageId,
       trial ? 'Trial click element' : 'Click element',
       async (page) => {
-        await page
-          .locator(selector)
-          .click({
-            force,
-            timeout,
-            trial,
-            button,
-            clickCount,
-            modifiers,
-            delay,
-          });
+        await page.locator(selector).click({
+          force,
+          timeout,
+          trial,
+          button,
+          clickCount,
+          modifiers,
+          delay,
+        });
         return { success: true, trialRun: trial ?? false };
       },
       { selector, trial }

@@ -174,7 +174,13 @@ export const imageFormatSchema = z.enum(['png', 'jpeg']);
 
 export const proxySchema = z
   .object({
-    server: z.string().describe('Proxy server URL'),
+    server: z
+      .string()
+      .regex(
+        /^(http|https|socks5):\/\/[^:]+:\d+$/,
+        'Invalid proxy URL format (must be protocol://host:port)'
+      )
+      .describe('Proxy server URL'),
     bypass: z.string().optional().describe('Domains to bypass proxy'),
     username: z.string().optional(),
     password: z.string().optional(),

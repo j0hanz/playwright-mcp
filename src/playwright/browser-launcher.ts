@@ -38,12 +38,12 @@ function isPathWithinDirectory(filePath: string, allowedDir: string): boolean {
 
 function validateOutputPath(filePath: string): string {
   const resolved = path.resolve(filePath);
-  const projectRoot = process.cwd();
+  const videoRoot = path.resolve(process.cwd(), config.video.directory);
 
-  if (!isPathWithinDirectory(resolved, projectRoot)) {
+  if (!isPathWithinDirectory(resolved, videoRoot)) {
     throw ErrorHandler.createError(
       ErrorCode.VALIDATION_FAILED,
-      `Output path must be within the project directory: ${filePath}`
+      `Output path must be within the video directory: ${config.video.directory}`
     );
   }
   return resolved;
