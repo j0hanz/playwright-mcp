@@ -1,16 +1,29 @@
 {
   "servers": {
+    "exa": {
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp?exaApiKey=${input:exa-api-key}&tools=web_search_exa,deep_search_exa,get_code_context_exa,crawling_exa,company_research_exa,linkedin_search_exa,deep_researcher_start,deep_researcher_check"
+    },
     "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "${input:github-pat}"
+      }
+    },
+    "context7": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github-pat}"
-      }
+      "args": [
+        "-y",
+        "@upstash/context7-mcp",
+        "--api-key",
+        "ctx7sk-1e93498a-93c3-4326-972a-115b80e18ee7"
+      ]
     },
     "memory": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
+      "args": ["-y", "@modelcontextprotocol/server-memory@latest"]
     },
     "apify": {
       "type": "http",
@@ -22,7 +35,7 @@
     "playwright": {
       "type": "stdio",
       "command": "node",
-      "args": ["dist/src/index.js"]
+      "args": ["C:\\playwright\\dist\\index.js"]
     },
     "mui-mcp": {
       "type": "stdio",
@@ -40,7 +53,7 @@
     },
     "sequential-thinking": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking@latest"]
     },
     "filesystem": {
       "command": "npx",
@@ -53,13 +66,37 @@
     "brave-search": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@brave/brave-search-mcp-server", "--transport", "stdio"],
+      "args": [
+        "-y",
+        "@brave/brave-search-mcp-server@latest",
+        "--transport",
+        "stdio"
+      ],
       "env": {
         "BRAVE_API_KEY": "${input:brave-api-key}"
       }
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    },
+    "everything": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"]
+    },
+    "microsoft.docs.mcp": {
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp"
     }
   },
   "inputs": [
+    {
+      "password": true,
+      "id": "exa-api-key",
+      "type": "promptString",
+      "description": "Exa AI API Key (get from dashboard.exa.ai/api-keys)"
+    },
     {
       "password": true,
       "id": "github-pat",

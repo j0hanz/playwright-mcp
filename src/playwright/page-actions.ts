@@ -4,7 +4,7 @@
 import type { Page } from 'playwright';
 
 import { timeoutOptions } from '../config/playwright-config.js';
-import type { AriaRole, MouseButton, WaitUntilState } from '../config/types.js';
+import type { AriaRole, WaitUntilState } from '../config/types.js';
 
 // Navigation Actions
 
@@ -190,34 +190,6 @@ export async function typeText(
   options: { delay?: number } = {}
 ): Promise<{ success: boolean }> {
   await page.keyboard.type(text, options);
-
-  return { success: true };
-}
-
-// Mouse Actions
-
-export async function moveMouse(
-  page: Page,
-  x: number,
-  y: number,
-  options: { steps?: number } = {}
-): Promise<{ success: boolean }> {
-  await page.mouse.move(x, y, options);
-
-  return { success: true };
-}
-
-export async function clickAt(
-  page: Page,
-  x: number,
-  y: number,
-  options: {
-    button?: MouseButton;
-    clickCount?: number;
-    delay?: number;
-  } = {}
-): Promise<{ success: boolean }> {
-  await page.mouse.click(x, y, options);
 
   return { success: true };
 }

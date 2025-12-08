@@ -329,23 +329,6 @@ export {
   type TestScenarioInput,
 } from '../server/handlers/schemas.js';
 
-// Accessibility Types
-
-export interface AccessibilityNode {
-  html: string;
-  target: string[];
-  failureSummary?: string;
-}
-
-export interface AccessibilityViolation {
-  id: string;
-  impact?: 'minor' | 'moderate' | 'serious' | 'critical';
-  description: string;
-  help: string;
-  helpUrl: string;
-  nodes: AccessibilityNode[];
-}
-
 // Logger Types
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';

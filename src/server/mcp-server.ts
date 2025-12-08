@@ -257,5 +257,3 @@ export class MCPPlaywrightServer {
     this.logger.info('MCP Playwright Server started successfully');
   }
 }
-
-export default MCPPlaywrightServer;

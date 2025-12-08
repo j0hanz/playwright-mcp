@@ -72,10 +72,6 @@ const RETRYABLE_CODES = new Set<ErrorCode>([
   ErrorCode.NETWORK_ERROR,
 ]);
 
-export function isRetryableError(code: ErrorCode): boolean {
-  return RETRYABLE_CODES.has(code);
-}
-
 // Retry Hints - Actionable guidance for each error code
 // Provides users with context-specific recovery suggestions
 
@@ -202,15 +198,6 @@ export function isMCPPlaywrightError(
     return true;
   }
   return false;
-}
-
-export function isPlaywrightTimeoutError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.name === 'TimeoutError' ||
-      error.message.includes('Timeout') ||
-      error.message.includes('exceeded'))
-  );
 }
 
 // Error Pattern Mapping - Grouped by category for maintainability
@@ -414,5 +401,3 @@ export const ErrorHandler = {
     );
   },
 } as const;
-
-export default ErrorHandler;

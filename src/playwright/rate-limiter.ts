@@ -2,11 +2,7 @@
 
 import type { RateLimiterConfig, RateLimitStatus } from '../config/types.js';
 import { ErrorHandler } from '../utils/error-handler.js';
-import {
-  DEFAULT_MAX_TRACKED_REQUESTS,
-  MS_PER_MINUTE,
-  MS_PER_SECOND,
-} from '../utils/constants.js';
+import { DEFAULT_MAX_TRACKED_REQUESTS } from '../utils/constants.js';
 
 export type { RateLimiterConfig, RateLimitStatus };
 
@@ -82,23 +78,3 @@ export class RateLimiter {
     }
   }
 }
-
-export const RateLimiters = {
-  forSessions(maxPerMinute: number): RateLimiter {
-    return new RateLimiter({
-      maxRequests: maxPerMinute,
-      windowMs: MS_PER_MINUTE,
-      maxTracked: maxPerMinute * 2,
-    });
-  },
-
-  forRequests(maxPerSecond: number): RateLimiter {
-    return new RateLimiter({
-      maxRequests: maxPerSecond,
-      windowMs: MS_PER_SECOND,
-      maxTracked: maxPerSecond * 10,
-    });
-  },
-} as const;
-
-export default RateLimiter;

@@ -155,5 +155,3 @@ export abstract class BaseAction {
     }
   }
 }
-
-export default BaseAction;

@@ -211,26 +211,13 @@ Supports automatic retries for flaky elements.`,
 
         // Execute with retry support
         if (retries > 0) {
-          let lastError: Error = new Error('Click operation failed');
-          let succeeded = false;
-          for (let attempt = 0; attempt <= retries; attempt++) {
-            try {
-              result = await executeClick();
-              retriesUsed = attempt;
-              succeeded = true;
-              break;
-            } catch (error) {
-              lastError =
-                error instanceof Error ? error : new Error(String(error));
-              retriesUsed = attempt + 1;
-              if (attempt < retries) {
-                await new Promise((resolve) => setTimeout(resolve, retryDelay));
-              }
-            }
-          }
-          if (!succeeded) {
-            throw lastError;
-          }
+          const retryResult = await withRetry(
+            executeClick,
+            retries,
+            retryDelay
+          );
+          result = retryResult.result;
+          retriesUsed = retryResult.retriesUsed;
         } else {
           result = await executeClick();
         }

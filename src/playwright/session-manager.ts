@@ -272,5 +272,3 @@ export class SessionManager {
     session.metadata.activePageId = pageId;
   }
 }
-
-export default SessionManager;

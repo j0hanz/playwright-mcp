@@ -748,9 +748,6 @@ URL patterns: Use glob patterns like "**/api/**" or regex strings`,
       // Use frameLocator to find the frame
       const frameLocator = page.frameLocator(frameSelector);
 
-      // Try to get frame info by checking if content exists
-      const _frame = page.frame({ url: /.*/ }); // Get any frame as fallback
-
       let frameUrl = '';
       let frameName = '';
 

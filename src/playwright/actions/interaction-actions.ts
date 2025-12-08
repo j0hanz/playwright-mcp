@@ -143,63 +143,6 @@ export class InteractionActions extends BaseAction {
     );
   }
 
-  async mouseMove(
-    sessionId: string,
-    pageId: string,
-    x: number,
-    y: number,
-    options: { steps?: number } = {}
-  ): Promise<{ success: boolean }> {
-    return this.executePageOperation(
-      sessionId,
-      pageId,
-      'Mouse move',
-      async (page) => {
-        return pageActions.moveMouse(page, x, y, options);
-      },
-      { x, y }
-    );
-  }
-
-  async mouseClick(
-    sessionId: string,
-    pageId: string,
-    x: number,
-    y: number,
-    options: {
-      button?: 'left' | 'middle' | 'right';
-      clickCount?: number;
-      delay?: number;
-    } = {}
-  ): Promise<{ success: boolean }> {
-    return this.executePageOperation(
-      sessionId,
-      pageId,
-      'Mouse click',
-      async (page) => {
-        return pageActions.clickAt(page, x, y, options);
-      },
-      { x, y, ...options }
-    );
-  }
-
-  async doubleClickElement(
-    options: ElementInteractionOptions
-  ): Promise<{ success: boolean; trialRun?: boolean }> {
-    const { sessionId, pageId, selector, timeout, force, trial } = options;
-
-    return this.executePageOperation(
-      sessionId,
-      pageId,
-      trial ? 'Trial double-click element' : 'Double-click element',
-      async (page) => {
-        await page.locator(selector).dblclick({ force, timeout, trial });
-        return { success: true, trialRun: trial ?? false };
-      },
-      { selector, trial }
-    );
-  }
-
   async focusElement(
     sessionId: string,
     pageId: string,
@@ -212,24 +155,6 @@ export class InteractionActions extends BaseAction {
       'Focus element',
       async (page) => {
         await page.locator(selector).focus({ timeout: options.timeout });
-        return { success: true };
-      },
-      { selector }
-    );
-  }
-
-  async blurElement(
-    sessionId: string,
-    pageId: string,
-    selector: string,
-    options: { timeout?: number } = {}
-  ): Promise<{ success: boolean }> {
-    return this.executePageOperation(
-      sessionId,
-      pageId,
-      'Blur element',
-      async (page) => {
-        await page.locator(selector).blur({ timeout: options.timeout });
         return { success: true };
       },
       { selector }
