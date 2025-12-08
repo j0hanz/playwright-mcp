@@ -26,6 +26,7 @@ import {
   toError,
   validateUUID,
 } from '../utils/error-handler.js';
+import { SESSION_CACHE_TTL_MS } from '../utils/constants.js';
 import type { Logger } from '../utils/logger.js';
 import { RateLimiterConfig, RateLimitStatus } from '../config/types.js';
 import {
@@ -114,7 +115,6 @@ export class SessionManager {
   // Session list cache with TTL
   private sessionListCache: SessionInfo[] | null = null;
   private cacheTimestamp = 0;
-  private readonly CACHE_TTL = 1000; // 1 second
   private cacheHits = 0;
   private cacheMisses = 0;
 
@@ -249,7 +249,10 @@ export class SessionManager {
     const now = Date.now();
 
     // Check cache validity (TTL-based)
-    if (this.sessionListCache && now - this.cacheTimestamp < this.CACHE_TTL) {
+    if (
+      this.sessionListCache &&
+      now - this.cacheTimestamp < SESSION_CACHE_TTL_MS
+    ) {
       this.cacheHits++;
       return this.sessionListCache;
     }

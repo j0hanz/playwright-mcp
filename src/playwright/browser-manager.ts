@@ -16,7 +16,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import {
   Browser,
-  BrowserContext,
   LaunchOptions,
   Page,
   chromium,
@@ -26,6 +25,7 @@ import {
 
 import config from '../config/server-config.js';
 import type { BrowserLaunchOptions, BrowserType } from '../config/types.js';
+import { consoleCaptureService } from '../server/handlers/advanced-tools.js';
 import {
   ErrorCode,
   ErrorHandler,
@@ -218,10 +218,11 @@ export class BrowserManager {
   }
 
   async closeBrowser(sessionId: string): Promise<{ success: boolean }> {
-    // Clean up dialogs and routes for all pages in the session
+    // Clean up dialogs, routes, and console listeners for all pages in the session
     if (this.sessionManager.hasSession(sessionId)) {
       const pageIds = this.sessionManager.getPageIds(sessionId);
       this.dialogManager.cleanupSession(sessionId, pageIds);
+      consoleCaptureService.cleanupSession(sessionId);
     }
 
     const session = this.sessionManager.getSession(sessionId);

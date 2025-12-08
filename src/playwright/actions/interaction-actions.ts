@@ -10,6 +10,7 @@ import type {
   ElementIndex,
   AriaRole,
 } from '../../config/types.js';
+import type { RoleFilterOptions } from '../../server/handlers/schemas.js';
 import { validateUploadPath } from '../security.js';
 import { BaseAction } from './base-action.js';
 
@@ -33,17 +34,6 @@ interface TextMatchOptions {
   exact?: boolean;
   timeout?: number;
   index?: ElementIndex;
-}
-
-/** ARIA role filter options for advanced role-based selection */
-interface RoleFilterOptions {
-  disabled?: boolean;
-  expanded?: boolean;
-  pressed?: boolean;
-  selected?: boolean;
-  checked?: boolean;
-  level?: number;
-  includeHidden?: boolean;
 }
 
 /**

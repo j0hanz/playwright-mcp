@@ -8,6 +8,11 @@ import type { ConsoleMessage, Page } from 'playwright';
 
 import type { ToolContext } from '../../config/types.js';
 import {
+  DEFAULT_CONSOLE_MESSAGE_LIMIT,
+  DEFAULT_CONSOLE_MAX_MESSAGES,
+  DEFAULT_CONSOLE_TYPES,
+} from '../../utils/constants.js';
+import {
   basePageInput,
   destructiveAnnotations,
   interactionAnnotations,
@@ -273,9 +278,6 @@ interface CaptureResult {
   count?: number;
 }
 
-const DEFAULT_TYPES = ['log', 'info', 'warn', 'error', 'debug', 'trace'];
-const DEFAULT_MAX_MESSAGES = 100;
-
 class ConsoleCaptureService {
   private static instance: ConsoleCaptureService | null = null;
   private readonly captures = new Map<string, CaptureState>();
@@ -293,6 +295,22 @@ class ConsoleCaptureService {
     return `${sessionId}:${pageId}`;
   }
 
+  /**
+   * Clean up all captures for a session when the browser session is closed.
+   * This prevents memory leaks from orphaned capture states.
+   */
+  cleanupSession(sessionId: string): void {
+    const keysToDelete: string[] = [];
+    for (const key of this.captures.keys()) {
+      if (key.startsWith(`${sessionId}:`)) {
+        keysToDelete.push(key);
+      }
+    }
+    for (const key of keysToDelete) {
+      this.captures.delete(key);
+    }
+  }
+
   start(
     page: Page,
     sessionId: string,
@@ -304,8 +322,8 @@ class ConsoleCaptureService {
 
     const capture: CaptureState = {
       messages: [],
-      maxMessages: options.maxMessages ?? DEFAULT_MAX_MESSAGES,
-      types: new Set(options.types ?? DEFAULT_TYPES),
+      maxMessages: options.maxMessages ?? DEFAULT_CONSOLE_MAX_MESSAGES,
+      types: new Set(options.types ?? [...DEFAULT_CONSOLE_TYPES]),
     };
 
     capture.listener = (msg: ConsoleMessage) => {
@@ -358,7 +376,10 @@ class ConsoleCaptureService {
     return { success: true, messages, count: messages.length };
   }
 
-  static formatMessages(messages: CapturedMessage[], limit = 20): string {
+  static formatMessages(
+    messages: CapturedMessage[],
+    limit = DEFAULT_CONSOLE_MESSAGE_LIMIT
+  ): string {
     if (messages.length === 0) return 'No console messages captured';
     return messages
       .slice(-limit)
@@ -369,6 +390,12 @@ class ConsoleCaptureService {
 
 // Console capture service singleton instance (shared across all registrations)
 const consoleCaptureService = ConsoleCaptureService.getInstance();
+
+/**
+ * Export the console capture service for cleanup by BrowserManager.
+ * This prevents memory leaks when browser sessions are closed.
+ */
+export { consoleCaptureService };
 
 export function registerAdvancedTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;

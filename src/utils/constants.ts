@@ -20,6 +20,21 @@ export const MAX_LOG_FILES_CAP = 50;
 // Rate Limiting
 export const DEFAULT_MAX_TRACKED_REQUESTS = 100;
 
+// Session Cache
+export const SESSION_CACHE_TTL_MS = 1000;
+
+// Console Capture
+export const DEFAULT_CONSOLE_MESSAGE_LIMIT = 20;
+export const DEFAULT_CONSOLE_TYPES = [
+  'log',
+  'info',
+  'warn',
+  'error',
+  'debug',
+  'trace',
+] as const;
+export const DEFAULT_CONSOLE_MAX_MESSAGES = 100;
+
 // Pagination Constants
 export const DEFAULT_PAGE = 1;
 export const DEFAULT_PAGE_SIZE = 20;

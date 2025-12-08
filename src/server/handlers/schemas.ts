@@ -82,20 +82,35 @@ export const reducedMotionSchema = z
 // Viewport and Position Schemas
 // ============================================================================
 
-export const viewportSchema = z.object({
-  width: z
-    .number()
-    .int('Width must be an integer')
-    .min(320, 'Width must be at least 320px')
-    .max(3_840, 'Width must not exceed 3840px')
-    .default(1_920),
-  height: z
-    .number()
-    .int('Height must be an integer')
-    .min(240, 'Height must be at least 240px')
-    .max(2_160, 'Height must not exceed 2160px')
-    .default(1_080),
-});
+/** Minimum aspect ratio (width/height) - prevents extreme tall viewports like 320x2160 */
+const MIN_ASPECT_RATIO = 0.5; // 1:2 (tall mobile)
+/** Maximum aspect ratio (width/height) - prevents extreme wide viewports */
+const MAX_ASPECT_RATIO = 4.0; // 4:1 (ultra-wide)
+
+export const viewportSchema = z
+  .object({
+    width: z
+      .number()
+      .int('Width must be an integer')
+      .min(320, 'Width must be at least 320px')
+      .max(3_840, 'Width must not exceed 3840px')
+      .default(1_920),
+    height: z
+      .number()
+      .int('Height must be an integer')
+      .min(240, 'Height must be at least 240px')
+      .max(2_160, 'Height must not exceed 2160px')
+      .default(1_080),
+  })
+  .refine(
+    (data) => {
+      const aspectRatio = data.width / data.height;
+      return aspectRatio >= MIN_ASPECT_RATIO && aspectRatio <= MAX_ASPECT_RATIO;
+    },
+    {
+      message: `Viewport aspect ratio must be between ${MIN_ASPECT_RATIO}:1 and ${MAX_ASPECT_RATIO}:1`,
+    }
+  );
 
 export const positionSchema = z.object({
   x: z.number(),
@@ -166,6 +181,9 @@ export const roleFilterOptionsSchema = z
       .describe('Include hidden elements in search'),
   })
   .describe('Advanced ARIA role filter options');
+
+/** Inferred type for role filter options */
+export type RoleFilterOptions = z.infer<typeof roleFilterOptionsSchema>;
 
 /** Element index for selecting from multiple matches */
 export const elementIndexSchema = z

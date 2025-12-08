@@ -42,7 +42,7 @@ export { getRetryHint } from '../../utils/error-handler.js';
 
 export type RequestIdGenerator = () => string;
 
-let requestIdGenerator: RequestIdGenerator = () => uuidv4().slice(0, 8);
+const requestIdGenerator: RequestIdGenerator = () => uuidv4().slice(0, 8);
 
 export function generateRequestId(): string {
   return requestIdGenerator();
