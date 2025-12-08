@@ -1,16 +1,24 @@
 // Page Operations - Viewport, tabs, screenshots, accessibility scans
+// @see https://playwright.dev/docs/pages
+// @see https://playwright.dev/docs/screenshots
+// @see https://playwright.dev/docs/accessibility-testing
 
 import { v4 as uuidv4 } from 'uuid';
 import AxeBuilder from '@axe-core/playwright';
 
+import config from '../../config/server-config.js';
 import type { Viewport } from '../../config/types.js';
 import { ErrorCode, ErrorHandler } from '../../utils/error-handler.js';
 import type { Logger } from '../../utils/logger.js';
-import * as pageActions from '../page-actions.js';
 import * as security from '../security.js';
 import type { DialogManager } from '../dialog-manager.js';
 import type { SessionManager } from '../session-manager.js';
 import { BaseAction } from './base-action.js';
+
+const TIMEOUTS = {
+  NAVIGATION: config.timeouts.navigation,
+  ACTION: config.timeouts.action,
+} as const;
 
 export class PageOperations extends BaseAction {
   constructor(
@@ -79,7 +87,9 @@ export class PageOperations extends BaseAction {
     this.sessionManager.addPage(sessionId, newPageId, newPage);
 
     if (url) {
-      await pageActions.navigateTo(newPage, url);
+      // Validate URL before navigation
+      security.validateUrlProtocol(url);
+      await newPage.goto(url, { timeout: TIMEOUTS.NAVIGATION });
     }
 
     this.sessionManager.updateActivity(sessionId);
@@ -201,28 +211,19 @@ export class PageOperations extends BaseAction {
           };
         }
 
-        // Clip region screenshot
-        if (clip) {
-          const buffer = await page.screenshot({
-            path,
-            type,
-            quality,
-            omitBackground,
-            clip,
-          });
-          return {
-            base64: buffer.toString('base64'),
-            path,
-          };
-        }
-
-        // Full page or viewport screenshot
-        return pageActions.takeScreenshot(page, {
+        // Direct Playwright screenshot with all options
+        const buffer = await page.screenshot({
           fullPage,
           path,
           type,
           quality,
+          omitBackground,
+          clip,
         });
+        return {
+          base64: buffer.toString('base64'),
+          path,
+        };
       }
     );
   }
@@ -236,7 +237,11 @@ export class PageOperations extends BaseAction {
       pageId,
       'Get page content',
       async (page) => {
-        return pageActions.getContent(page);
+        const [html, text] = await Promise.all([
+          page.content(),
+          page.innerText('body').catch(() => ''),
+        ]);
+        return { html, text };
       }
     );
   }
@@ -250,14 +255,17 @@ export class PageOperations extends BaseAction {
       timeout?: number;
     } = {}
   ): Promise<{ found: boolean }> {
+    const { state = 'visible', timeout = TIMEOUTS.ACTION } = options;
+
     return this.executePageOperation(
       sessionId,
       pageId,
       'Wait for selector',
       async (page) => {
-        return pageActions.waitForSelector(page, selector, options);
+        await page.locator(selector).waitFor({ state, timeout });
+        return { found: true };
       },
-      { selector, state: options.state }
+      { selector, state }
     );
   }
 

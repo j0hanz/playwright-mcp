@@ -22,19 +22,45 @@ import {
 import { textContent } from './types.js';
 
 // ============================================================================
-// Shared Schemas (local to this file)
+// Local Schemas
 // ============================================================================
 
-const forceSchema = z
-  .boolean()
-  .default(false)
-  .describe('Force action even if element is not visible');
+const schemas = {
+  force: z
+    .boolean()
+    .default(false)
+    .describe('Force action even if element is not visible'),
+
+  // Output schemas for consistency
+  clickResult: {
+    success: z.boolean(),
+    retriesUsed: z.number().optional(),
+  },
+  fillResult: {
+    success: z.boolean(),
+    retriesUsed: z.number().optional(),
+  },
+  hoverResult: {
+    success: z.boolean(),
+  },
+  selectResult: {
+    success: z.boolean(),
+    selectedValues: z.array(z.string()),
+  },
+  simpleResult: {
+    success: z.boolean(),
+  },
+  uploadResult: {
+    success: z.boolean(),
+    filesUploaded: z.number(),
+  },
+} as const;
 
 export function registerInteractionTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;
 
   // ============================================================================
-  // Unified Click Tool - Consolidates all click operations
+  // Unified Click Tool - All click operations via InteractionActions
   // ============================================================================
 
   server.registerTool(
@@ -57,13 +83,11 @@ Supports automatic retries for flaky elements.`,
         locatorType: clickLocatorTypeSchema.describe(
           'Type of locator to use for finding the element'
         ),
-        // Locator value - meaning depends on locatorType
         value: z
           .string()
           .describe(
             'Locator value: CSS selector, role name, text, testid, or alt text'
           ),
-        // Role-specific options
         name: z
           .string()
           .optional()
@@ -74,12 +98,10 @@ Supports automatic retries for flaky elements.`,
           .enum(ARIA_ROLES)
           .optional()
           .describe('ARIA role (required when locatorType is "role")'),
-        // Common options
         ...exactMatchOption,
-        force: forceSchema,
+        force: schemas.force,
         ...timeoutOption,
         ...retryOptions,
-        // Advanced click options
         button: mouseButtonSchema
           .default('left')
           .describe('Mouse button to use'),
@@ -99,11 +121,7 @@ Supports automatic retries for flaky elements.`,
           .optional()
           .describe('Time between mousedown and mouseup in ms'),
       },
-      outputSchema: {
-        success: z.boolean(),
-        elementInfo: z.record(z.string(), z.unknown()).optional(),
-        retriesUsed: z.number().optional(),
-      },
+      outputSchema: schemas.clickResult,
     },
     createToolHandler(
       async ({
@@ -127,50 +145,47 @@ Supports automatic retries for flaky elements.`,
         let description: string;
         let retriesUsed = 0;
 
+        // All click methods now go through InteractionActions directly
         const executeClick = async () => {
+          const actions = browserManager.interactionActions;
+
           switch (locatorType) {
             case 'role': {
-              // Role requires the role parameter, value is used as name if name not provided
               const roleValue = role ?? (value as (typeof ARIA_ROLES)[number]);
               const roleName = name ?? (role ? value : undefined);
-              return browserManager.locatorActions.clickByRole(
-                sessionId,
-                pageId,
-                roleValue,
-                { name: roleName, exact, force, timeout }
-              );
+              return actions.clickByRole(sessionId, pageId, roleValue, {
+                name: roleName,
+                exact,
+                force,
+                timeout,
+              });
             }
             case 'text':
-              return browserManager.locatorActions.clickByText(
-                sessionId,
-                pageId,
-                value,
-                { exact, force, timeout }
-              );
+              return actions.clickByText(sessionId, pageId, value, {
+                exact,
+                force,
+                timeout,
+              });
             case 'testid':
-              return browserManager.locatorActions.clickByTestId(
-                sessionId,
-                pageId,
-                value,
-                { force, timeout }
-              );
+              return actions.clickByTestId(sessionId, pageId, value, {
+                force,
+                timeout,
+              });
             case 'altText':
-              return browserManager.locatorActions.clickByAltText(
-                sessionId,
-                pageId,
-                value,
-                { exact, force, timeout }
-              );
+              return actions.clickByAltText(sessionId, pageId, value, {
+                exact,
+                force,
+                timeout,
+              });
             case 'title':
-              return browserManager.locatorActions.clickByTitle(
-                sessionId,
-                pageId,
-                value,
-                { exact, force, timeout }
-              );
+              return actions.clickByTitle(sessionId, pageId, value, {
+                exact,
+                force,
+                timeout,
+              });
             case 'selector':
             default:
-              return browserManager.interactionActions.clickElement({
+              return actions.clickElement({
                 sessionId,
                 pageId,
                 selector: value,
@@ -179,11 +194,11 @@ Supports automatic retries for flaky elements.`,
                 clickCount,
                 modifiers,
                 delay,
+                timeout,
               });
           }
         };
 
-        // Execute with retry support
         if (retries > 0) {
           const retryResult = await withRetry(executeClick, {
             retries,
@@ -195,7 +210,7 @@ Supports automatic retries for flaky elements.`,
           result = await executeClick();
         }
 
-        // Build description based on locator type
+        // Build description
         switch (locatorType) {
           case 'role': {
             const roleValue = role ?? value;
@@ -233,7 +248,7 @@ Supports automatic retries for flaky elements.`,
   );
 
   // ============================================================================
-  // Unified Fill Tool - Consolidates all fill operations
+  // Unified Fill Tool - All fill operations via InteractionActions
   // ============================================================================
 
   server.registerTool(
@@ -254,22 +269,17 @@ Supports automatic retries for flaky elements.`,
         locatorType: fillLocatorTypeSchema.describe(
           'Type of locator to use for finding the input'
         ),
-        // Locator value - meaning depends on locatorType
         value: z
           .string()
           .describe(
             'Locator value: CSS selector, label text, placeholder text, or testid'
           ),
         text: z.string().describe('Text to fill into the input'),
-        // Common options
         ...exactMatchOption,
         ...timeoutOption,
         ...retryOptions,
       },
-      outputSchema: {
-        success: z.boolean(),
-        retriesUsed: z.number().optional(),
-      },
+      outputSchema: schemas.fillResult,
     },
     createToolHandler(
       async ({
@@ -288,43 +298,35 @@ Supports automatic retries for flaky elements.`,
         let retriesUsed = 0;
 
         const executeFill = async () => {
+          const actions = browserManager.interactionActions;
+
           switch (locatorType) {
             case 'label':
-              return browserManager.locatorActions.fillByLabel(
-                sessionId,
-                pageId,
-                value,
-                text,
-                { exact, timeout }
-              );
+              return actions.fillByLabel(sessionId, pageId, value, text, {
+                exact,
+                timeout,
+              });
             case 'placeholder':
-              return browserManager.locatorActions.fillByPlaceholder(
-                sessionId,
-                pageId,
-                value,
-                text,
-                { exact, timeout }
-              );
+              return actions.fillByPlaceholder(sessionId, pageId, value, text, {
+                exact,
+                timeout,
+              });
             case 'testid':
-              return browserManager.locatorActions.fillByTestId(
-                sessionId,
-                pageId,
-                value,
-                text,
-                { timeout }
-              );
+              return actions.fillByTestId(sessionId, pageId, value, text, {
+                timeout,
+              });
             case 'selector':
             default:
-              return browserManager.interactionActions.fillInput({
+              return actions.fillInput({
                 sessionId,
                 pageId,
                 selector: value,
                 text,
+                timeout,
               });
           }
         };
 
-        // Execute with retry support
         if (retries > 0) {
           const retryResult = await withRetry(executeFill, {
             retries,
@@ -364,7 +366,7 @@ Supports automatic retries for flaky elements.`,
   );
 
   // ============================================================================
-  // Unified Hover Tool - Enhanced with locator strategies
+  // Unified Hover Tool
   // ============================================================================
 
   server.registerTool(
@@ -383,11 +385,9 @@ Locator types (in recommended priority order):
         locatorType: hoverLocatorTypeSchema
           .default('selector')
           .describe('Type of locator to use for finding the element'),
-        // Locator value - meaning depends on locatorType
         value: z
           .string()
           .describe('Locator value: CSS selector, role name, text, or testid'),
-        // Role-specific options
         name: z
           .string()
           .optional()
@@ -398,11 +398,10 @@ Locator types (in recommended priority order):
           .enum(ARIA_ROLES)
           .optional()
           .describe('ARIA role (required when locatorType is "role")'),
-        // Common options
         ...exactMatchOption,
         ...timeoutOption,
       },
-      outputSchema: { success: z.boolean() },
+      outputSchema: schemas.hoverResult,
     },
     createToolHandler(
       async ({
@@ -418,40 +417,36 @@ Locator types (in recommended priority order):
         let result: { success: boolean };
         let description: string;
 
+        const actions = browserManager.interactionActions;
+
         switch (locatorType) {
           case 'role': {
             const roleValue = role ?? (value as (typeof ARIA_ROLES)[number]);
             const roleName = name ?? (role ? value : undefined);
-            result = await browserManager.locatorActions.hoverByRole(
-              sessionId,
-              pageId,
-              roleValue,
-              { name: roleName, exact, timeout }
-            );
+            result = await actions.hoverByRole(sessionId, pageId, roleValue, {
+              name: roleName,
+              exact,
+              timeout,
+            });
             description = `Hovered ${roleValue}${roleName ? ` "${roleName}"` : ''}`;
             break;
           }
           case 'text':
-            result = await browserManager.locatorActions.hoverByText(
-              sessionId,
-              pageId,
-              value,
-              { exact, timeout }
-            );
+            result = await actions.hoverByText(sessionId, pageId, value, {
+              exact,
+              timeout,
+            });
             description = `Hovered element with text "${value}"`;
             break;
           case 'testid':
-            result = await browserManager.locatorActions.hoverByTestId(
-              sessionId,
-              pageId,
-              value,
-              { timeout }
-            );
+            result = await actions.hoverByTestId(sessionId, pageId, value, {
+              timeout,
+            });
             description = `Hovered element with testId "${value}"`;
             break;
           case 'selector':
           default:
-            result = await browserManager.interactionActions.hoverElement({
+            result = await actions.hoverElement({
               sessionId,
               pageId,
               selector: value,
@@ -470,7 +465,10 @@ Locator types (in recommended priority order):
     )
   );
 
+  // ============================================================================
   // Select Option Tool
+  // ============================================================================
+
   server.registerTool(
     'select_option',
     {
@@ -484,10 +482,7 @@ Locator types (in recommended priority order):
           .describe('Value(s) to select'),
         ...timeoutOption,
       },
-      outputSchema: {
-        success: z.boolean(),
-        selectedValues: z.array(z.string()),
-      },
+      outputSchema: schemas.selectResult,
     },
     createToolHandler(
       async ({ sessionId, pageId, selector, value, timeout }) => {
@@ -507,7 +502,10 @@ Locator types (in recommended priority order):
     )
   );
 
+  // ============================================================================
   // Drag and Drop Tool
+  // ============================================================================
+
   server.registerTool(
     'drag_and_drop',
     {
@@ -524,7 +522,7 @@ Locator types (in recommended priority order):
           .describe('CSS selector for the target element'),
         ...timeoutOption,
       },
-      outputSchema: { success: z.boolean() },
+      outputSchema: schemas.simpleResult,
     },
     createToolHandler(
       async ({
@@ -578,7 +576,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
           .optional()
           .describe('Time between keydown and keyup in milliseconds'),
       },
-      outputSchema: { success: z.boolean() },
+      outputSchema: schemas.simpleResult,
     },
     createToolHandler(async ({ sessionId, pageId, key, delay }) => {
       const result = await browserManager.interactionActions.keyboardPress(
@@ -611,7 +609,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
           .optional()
           .describe('Delay between key presses in milliseconds'),
       },
-      outputSchema: { success: z.boolean() },
+      outputSchema: schemas.simpleResult,
     },
     createToolHandler(async ({ sessionId, pageId, text, delay }) => {
       const result = await browserManager.interactionActions.keyboardType(
@@ -648,10 +646,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
           .min(1)
           .describe('Array of absolute file paths to upload'),
       },
-      outputSchema: {
-        success: z.boolean(),
-        filesUploaded: z.number(),
-      },
+      outputSchema: schemas.uploadResult,
     },
     createToolHandler(async ({ sessionId, pageId, selector, filePaths }) => {
       const result = await browserManager.interactionActions.uploadFiles(
@@ -688,7 +683,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
         checked: z.boolean().describe('Whether the checkbox should be checked'),
         ...timeoutOption,
       },
-      outputSchema: { success: z.boolean() },
+      outputSchema: schemas.simpleResult,
     },
     createToolHandler(
       async ({ sessionId, pageId, selector, checked, timeout }) => {
@@ -713,7 +708,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
   );
 
   // ============================================================================
-  // Focus/Blur Tools
+  // Focus/Clear Tools
   // ============================================================================
 
   server.registerTool(
@@ -727,7 +722,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
         ...selectorInput,
         ...timeoutOption,
       },
-      outputSchema: { success: z.boolean() },
+      outputSchema: schemas.simpleResult,
     },
     createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
       const result = await browserManager.interactionActions.focusElement(
@@ -743,10 +738,6 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
     }, 'Error focusing element')
   );
 
-  // ============================================================================
-  // Clear Input Tool
-  // ============================================================================
-
   server.registerTool(
     'element_clear',
     {
@@ -757,7 +748,7 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
         ...selectorInput,
         ...timeoutOption,
       },
-      outputSchema: { success: z.boolean() },
+      outputSchema: schemas.simpleResult,
     },
     createToolHandler(async ({ sessionId, pageId, selector, timeout }) => {
       const result = await browserManager.interactionActions.clearInput(

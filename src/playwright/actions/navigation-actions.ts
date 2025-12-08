@@ -1,16 +1,29 @@
 // Navigation Actions - Page navigation with URL validation
+// @see https://playwright.dev/docs/navigations
 
 import { v4 as uuidv4 } from 'uuid';
 
-import type { NavigationOptions } from '../../config/types.js';
+import config from '../../config/server-config.js';
+import type { NavigationOptions, WaitUntilState } from '../../config/types.js';
 import { ErrorHandler, toError } from '../../utils/error-handler.js';
 import type { Logger } from '../../utils/logger.js';
-import * as pageActions from '../page-actions.js';
 import * as security from '../security.js';
 import type { DialogManager } from '../dialog-manager.js';
 import type { SessionManager } from '../session-manager.js';
 import { BaseAction } from './base-action.js';
 
+const TIMEOUTS = {
+  NAVIGATION: config.timeouts.navigation,
+} as const;
+
+/**
+ * Action module for page navigation with URL validation.
+ *
+ * Provides methods for navigating pages, managing history, and reloading.
+ * All navigation URLs are validated against allowed protocols.
+ *
+ * @see https://playwright.dev/docs/navigations for navigation documentation
+ */
 export class NavigationActions extends BaseAction {
   constructor(
     sessionManager: SessionManager,
@@ -23,35 +36,43 @@ export class NavigationActions extends BaseAction {
   async navigateToPage(
     options: NavigationOptions
   ): Promise<{ pageId: string; title: string; url: string }> {
-    const { sessionId, url, waitUntil, timeout } = options;
+    const {
+      sessionId,
+      url,
+      waitUntil = 'load',
+      timeout = TIMEOUTS.NAVIGATION,
+    } = options;
     const startTime = Date.now();
 
+    // Validate URL protocol before navigation
     security.validateUrlProtocol(url);
 
     const session = this.sessionManager.getSession(sessionId);
     const page = await session.context.newPage();
     const pageId = uuidv4();
 
+    // Set up dialog handling for the new page
     this.dialogManager.setupDialogHandler(sessionId, pageId, page);
     this.sessionManager.addPage(sessionId, pageId, page);
 
     try {
-      const result = await pageActions.navigateTo(page, url, {
-        waitUntil,
-        timeout,
-      });
-      const duration = Date.now() - startTime;
-      this.sessionManager.updateActivity(sessionId);
+      // Direct Playwright API call
+      await page.goto(url, { waitUntil, timeout });
 
+      const title = await page.title();
+      const finalUrl = page.url();
+      const duration = Date.now() - startTime;
+
+      this.sessionManager.updateActivity(sessionId);
       this.logger.info('Navigate to page completed', {
         sessionId,
         pageId,
         duration,
-        url: result.url,
-        title: result.title,
+        url: finalUrl,
+        title,
       });
 
-      return { pageId, title: result.title, url: result.url };
+      return { pageId, title, url: finalUrl };
     } catch (error) {
       const duration = Date.now() - startTime;
       const err = toError(error);
@@ -69,14 +90,17 @@ export class NavigationActions extends BaseAction {
 
   async navigateBack(
     sessionId: string,
-    pageId: string
-  ): Promise<{ success: boolean; url?: string }> {
+    pageId: string,
+    options: { timeout?: number; waitUntil?: WaitUntilState } = {}
+  ): Promise<{ success: boolean; url: string }> {
+    const { timeout = TIMEOUTS.NAVIGATION, waitUntil } = options;
+
     return this.executePageOperation(
       sessionId,
       pageId,
       'Navigate back',
       async (page) => {
-        await pageActions.navigateBack(page);
+        await page.goBack({ timeout, waitUntil });
         return { success: true, url: page.url() };
       }
     );
@@ -84,14 +108,17 @@ export class NavigationActions extends BaseAction {
 
   async navigateForward(
     sessionId: string,
-    pageId: string
-  ): Promise<{ success: boolean; url?: string }> {
+    pageId: string,
+    options: { timeout?: number; waitUntil?: WaitUntilState } = {}
+  ): Promise<{ success: boolean; url: string }> {
+    const { timeout = TIMEOUTS.NAVIGATION, waitUntil } = options;
+
     return this.executePageOperation(
       sessionId,
       pageId,
       'Navigate forward',
       async (page) => {
-        await pageActions.navigateForward(page);
+        await page.goForward({ timeout, waitUntil });
         return { success: true, url: page.url() };
       }
     );
@@ -100,17 +127,21 @@ export class NavigationActions extends BaseAction {
   async reloadPage(
     sessionId: string,
     pageId: string,
-    options?: {
-      waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
-    }
-  ): Promise<{ success: boolean; url?: string }> {
+    options: { timeout?: number; waitUntil?: WaitUntilState } = {}
+  ): Promise<{ success: boolean; url: string; title: string }> {
+    const { timeout = TIMEOUTS.NAVIGATION, waitUntil = 'load' } = options;
+
     return this.executePageOperation(
       sessionId,
       pageId,
       'Reload page',
       async (page) => {
-        await pageActions.reload(page, options);
-        return { success: true, url: page.url() };
+        await page.reload({ waitUntil, timeout });
+        return {
+          success: true,
+          url: page.url(),
+          title: await page.title(),
+        };
       }
     );
   }

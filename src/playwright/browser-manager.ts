@@ -17,7 +17,6 @@ import { Logger } from '../utils/logger.js';
 import { AssertionActions } from './actions/assertion-actions.js';
 import { ClockActions } from './actions/clock-actions.js';
 import { InteractionActions } from './actions/interaction-actions.js';
-import { LocatorActions } from './actions/locator-actions.js';
 import { NavigationActions } from './actions/navigation-actions.js';
 import { NetworkActions } from './actions/network-actions.js';
 import { PageOperations } from './actions/page-operations.js';
@@ -33,10 +32,11 @@ export class BrowserManager {
   private readonly sessionManager: SessionManager;
   private readonly dialogManager: DialogManager;
   private readonly logger = new Logger('BrowserManager');
+
+  // Action modules - consolidated for cleaner API
   public readonly assertionActions: AssertionActions;
   public readonly clockActions: ClockActions;
   public readonly interactionActions: InteractionActions;
-  public readonly locatorActions: LocatorActions;
   public readonly navigationActions: NavigationActions;
   public readonly networkActions: NetworkActions;
   public readonly pageOperations: PageOperations;
@@ -46,6 +46,7 @@ export class BrowserManager {
     this.sessionManager = new SessionManager(new Logger('SessionManager'));
     this.dialogManager = new DialogManager(new Logger('DialogManager'));
 
+    // Initialize action modules with shared dependencies
     this.assertionActions = new AssertionActions(
       this.sessionManager,
       this.logger
@@ -55,8 +56,6 @@ export class BrowserManager {
       this.sessionManager,
       this.logger
     );
-    this.locatorActions = new LocatorActions(this.sessionManager, this.logger);
-
     this.navigationActions = new NavigationActions(
       this.sessionManager,
       this.logger,
