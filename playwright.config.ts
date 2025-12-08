@@ -4,15 +4,6 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: './tests',
-  webServer: {
-    command: 'npm run dev',
-    cwd: '..',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !isCI,
-    timeout: 120_000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
   fullyParallel: true,
   workers: isCI ? '50%' : '75%',
   forbidOnly: isCI,
@@ -41,7 +32,6 @@ export default defineConfig({
     toMatchSnapshot: { maxDiffPixelRatio: 0.1 },
   },
   use: {
-    baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
