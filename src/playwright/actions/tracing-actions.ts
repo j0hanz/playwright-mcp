@@ -2,6 +2,19 @@
 
 import { BaseAction } from './base-action.js';
 
+/**
+ * Action module for Playwright trace recording and grouping.
+ *
+ * Traces capture:
+ * - Screenshots at each action
+ * - DOM snapshots for debugging
+ * - Network requests and responses
+ * - Console logs and errors
+ *
+ * View traces at https://trace.playwright.dev
+ *
+ * @see https://playwright.dev/docs/trace-viewer for trace documentation
+ */
 export class TracingActions extends BaseAction {
   async startTracing(
     sessionId: string,

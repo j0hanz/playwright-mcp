@@ -10,6 +10,21 @@ const TIMEOUTS = {
   ACTION: config.timeouts.action,
 } as const;
 
+/**
+ * Action module for Playwright's recommended locator strategies.
+ *
+ * Provides semantic locator methods that follow Playwright best practices:
+ * 1. Role-based locators (most reliable)
+ * 2. Label-based locators (for form fields)
+ * 3. Text-based locators (for non-interactive elements)
+ * 4. TestId-based locators (when code control is available)
+ * 5. Alt text/title locators (for images and elements with titles)
+ *
+ * These locators are preferred over CSS selectors as they are more resilient
+ * to DOM changes and reflect how users interact with the page.
+ *
+ * @see https://playwright.dev/docs/locators for locator documentation
+ */
 export class LocatorActions extends BaseAction {
   async clickByRole(
     sessionId: string,

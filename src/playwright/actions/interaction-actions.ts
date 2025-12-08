@@ -6,6 +6,16 @@ import * as pageActions from '../page-actions.js';
 import { validateUploadPath } from '../security.js';
 import { BaseAction } from './base-action.js';
 
+/**
+ * Action module for element interactions with Playwright actionability checks.
+ *
+ * Provides methods for clicking, filling, hovering, and other element interactions
+ * that respect Playwright's actionability requirements (visible, enabled, stable, etc.).
+ *
+ * All methods support the `trial` option for dry-run validation without side effects.
+ *
+ * @see https://playwright.dev/docs/actionability for actionability documentation
+ */
 export class InteractionActions extends BaseAction {
   async clickElement(options: ElementInteractionOptions): Promise<{
     success: boolean;

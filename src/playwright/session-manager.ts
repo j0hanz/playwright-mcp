@@ -1,5 +1,13 @@
 /**
  * Session Manager - Manages browser session lifecycle
+ *
+ * Handles browser session creation, retrieval, and cleanup with:
+ * - Rate limiting to prevent resource exhaustion
+ * - Capacity management for concurrent sessions
+ * - Activity tracking for session expiration
+ * - Page management within sessions
+ *
+ * @see https://playwright.dev/docs/browser-contexts for context documentation
  */
 import type { Page } from 'playwright';
 import { v4 as uuidv4 } from 'uuid';

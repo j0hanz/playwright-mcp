@@ -6,6 +6,25 @@ import { DEFAULT_MAX_TRACKED_REQUESTS } from '../utils/constants.js';
 
 export type { RateLimiterConfig, RateLimitStatus };
 
+/**
+ * Sliding window rate limiter with memory bounds.
+ *
+ * Tracks request timestamps within a configurable time window and enforces
+ * a maximum request count. Uses binary search for efficient timestamp pruning.
+ *
+ * Memory is bounded by `maxTracked` to prevent unbounded growth under high load.
+ *
+ * @example
+ * ```typescript
+ * const limiter = new RateLimiter({
+ *   maxRequests: 10,
+ *   windowMs: 60_000, // 1 minute
+ *   maxTracked: 100
+ * });
+ *
+ * limiter.checkLimit(); // Throws if rate limit exceeded
+ * ```
+ */
 export class RateLimiter {
   private timestamps: number[] = [];
   private readonly maxRequests: number;

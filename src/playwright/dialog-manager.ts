@@ -1,5 +1,13 @@
 /**
  * Dialog Manager - Manages Playwright dialogs (alerts, confirms, prompts)
+ *
+ * Handles browser dialogs with:
+ * - Automatic tracking of pending dialogs per page
+ * - Auto-dismiss timeout to prevent hanging
+ * - Cleanup on page close/crash
+ * - Concurrent handling protection
+ *
+ * @see https://playwright.dev/docs/dialogs for dialog documentation
  */
 import { Dialog, Page } from 'playwright';
 

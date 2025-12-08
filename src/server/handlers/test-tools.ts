@@ -19,9 +19,29 @@ import { textContent } from './types.js';
 
 const ALLOWED_DIRS = ['specs', 'tests'] as const;
 
+/**
+ * Validates that a file path is within allowed directories (specs/ or tests/).
+ * Prevents path traversal attacks by resolving the path and checking containment.
+ *
+ * @param filePath - The relative file path to validate
+ * @throws MCPPlaywrightError with SECURITY_VIOLATION if path escapes project root
+ * @throws MCPPlaywrightError with VALIDATION_FAILED if path is not in allowed directory
+ */
 function validateArtifactPath(filePath: string): void {
   const projectRoot = process.cwd();
   const resolvedPath = path.resolve(projectRoot, filePath);
+
+  // Security check: Ensure resolved path is within project root
+  // This prevents path traversal attacks like '../../../etc/passwd'
+  if (
+    !resolvedPath.startsWith(projectRoot + path.sep) &&
+    resolvedPath !== projectRoot
+  ) {
+    throw ErrorHandler.createError(
+      ErrorCode.SECURITY_VIOLATION,
+      `Path traversal detected: ${filePath}`
+    );
+  }
 
   const isAllowed = ALLOWED_DIRS.some((dir) => {
     const allowedAbsPath = path.resolve(projectRoot, dir);

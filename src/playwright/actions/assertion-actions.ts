@@ -8,7 +8,14 @@ import { BaseAction } from './base-action.js';
 
 const DEFAULT_TIMEOUT = config.timeouts.assertion;
 
-/** Creates a standardized assertion result object */
+/**
+ * Creates a standardized assertion result object.
+ *
+ * @template T - Additional data type to include in result
+ * @param success - Whether the assertion passed
+ * @param data - Additional data to include in the result
+ * @returns Combined success status and data object
+ */
 function result<T extends Record<string, unknown>>(
   success: boolean,
   data: T
@@ -16,6 +23,16 @@ function result<T extends Record<string, unknown>>(
   return { success, ...data };
 }
 
+/**
+ * Action module for web-first assertions with auto-retry.
+ *
+ * All assertion methods use Playwright's `expect` API which automatically
+ * waits and retries until the condition is met or timeout is reached.
+ *
+ * Returns both success status and actual values for debugging failed assertions.
+ *
+ * @see https://playwright.dev/docs/test-assertions for assertion documentation
+ */
 export class AssertionActions extends BaseAction {
   /** Execute a locator-based assertion with standardized error handling */
   private async assertLocator<T extends Record<string, unknown>>(

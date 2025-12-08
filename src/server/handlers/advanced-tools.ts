@@ -244,8 +244,8 @@ const schemas = {
   },
 } as const;
 
-// Console capture service instance (shared across all registrations)
-const consoleCaptureService = new ConsoleCaptureService();
+// Console capture service singleton instance (shared across all registrations)
+const consoleCaptureService = ConsoleCaptureService.getInstance();
 
 export function registerAdvancedTools(ctx: ToolContext): void {
   const { server, browserManager, createToolHandler } = ctx;

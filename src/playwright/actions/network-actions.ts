@@ -2,6 +2,17 @@
 
 import { BaseAction } from './base-action.js';
 
+/**
+ * Action module for network interception and HAR (HTTP Archive) operations.
+ *
+ * Provides methods for:
+ * - Routing requests from HAR files for mock testing
+ * - Recording network traffic to HAR format
+ * - Removing all network routes
+ *
+ * @see https://playwright.dev/docs/network for network documentation
+ * @see https://playwright.dev/docs/mock for mocking documentation
+ */
 export class NetworkActions extends BaseAction {
   async routeFromHAR(
     sessionId: string,

@@ -37,9 +37,42 @@ const DEFAULT_MAX_MESSAGES = 100;
 /**
  * Service for capturing browser console messages.
  * Manages capture state per page and handles cleanup on page close.
+ *
+ * This service uses the singleton pattern to ensure consistent state
+ * across all handler registrations.
  */
 export class ConsoleCaptureService {
+  private static instance: ConsoleCaptureService | null = null;
   private readonly captures = new Map<string, CaptureState>();
+
+  /**
+   * Private constructor to enforce singleton pattern.
+   * Use ConsoleCaptureService.getInstance() to get the service instance.
+   */
+  private constructor() {
+    // Private constructor for singleton pattern
+  }
+
+  /**
+   * Get the singleton instance of ConsoleCaptureService.
+   * Creates the instance if it doesn't exist.
+   *
+   * @returns The singleton ConsoleCaptureService instance
+   */
+  static getInstance(): ConsoleCaptureService {
+    if (!ConsoleCaptureService.instance) {
+      ConsoleCaptureService.instance = new ConsoleCaptureService();
+    }
+    return ConsoleCaptureService.instance;
+  }
+
+  /**
+   * Reset the singleton instance (primarily for testing).
+   * @internal
+   */
+  static resetInstance(): void {
+    ConsoleCaptureService.instance = null;
+  }
 
   /**
    * Create a unique key for a page within a session.
