@@ -11,6 +11,7 @@ import {
   DEFAULT_CONSOLE_MESSAGE_LIMIT,
   DEFAULT_CONSOLE_MAX_MESSAGES,
   DEFAULT_CONSOLE_TYPES,
+  MAX_CONSOLE_CAPTURE_SESSIONS,
 } from '../../utils/constants.js';
 import {
   basePageInput,
@@ -281,6 +282,8 @@ interface CaptureResult {
 class ConsoleCaptureService {
   private static instance: ConsoleCaptureService | null = null;
   private readonly captures = new Map<string, CaptureState>();
+  /** Tracks insertion order for LRU eviction when max sessions exceeded */
+  private readonly insertionOrder: string[] = [];
 
   private constructor() {}
 
@@ -293,6 +296,22 @@ class ConsoleCaptureService {
 
   private createKey(sessionId: string, pageId: string): string {
     return `${sessionId}:${pageId}`;
+  }
+
+  private evictOldestIfNeeded(): void {
+    while (
+      this.captures.size >= MAX_CONSOLE_CAPTURE_SESSIONS &&
+      this.insertionOrder.length > 0
+    ) {
+      const oldestKey = this.insertionOrder.shift();
+      if (oldestKey && this.captures.has(oldestKey)) {
+        this.captures.delete(oldestKey);
+      }
+    }
+  }
+
+  getCaptureCount(): number {
+    return this.captures.size;
   }
 
   /**
@@ -308,6 +327,11 @@ class ConsoleCaptureService {
     }
     for (const key of keysToDelete) {
       this.captures.delete(key);
+      // Remove from insertion order tracking
+      const orderIndex = this.insertionOrder.indexOf(key);
+      if (orderIndex !== -1) {
+        this.insertionOrder.splice(orderIndex, 1);
+      }
     }
   }
 
@@ -319,6 +343,9 @@ class ConsoleCaptureService {
   ): CaptureResult {
     const key = this.createKey(sessionId, pageId);
     this.stopInternal(page, key);
+
+    // Evict oldest captures if at capacity
+    this.evictOldestIfNeeded();
 
     const capture: CaptureState = {
       messages: [],
@@ -345,9 +372,14 @@ class ConsoleCaptureService {
 
     page.on('console', capture.listener);
     this.captures.set(key, capture);
+    this.insertionOrder.push(key);
 
     page.once('close', () => {
       this.captures.delete(key);
+      const orderIndex = this.insertionOrder.indexOf(key);
+      if (orderIndex !== -1) {
+        this.insertionOrder.splice(orderIndex, 1);
+      }
     });
 
     return { success: true, count: 0 };
@@ -367,6 +399,11 @@ class ConsoleCaptureService {
       page.off('console', capture.listener);
     }
     this.captures.delete(key);
+    // Remove from insertion order tracking
+    const orderIndex = this.insertionOrder.indexOf(key);
+    if (orderIndex !== -1) {
+      this.insertionOrder.splice(orderIndex, 1);
+    }
   }
 
   get(sessionId: string, pageId: string): CaptureResult {

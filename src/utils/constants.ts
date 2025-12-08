@@ -18,13 +18,16 @@ export const MAX_LOG_FILE_SIZE_CAP = 100 * BYTES_PER_MB;
 export const MAX_LOG_FILES_CAP = 50;
 
 // Rate Limiting
+/** Maximum number of timestamps to track for rate limiting (bounds memory usage) */
 export const DEFAULT_MAX_TRACKED_REQUESTS = 100;
 
-// Session Cache
+// Session Management
 export const SESSION_CACHE_TTL_MS = 1000;
 
 // Console Capture
+/** Default number of console messages to return when formatting for display */
 export const DEFAULT_CONSOLE_MESSAGE_LIMIT = 20;
+/** Console message types that are captured by default */
 export const DEFAULT_CONSOLE_TYPES = [
   'log',
   'info',
@@ -33,7 +36,9 @@ export const DEFAULT_CONSOLE_TYPES = [
   'debug',
   'trace',
 ] as const;
+/** Maximum messages to keep per page (circular buffer behavior) */
 export const DEFAULT_CONSOLE_MAX_MESSAGES = 100;
+export const MAX_CONSOLE_CAPTURE_SESSIONS = 50;
 
 // Pagination Constants
 export const DEFAULT_PAGE = 1;
