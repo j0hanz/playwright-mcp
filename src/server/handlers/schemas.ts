@@ -25,48 +25,58 @@ export const timeoutSchema = z.number().min(100).max(120_000);
 // ============================================================================
 
 /** Supported browser types */
-export const browserTypeSchema = z.enum(['chromium', 'firefox', 'webkit']);
+export const browserTypeSchema = z
+  .enum(['chromium', 'firefox', 'webkit'])
+  .describe('Browser engine: chromium, firefox, or webkit');
 
 /** Navigation wait states */
-export const waitUntilSchema = z.enum([
-  'load',
-  'domcontentloaded',
-  'networkidle',
-  'commit',
-]);
+export const waitUntilSchema = z
+  .enum(['load', 'domcontentloaded', 'networkidle', 'commit'])
+  .describe(
+    'Navigation completion strategy: load (all resources), domcontentloaded (DOM ready), networkidle (no network for 500ms), commit (response received)'
+  );
 
 /** Element visibility/interaction states */
-export const elementStateSchema = z.enum([
-  'visible',
-  'hidden',
-  'enabled',
-  'disabled',
-  'focused',
-  'editable',
-  'attached',
-  'inViewport',
-]);
+export const elementStateSchema = z
+  .enum([
+    'visible',
+    'hidden',
+    'enabled',
+    'disabled',
+    'focused',
+    'editable',
+    'attached',
+    'inViewport',
+  ])
+  .describe(
+    'Element state to assert: visible, hidden, enabled, disabled, focused, editable, attached, or inViewport'
+  );
 
 /** Wait for selector states */
-export const waitStateSchema = z.enum([
-  'attached',
-  'detached',
-  'visible',
-  'hidden',
-]);
+export const waitStateSchema = z
+  .enum(['attached', 'detached', 'visible', 'hidden'])
+  .describe(
+    'State to wait for element to reach: attached, detached, visible, or hidden'
+  );
 
 /** Load states for page_wait_for_load_state */
-export const loadStateSchema = z.enum([
-  'load',
-  'domcontentloaded',
-  'networkidle',
-]);
+export const loadStateSchema = z
+  .enum(['load', 'domcontentloaded', 'networkidle'])
+  .describe(
+    'Page load state: load (all resources), domcontentloaded (DOM ready), networkidle (no network for 500ms)'
+  );
 
 /** Color scheme options */
-export const colorSchemeSchema = z.enum(['light', 'dark', 'no-preference']);
+export const colorSchemeSchema = z
+  .enum(['light', 'dark', 'no-preference'])
+  .describe(
+    'Preferred color scheme for emulation: light, dark, or no-preference'
+  );
 
 /** Reduced motion preference */
-export const reducedMotionSchema = z.enum(['reduce', 'no-preference']);
+export const reducedMotionSchema = z
+  .enum(['reduce', 'no-preference'])
+  .describe('Reduced motion preference for emulation: reduce or no-preference');
 
 // ============================================================================
 // Viewport and Position Schemas
@@ -118,9 +128,113 @@ function asZodEnumTuple<T extends readonly [string, ...string[]]>(arr: T): T {
 }
 
 /** ARIA roles for accessibility locators */
-export const ariaRoleSchema = z.enum(
-  asZodEnumTuple(ARIA_ROLES as readonly [string, ...string[]])
-);
+export const ariaRoleSchema = z
+  .enum(asZodEnumTuple(ARIA_ROLES as readonly [string, ...string[]]))
+  .describe('ARIA role for accessibility-based element selection');
+
+/** ARIA role filter options for advanced role-based locators */
+export const roleFilterOptionsSchema = z
+  .object({
+    disabled: z.boolean().optional().describe('Filter by disabled state'),
+    expanded: z
+      .boolean()
+      .optional()
+      .describe(
+        'Filter by expanded state (for expandable elements like accordions)'
+      ),
+    pressed: z
+      .boolean()
+      .optional()
+      .describe('Filter by pressed state (for toggle buttons)'),
+    selected: z
+      .boolean()
+      .optional()
+      .describe('Filter by selected state (for options, tabs)'),
+    checked: z
+      .boolean()
+      .optional()
+      .describe('Filter by checked state (for checkboxes, radio buttons)'),
+    level: z
+      .number()
+      .min(1)
+      .max(6)
+      .optional()
+      .describe('Heading level 1-6 (only for role=heading)'),
+    includeHidden: z
+      .boolean()
+      .optional()
+      .describe('Include hidden elements in search'),
+  })
+  .describe('Advanced ARIA role filter options');
+
+/** Element index for selecting from multiple matches */
+export const elementIndexSchema = z
+  .union([
+    z.number().min(0).describe('Zero-based index of element to select'),
+    z.literal('first').describe('Select first matching element'),
+    z.literal('last').describe('Select last matching element'),
+  ])
+  .optional()
+  .describe(
+    'Element index when multiple elements match: number (0-based), "first", or "last"'
+  );
+
+/** Locator filter for chaining support */
+export const locatorFilterSchema = z
+  .object({
+    hasText: z
+      .string()
+      .optional()
+      .describe('Filter to elements containing this text'),
+    hasNotText: z
+      .string()
+      .optional()
+      .describe('Filter out elements containing this text'),
+    has: z
+      .object({
+        role: z
+          .string()
+          .optional()
+          .describe('Nested element must have this role'),
+        name: z
+          .string()
+          .optional()
+          .describe('Nested element must have this accessible name'),
+        testId: z
+          .string()
+          .optional()
+          .describe('Nested element must have this test ID'),
+        text: z
+          .string()
+          .optional()
+          .describe('Nested element must contain this text'),
+      })
+      .optional()
+      .describe('Filter to elements containing a matching descendant'),
+    hasNot: z
+      .object({
+        role: z
+          .string()
+          .optional()
+          .describe('Nested element must NOT have this role'),
+        name: z
+          .string()
+          .optional()
+          .describe('Nested element must NOT have this accessible name'),
+        testId: z
+          .string()
+          .optional()
+          .describe('Nested element must NOT have this test ID'),
+        text: z
+          .string()
+          .optional()
+          .describe('Nested element must NOT contain this text'),
+      })
+      .optional()
+      .describe('Filter out elements containing a matching descendant'),
+  })
+  .optional()
+  .describe('Locator filter for chaining - narrow down element selection');
 
 /** Click locator types */
 export const clickLocatorTypeSchema = z.enum([
@@ -153,20 +267,30 @@ export const hoverLocatorTypeSchema = z.enum([
 // ============================================================================
 
 /** Mouse button options */
-export const mouseButtonSchema = z.enum(['left', 'middle', 'right']);
+export const mouseButtonSchema = z
+  .enum(['left', 'middle', 'right'])
+  .describe('Mouse button for click operations: left, middle, or right');
 
 /** Keyboard modifier keys */
-export const keyModifierSchema = z.enum(['Alt', 'Control', 'Meta', 'Shift']);
+export const keyModifierSchema = z
+  .enum(['Alt', 'Control', 'Meta', 'Shift'])
+  .describe('Keyboard modifier key: Alt, Control, Meta, or Shift');
 
 /** Array of keyboard modifiers */
-export const keyModifiersSchema = z.array(keyModifierSchema);
+export const keyModifiersSchema = z
+  .array(keyModifierSchema)
+  .describe('Array of keyboard modifier keys to hold during action');
 
 // ============================================================================
 // Screenshot Schemas
 // ============================================================================
 
 /** Image format for screenshots */
-export const imageFormatSchema = z.enum(['png', 'jpeg']);
+export const imageFormatSchema = z
+  .enum(['png', 'jpeg'])
+  .describe(
+    'Screenshot image format: png (lossless) or jpeg (smaller file size)'
+  );
 
 // ============================================================================
 // Browser Launch Option Schemas
@@ -287,14 +411,17 @@ export const retrySchema = z.object({
 // Accessibility Scan Schemas
 // ============================================================================
 
-export const a11yImpactSchema = z.enum([
-  'minor',
-  'moderate',
-  'serious',
-  'critical',
-]);
+export const a11yImpactSchema = z
+  .enum(['minor', 'moderate', 'serious', 'critical'])
+  .describe(
+    'Accessibility violation impact level: minor, moderate, serious, or critical'
+  );
 
-export const a11yTagsSchema = z.array(z.string());
+export const a11yTagsSchema = z
+  .array(z.string())
+  .describe(
+    'WCAG tags to filter by (e.g., wcag2a, wcag2aa, wcag21aa, best-practice)'
+  );
 
 // ============================================================================
 // Test Scenario Schema (for test file generation)

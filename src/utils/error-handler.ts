@@ -20,6 +20,7 @@ export const ErrorCode = {
   ELEMENT_NOT_VISIBLE: 'ELEMENT_NOT_VISIBLE',
   ELEMENT_NOT_ENABLED: 'ELEMENT_NOT_ENABLED',
   ELEMENT_DETACHED: 'ELEMENT_DETACHED',
+  STRICT_MODE_VIOLATION: 'STRICT_MODE_VIOLATION',
 
   // Timeout Errors
   TIMEOUT_EXCEEDED: 'TIMEOUT_EXCEEDED',
@@ -92,6 +93,8 @@ const RETRY_HINTS: Readonly<Record<ErrorCode, string>> = {
     'Element is disabled. Wait for it to become enabled or check application state.',
   [ErrorCode.ELEMENT_DETACHED]:
     'Element was removed from DOM (common in SPAs). Re-query using a fresh locator.',
+  [ErrorCode.STRICT_MODE_VIOLATION]:
+    'Multiple elements match the selector. Use index option ("first", "last", or number), add filter options, or use a more specific selector.',
   [ErrorCode.TIMEOUT_EXCEEDED]:
     'Operation timed out. Increase timeout, check element visibility, or use networkidle wait.',
   [ErrorCode.NAVIGATION_TIMEOUT]:
@@ -221,6 +224,7 @@ const STRING_ERROR_PATTERNS: ReadonlyArray<{
   { pattern: 'Element not found', code: ErrorCode.ELEMENT_NOT_FOUND },
   { pattern: 'no element matches', code: ErrorCode.ELEMENT_NOT_FOUND },
   { pattern: 'strict mode violation', code: ErrorCode.ELEMENT_NOT_FOUND },
+  { pattern: 'strict mode violation', code: ErrorCode.STRICT_MODE_VIOLATION },
   { pattern: 'resolved to', code: ErrorCode.ELEMENT_NOT_FOUND },
   { pattern: 'element is not visible', code: ErrorCode.ELEMENT_NOT_VISIBLE },
   { pattern: 'element is not enabled', code: ErrorCode.ELEMENT_NOT_ENABLED },

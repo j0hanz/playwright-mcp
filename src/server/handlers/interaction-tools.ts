@@ -9,6 +9,7 @@ import {
   basePageInput,
   clickLocatorTypeSchema,
   destructiveAnnotations,
+  elementIndexSchema,
   exactMatchOption,
   fillLocatorTypeSchema,
   hoverLocatorTypeSchema,
@@ -16,6 +17,7 @@ import {
   keyModifiersSchema,
   mouseButtonSchema,
   retryOptions,
+  roleFilterOptionsSchema,
   selectorInput,
   timeoutOption,
 } from './schemas.js';
@@ -42,13 +44,16 @@ const schemas = {
   },
   hoverResult: {
     success: z.boolean(),
+    retriesUsed: z.number().optional(),
   },
   selectResult: {
     success: z.boolean(),
     selectedValues: z.array(z.string()),
+    retriesUsed: z.number().optional(),
   },
   simpleResult: {
     success: z.boolean(),
+    retriesUsed: z.number().optional(),
   },
   uploadResult: {
     success: z.boolean(),
@@ -98,6 +103,16 @@ Supports automatic retries for flaky elements.`,
           .enum(ARIA_ROLES)
           .optional()
           .describe('ARIA role (required when locatorType is "role")'),
+        // ARIA role filter options for advanced role-based selection
+        disabled: roleFilterOptionsSchema.shape.disabled,
+        expanded: roleFilterOptionsSchema.shape.expanded,
+        pressed: roleFilterOptionsSchema.shape.pressed,
+        selected: roleFilterOptionsSchema.shape.selected,
+        checked: roleFilterOptionsSchema.shape.checked,
+        level: roleFilterOptionsSchema.shape.level,
+        includeHidden: roleFilterOptionsSchema.shape.includeHidden,
+        // Element index for selecting from multiple matches
+        index: elementIndexSchema,
         ...exactMatchOption,
         force: schemas.force,
         ...timeoutOption,
@@ -131,6 +146,14 @@ Supports automatic retries for flaky elements.`,
         value,
         name,
         role,
+        disabled,
+        expanded,
+        pressed,
+        selected,
+        checked,
+        level,
+        includeHidden,
+        index,
         exact,
         force,
         timeout,
@@ -145,6 +168,17 @@ Supports automatic retries for flaky elements.`,
         let description: string;
         let retriesUsed = 0;
 
+        // Build role filter options
+        const roleOptions = {
+          disabled,
+          expanded,
+          pressed,
+          selected,
+          checked,
+          level,
+          includeHidden,
+        };
+
         // All click methods now go through InteractionActions directly
         const executeClick = async () => {
           const actions = browserManager.interactionActions;
@@ -158,6 +192,8 @@ Supports automatic retries for flaky elements.`,
                 exact,
                 force,
                 timeout,
+                index,
+                ...roleOptions,
               });
             }
             case 'text':
@@ -165,23 +201,27 @@ Supports automatic retries for flaky elements.`,
                 exact,
                 force,
                 timeout,
+                index,
               });
             case 'testid':
               return actions.clickByTestId(sessionId, pageId, value, {
                 force,
                 timeout,
+                index,
               });
             case 'altText':
               return actions.clickByAltText(sessionId, pageId, value, {
                 exact,
                 force,
                 timeout,
+                index,
               });
             case 'title':
               return actions.clickByTitle(sessionId, pageId, value, {
                 exact,
                 force,
                 timeout,
+                index,
               });
             case 'selector':
             default:
@@ -195,6 +235,7 @@ Supports automatic retries for flaky elements.`,
                 modifiers,
                 delay,
                 timeout,
+                index,
               });
           }
         };
@@ -378,7 +419,9 @@ Locator types (in recommended priority order):
 - 'role': ARIA role (button, link, etc.) - RECOMMENDED for accessibility
 - 'text': Visible text content
 - 'testid': data-testid attribute
-- 'selector': CSS selector (least recommended, use as fallback)`,
+- 'selector': CSS selector (least recommended, use as fallback)
+
+Supports automatic retries for flaky elements.`,
       annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
@@ -398,8 +441,19 @@ Locator types (in recommended priority order):
           .enum(ARIA_ROLES)
           .optional()
           .describe('ARIA role (required when locatorType is "role")'),
+        // ARIA role filter options for advanced role-based selection
+        disabled: roleFilterOptionsSchema.shape.disabled,
+        expanded: roleFilterOptionsSchema.shape.expanded,
+        pressed: roleFilterOptionsSchema.shape.pressed,
+        selected: roleFilterOptionsSchema.shape.selected,
+        checked: roleFilterOptionsSchema.shape.checked,
+        level: roleFilterOptionsSchema.shape.level,
+        includeHidden: roleFilterOptionsSchema.shape.includeHidden,
+        // Element index for selecting from multiple matches
+        index: elementIndexSchema,
         ...exactMatchOption,
         ...timeoutOption,
+        ...retryOptions,
       },
       outputSchema: schemas.hoverResult,
     },
@@ -411,54 +465,107 @@ Locator types (in recommended priority order):
         value,
         name,
         role,
+        disabled,
+        expanded,
+        pressed,
+        selected,
+        checked,
+        level,
+        includeHidden,
+        index,
         exact,
         timeout,
+        retries,
+        retryDelay,
       }) => {
         let result: { success: boolean };
         let description: string;
+        let retriesUsed = 0;
 
-        const actions = browserManager.interactionActions;
+        // Build role filter options
+        const roleOptions = {
+          disabled,
+          expanded,
+          pressed,
+          selected,
+          checked,
+          level,
+          includeHidden,
+        };
+
+        const executeHover = async () => {
+          const actions = browserManager.interactionActions;
+
+          switch (locatorType) {
+            case 'role': {
+              const roleValue = role ?? (value as (typeof ARIA_ROLES)[number]);
+              const roleName = name ?? (role ? value : undefined);
+              return actions.hoverByRole(sessionId, pageId, roleValue, {
+                name: roleName,
+                exact,
+                timeout,
+                index,
+                ...roleOptions,
+              });
+            }
+            case 'text':
+              return actions.hoverByText(sessionId, pageId, value, {
+                exact,
+                timeout,
+                index,
+              });
+            case 'testid':
+              return actions.hoverByTestId(sessionId, pageId, value, {
+                timeout,
+                index,
+              });
+            case 'selector':
+            default:
+              return actions.hoverElement({
+                sessionId,
+                pageId,
+                selector: value,
+                timeout,
+              });
+          }
+        };
+
+        if (retries > 0) {
+          const retryResult = await withRetry(executeHover, {
+            retries,
+            retryDelay,
+          });
+          result = retryResult.result;
+          retriesUsed = retryResult.retriesUsed;
+        } else {
+          result = await executeHover();
+        }
 
         switch (locatorType) {
           case 'role': {
-            const roleValue = role ?? (value as (typeof ARIA_ROLES)[number]);
+            const roleValue = role ?? value;
             const roleName = name ?? (role ? value : undefined);
-            result = await actions.hoverByRole(sessionId, pageId, roleValue, {
-              name: roleName,
-              exact,
-              timeout,
-            });
             description = `Hovered ${roleValue}${roleName ? ` "${roleName}"` : ''}`;
             break;
           }
           case 'text':
-            result = await actions.hoverByText(sessionId, pageId, value, {
-              exact,
-              timeout,
-            });
             description = `Hovered element with text "${value}"`;
             break;
           case 'testid':
-            result = await actions.hoverByTestId(sessionId, pageId, value, {
-              timeout,
-            });
             description = `Hovered element with testId "${value}"`;
             break;
-          case 'selector':
           default:
-            result = await actions.hoverElement({
-              sessionId,
-              pageId,
-              selector: value,
-              timeout,
-            });
             description = `Hovered over element: ${value}`;
             break;
         }
 
+        if (retriesUsed > 0) {
+          description += ` ${formatRetryInfo(retriesUsed)}`;
+        }
+
         return {
           content: [textContent(description)],
-          structuredContent: result,
+          structuredContent: { ...result, retriesUsed },
         };
       },
       'Error hovering element'
@@ -473,7 +580,8 @@ Locator types (in recommended priority order):
     'select_option',
     {
       title: 'Select Option',
-      description: 'Select an option from a dropdown/select element',
+      description:
+        'Select an option from a dropdown/select element. Supports automatic retries for flaky elements.',
       annotations: interactionAnnotations,
       inputSchema: {
         ...selectorInput,
@@ -481,21 +589,52 @@ Locator types (in recommended priority order):
           .union([z.string(), z.array(z.string())])
           .describe('Value(s) to select'),
         ...timeoutOption,
+        ...retryOptions,
       },
       outputSchema: schemas.selectResult,
     },
     createToolHandler(
-      async ({ sessionId, pageId, selector, value, timeout }) => {
-        const result = await browserManager.interactionActions.selectOption(
-          sessionId,
-          pageId,
-          selector,
-          value,
-          { timeout }
-        );
+      async ({
+        sessionId,
+        pageId,
+        selector,
+        value,
+        timeout,
+        retries,
+        retryDelay,
+      }) => {
+        let result: { success: boolean; selectedValues: string[] };
+        let retriesUsed = 0;
+
+        const executeSelect = async () => {
+          return browserManager.interactionActions.selectOption(
+            sessionId,
+            pageId,
+            selector,
+            value,
+            { timeout }
+          );
+        };
+
+        if (retries > 0) {
+          const retryResult = await withRetry(executeSelect, {
+            retries,
+            retryDelay,
+          });
+          result = retryResult.result;
+          retriesUsed = retryResult.retriesUsed;
+        } else {
+          result = await executeSelect();
+        }
+
+        let description = `Selected option(s) in ${selector}`;
+        if (retriesUsed > 0) {
+          description += ` ${formatRetryInfo(retriesUsed)}`;
+        }
+
         return {
-          content: [textContent(`Selected option(s) in ${selector}`)],
-          structuredContent: result,
+          content: [textContent(description)],
+          structuredContent: { ...result, retriesUsed },
         };
       },
       'Error selecting option'
@@ -510,7 +649,8 @@ Locator types (in recommended priority order):
     'drag_and_drop',
     {
       title: 'Drag and Drop',
-      description: 'Drag an element and drop it on another element',
+      description:
+        'Drag an element and drop it on another element. Supports automatic retries for flaky elements.',
       annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
@@ -521,6 +661,7 @@ Locator types (in recommended priority order):
           .string()
           .describe('CSS selector for the target element'),
         ...timeoutOption,
+        ...retryOptions,
       },
       outputSchema: schemas.simpleResult,
     },
@@ -531,19 +672,41 @@ Locator types (in recommended priority order):
         sourceSelector,
         targetSelector,
         timeout,
+        retries,
+        retryDelay,
       }) => {
-        const result = await browserManager.interactionActions.dragAndDrop(
-          sessionId,
-          pageId,
-          sourceSelector,
-          targetSelector,
-          { timeout }
-        );
+        let result: { success: boolean };
+        let retriesUsed = 0;
+
+        const executeDragAndDrop = async () => {
+          return browserManager.interactionActions.dragAndDrop(
+            sessionId,
+            pageId,
+            sourceSelector,
+            targetSelector,
+            { timeout }
+          );
+        };
+
+        if (retries > 0) {
+          const retryResult = await withRetry(executeDragAndDrop, {
+            retries,
+            retryDelay,
+          });
+          result = retryResult.result;
+          retriesUsed = retryResult.retriesUsed;
+        } else {
+          result = await executeDragAndDrop();
+        }
+
+        let description = `Dragged ${sourceSelector} to ${targetSelector}`;
+        if (retriesUsed > 0) {
+          description += ` ${formatRetryInfo(retriesUsed)}`;
+        }
+
         return {
-          content: [
-            textContent(`Dragged ${sourceSelector} to ${targetSelector}`),
-          ],
-          structuredContent: result,
+          content: [textContent(description)],
+          structuredContent: { ...result, retriesUsed },
         };
       },
       'Error during drag and drop'
@@ -675,32 +838,59 @@ Examples: 'Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown
     {
       title: 'Set Checkbox State',
       description:
-        'Check or uncheck a checkbox element. Works with both <input type="checkbox"> and toggle-like elements.',
+        'Check or uncheck a checkbox element. Works with both <input type="checkbox"> and toggle-like elements. Supports automatic retries for flaky elements.',
       annotations: interactionAnnotations,
       inputSchema: {
         ...basePageInput,
         selector: z.string().describe('CSS selector for the checkbox element'),
         checked: z.boolean().describe('Whether the checkbox should be checked'),
         ...timeoutOption,
+        ...retryOptions,
       },
       outputSchema: schemas.simpleResult,
     },
     createToolHandler(
-      async ({ sessionId, pageId, selector, checked, timeout }) => {
-        const result = await browserManager.interactionActions.setChecked(
-          sessionId,
-          pageId,
-          selector,
-          checked,
-          { timeout }
-        );
+      async ({
+        sessionId,
+        pageId,
+        selector,
+        checked,
+        timeout,
+        retries,
+        retryDelay,
+      }) => {
+        let result: { success: boolean };
+        let retriesUsed = 0;
+
+        const executeSetChecked = async () => {
+          return browserManager.interactionActions.setChecked(
+            sessionId,
+            pageId,
+            selector,
+            checked,
+            { timeout }
+          );
+        };
+
+        if (retries > 0) {
+          const retryResult = await withRetry(executeSetChecked, {
+            retries,
+            retryDelay,
+          });
+          result = retryResult.result;
+          retriesUsed = retryResult.retriesUsed;
+        } else {
+          result = await executeSetChecked();
+        }
+
+        let description = `${checked ? 'Checked' : 'Unchecked'} checkbox: ${selector}`;
+        if (retriesUsed > 0) {
+          description += ` ${formatRetryInfo(retriesUsed)}`;
+        }
+
         return {
-          content: [
-            textContent(
-              `${checked ? 'Checked' : 'Unchecked'} checkbox: ${selector}`
-            ),
-          ],
-          structuredContent: result,
+          content: [textContent(description)],
+          structuredContent: { ...result, retriesUsed },
         };
       },
       'Error setting checkbox state'

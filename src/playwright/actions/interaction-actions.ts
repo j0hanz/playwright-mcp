@@ -2,9 +2,12 @@
 // @see https://playwright.dev/docs/actionability
 // @see https://playwright.dev/docs/locators
 
+import type { Locator } from 'playwright';
+
 import config from '../../config/server-config.js';
 import type {
   ElementInteractionOptions,
+  ElementIndex,
   AriaRole,
 } from '../../config/types.js';
 import { validateUploadPath } from '../security.js';
@@ -13,6 +16,9 @@ import { BaseAction } from './base-action.js';
 const TIMEOUTS = {
   ACTION: config.timeouts.action,
 } as const;
+
+/** Re-export ElementIndex for convenience */
+export type { ElementIndex };
 
 /** Common click options for all click methods */
 interface ClickOptions {
@@ -23,12 +29,25 @@ interface ClickOptions {
   clickCount?: number;
   modifiers?: Array<'Alt' | 'Control' | 'Meta' | 'Shift'>;
   delay?: number;
+  index?: ElementIndex;
 }
 
 /** Common text match options */
 interface TextMatchOptions {
   exact?: boolean;
   timeout?: number;
+  index?: ElementIndex;
+}
+
+/** ARIA role filter options for advanced role-based selection */
+interface RoleFilterOptions {
+  disabled?: boolean;
+  expanded?: boolean;
+  pressed?: boolean;
+  selected?: boolean;
+  checked?: boolean;
+  level?: number;
+  includeHidden?: boolean;
 }
 
 /**
@@ -49,6 +68,21 @@ interface TextMatchOptions {
  */
 export class InteractionActions extends BaseAction {
   // ============================================================================
+  // Helper Methods
+  // ============================================================================
+
+  /**
+   * Apply element index to a locator for selecting from multiple matches.
+   * Handles 'first', 'last', or numeric index.
+   */
+  private applyIndex(locator: Locator, index?: ElementIndex): Locator {
+    if (index === undefined) return locator;
+    if (index === 'first') return locator.first();
+    if (index === 'last') return locator.last();
+    return locator.nth(index);
+  }
+
+  // ============================================================================
   // CSS Selector-Based Methods (for backward compatibility)
   // ============================================================================
 
@@ -67,6 +101,7 @@ export class InteractionActions extends BaseAction {
       clickCount,
       modifiers,
       delay,
+      index,
     } = options;
 
     return this.executePageOperation(
@@ -74,7 +109,8 @@ export class InteractionActions extends BaseAction {
       pageId,
       trial ? 'Trial click element' : 'Click element',
       async (page) => {
-        await page.locator(selector).click({
+        const locator = this.applyIndex(page.locator(selector), index);
+        await locator.click({
           force,
           timeout,
           trial,
@@ -85,7 +121,7 @@ export class InteractionActions extends BaseAction {
         });
         return { success: true, trialRun: trial ?? false };
       },
-      { selector, trial }
+      { selector, trial, index }
     );
   }
 
@@ -143,13 +179,25 @@ export class InteractionActions extends BaseAction {
     sessionId: string,
     pageId: string,
     role: AriaRole,
-    options: ClickOptions & { name?: string; exact?: boolean } = {}
+    options: ClickOptions & {
+      name?: string;
+      exact?: boolean;
+    } & RoleFilterOptions = {}
   ): Promise<{ success: boolean }> {
     const {
       name,
       exact,
       force,
       timeout = TIMEOUTS.ACTION,
+      index,
+      // Role filter options
+      disabled,
+      expanded,
+      pressed,
+      selected,
+      checked,
+      level,
+      includeHidden,
       ...clickOpts
     } = options;
 
@@ -158,12 +206,22 @@ export class InteractionActions extends BaseAction {
       pageId,
       'Click by role',
       async (page) => {
-        await page
-          .getByRole(role, { name, exact })
-          .click({ force, timeout, ...clickOpts });
+        const baseLocator = page.getByRole(role, {
+          name,
+          exact,
+          disabled,
+          expanded,
+          pressed,
+          selected,
+          checked,
+          level,
+          includeHidden,
+        });
+        const locator = this.applyIndex(baseLocator, index);
+        await locator.click({ force, timeout, ...clickOpts });
         return { success: true };
       },
-      { role, name }
+      { role, name, index }
     );
   }
 
@@ -171,19 +229,44 @@ export class InteractionActions extends BaseAction {
     sessionId: string,
     pageId: string,
     role: AriaRole,
-    options: TextMatchOptions & { name?: string } = {}
+    options: TextMatchOptions & { name?: string } & RoleFilterOptions = {}
   ): Promise<{ success: boolean }> {
-    const { name, exact, timeout = TIMEOUTS.ACTION } = options;
+    const {
+      name,
+      exact,
+      timeout = TIMEOUTS.ACTION,
+      index,
+      // Role filter options
+      disabled,
+      expanded,
+      pressed,
+      selected,
+      checked,
+      level,
+      includeHidden,
+    } = options;
 
     return this.executePageOperation(
       sessionId,
       pageId,
       'Hover by role',
       async (page) => {
-        await page.getByRole(role, { name, exact }).hover({ timeout });
+        const baseLocator = page.getByRole(role, {
+          name,
+          exact,
+          disabled,
+          expanded,
+          pressed,
+          selected,
+          checked,
+          level,
+          includeHidden,
+        });
+        const locator = this.applyIndex(baseLocator, index);
+        await locator.hover({ timeout });
         return { success: true };
       },
-      { role, name }
+      { role, name, index }
     );
   }
 
@@ -222,17 +305,19 @@ export class InteractionActions extends BaseAction {
     text: string,
     options: ClickOptions & { exact?: boolean } = {}
   ): Promise<{ success: boolean }> {
-    const { exact, force, timeout = TIMEOUTS.ACTION } = options;
+    const { exact, force, timeout = TIMEOUTS.ACTION, index } = options;
 
     return this.executePageOperation(
       sessionId,
       pageId,
       'Click by text',
       async (page) => {
-        await page.getByText(text, { exact }).click({ force, timeout });
+        const baseLocator = page.getByText(text, { exact });
+        const locator = this.applyIndex(baseLocator, index);
+        await locator.click({ force, timeout });
         return { success: true };
       },
-      { text }
+      { text, index }
     );
   }
 
@@ -242,17 +327,19 @@ export class InteractionActions extends BaseAction {
     text: string,
     options: TextMatchOptions = {}
   ): Promise<{ success: boolean }> {
-    const { exact, timeout = TIMEOUTS.ACTION } = options;
+    const { exact, timeout = TIMEOUTS.ACTION, index } = options;
 
     return this.executePageOperation(
       sessionId,
       pageId,
       'Hover by text',
       async (page) => {
-        await page.getByText(text, { exact }).hover({ timeout });
+        const baseLocator = page.getByText(text, { exact });
+        const locator = this.applyIndex(baseLocator, index);
+        await locator.hover({ timeout });
         return { success: true };
       },
-      { text }
+      { text, index }
     );
   }
 
@@ -293,17 +380,19 @@ export class InteractionActions extends BaseAction {
     testId: string,
     options: ClickOptions = {}
   ): Promise<{ success: boolean }> {
-    const { force, timeout = TIMEOUTS.ACTION } = options;
+    const { force, timeout = TIMEOUTS.ACTION, index } = options;
 
     return this.executePageOperation(
       sessionId,
       pageId,
       'Click by testId',
       async (page) => {
-        await page.getByTestId(testId).click({ force, timeout });
+        const baseLocator = page.getByTestId(testId);
+        const locator = this.applyIndex(baseLocator, index);
+        await locator.click({ force, timeout });
         return { success: true };
       },
-      { testId }
+      { testId, index }
     );
   }
 
@@ -312,19 +401,21 @@ export class InteractionActions extends BaseAction {
     pageId: string,
     testId: string,
     text: string,
-    options: { timeout?: number } = {}
+    options: { timeout?: number; index?: ElementIndex } = {}
   ): Promise<{ success: boolean }> {
-    const { timeout = TIMEOUTS.ACTION } = options;
+    const { timeout = TIMEOUTS.ACTION, index } = options;
 
     return this.executePageOperation(
       sessionId,
       pageId,
       'Fill by testId',
       async (page) => {
-        await page.getByTestId(testId).fill(text, { timeout });
+        const baseLocator = page.getByTestId(testId);
+        const locator = this.applyIndex(baseLocator, index);
+        await locator.fill(text, { timeout });
         return { success: true };
       },
-      { testId }
+      { testId, index }
     );
   }
 
@@ -332,19 +423,21 @@ export class InteractionActions extends BaseAction {
     sessionId: string,
     pageId: string,
     testId: string,
-    options: { timeout?: number } = {}
+    options: { timeout?: number; index?: ElementIndex } = {}
   ): Promise<{ success: boolean }> {
-    const { timeout = TIMEOUTS.ACTION } = options;
+    const { timeout = TIMEOUTS.ACTION, index } = options;
 
     return this.executePageOperation(
       sessionId,
       pageId,
       'Hover by testId',
       async (page) => {
-        await page.getByTestId(testId).hover({ timeout });
+        const baseLocator = page.getByTestId(testId);
+        const locator = this.applyIndex(baseLocator, index);
+        await locator.hover({ timeout });
         return { success: true };
       },
-      { testId }
+      { testId, index }
     );
   }
 
@@ -358,17 +451,19 @@ export class InteractionActions extends BaseAction {
     altText: string,
     options: ClickOptions & { exact?: boolean } = {}
   ): Promise<{ success: boolean }> {
-    const { exact, force, timeout = TIMEOUTS.ACTION } = options;
+    const { exact, force, timeout = TIMEOUTS.ACTION, index } = options;
 
     return this.executePageOperation(
       sessionId,
       pageId,
       'Click by alt text',
       async (page) => {
-        await page.getByAltText(altText, { exact }).click({ force, timeout });
+        const baseLocator = page.getByAltText(altText, { exact });
+        const locator = this.applyIndex(baseLocator, index);
+        await locator.click({ force, timeout });
         return { success: true };
       },
-      { altText }
+      { altText, index }
     );
   }
 
@@ -378,17 +473,19 @@ export class InteractionActions extends BaseAction {
     title: string,
     options: ClickOptions & { exact?: boolean } = {}
   ): Promise<{ success: boolean }> {
-    const { exact, force, timeout = TIMEOUTS.ACTION } = options;
+    const { exact, force, timeout = TIMEOUTS.ACTION, index } = options;
 
     return this.executePageOperation(
       sessionId,
       pageId,
       'Click by title',
       async (page) => {
-        await page.getByTitle(title, { exact }).click({ force, timeout });
+        const baseLocator = page.getByTitle(title, { exact });
+        const locator = this.applyIndex(baseLocator, index);
+        await locator.click({ force, timeout });
         return { success: true };
       },
-      { title }
+      { title, index }
     );
   }
 

@@ -231,6 +231,9 @@ export interface NavigationOptions {
 
 // Element Interaction Options
 
+/** Element index for selecting from multiple matches */
+export type ElementIndex = number | 'first' | 'last';
+
 export interface ElementInteractionOptions {
   sessionId: string;
   pageId: string;
@@ -244,6 +247,8 @@ export interface ElementInteractionOptions {
   modifiers?: KeyModifier[];
   delay?: number;
   trial?: boolean;
+  /** Element index for selecting from multiple matches: number (0-based), 'first', or 'last' */
+  index?: ElementIndex;
 }
 
 // Server Configuration - Re-exported from server-config for single source of truth
