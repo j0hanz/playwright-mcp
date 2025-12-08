@@ -8,6 +8,9 @@ import { Logger } from '../utils/logger.js';
 import { formatUptime } from '../utils/time-utils.js';
 import { registerAllHandlers } from './handlers/index.js';
 
+const bytesToMB = (bytes: number): string =>
+  `${Math.round(bytes / 1024 / 1024)}MB`;
+
 export class MCPPlaywrightServer {
   // Resource URI constants
   private static readonly RESOURCE_URIS = {
@@ -179,10 +182,10 @@ export class MCPPlaywrightServer {
               uptime: process.uptime(),
               uptimeFormatted: formatUptime(process.uptime()),
               memory: {
-                heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
-                heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
-                rss: `${Math.round(memoryUsage.rss / 1024 / 1024)}MB`,
-                external: `${Math.round(memoryUsage.external / 1024 / 1024)}MB`,
+                heapUsed: bytesToMB(memoryUsage.heapUsed),
+                heapTotal: bytesToMB(memoryUsage.heapTotal),
+                rss: bytesToMB(memoryUsage.rss),
+                external: bytesToMB(memoryUsage.external),
               },
               sessions: {
                 active: sessions.length,

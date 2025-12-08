@@ -140,13 +140,19 @@ export class SessionManager {
 
   // Session Reporting
 
-  listSessions(): SessionInfo[] {
-    return Array.from(this.sessions.values()).map((session) => ({
+  private sessionToInfo = (session: BrowserSession): SessionInfo => {
+    return {
       id: session.id,
       browserType: session.metadata.browserType,
       pageCount: session.pages.size,
       lastActivity: session.metadata.lastActivity,
-    }));
+      idleMs: Date.now() - session.metadata.lastActivity.getTime(),
+      headless: session.metadata.headless,
+    };
+  };
+
+  listSessions(): SessionInfo[] {
+    return Array.from(this.sessions.values()).map(this.sessionToInfo);
   }
 
   getStatus(): {
@@ -155,14 +161,7 @@ export class SessionManager {
     availableSlots: number;
     sessions: SessionInfo[];
   } {
-    const sessions = Array.from(this.sessions.values()).map((session) => ({
-      id: session.id,
-      browserType: session.metadata.browserType,
-      pageCount: session.pages.size,
-      lastActivity: session.metadata.lastActivity,
-      idleMs: Date.now() - session.metadata.lastActivity.getTime(),
-      headless: session.metadata.headless,
-    }));
+    const sessions = Array.from(this.sessions.values()).map(this.sessionToInfo);
 
     return {
       activeSessions: this.sessions.size,

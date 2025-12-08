@@ -1,7 +1,7 @@
 /**
  * Error Handling Module - Centralized error handling for MCP Playwright Server
  *
- * @see https://playwright.dev/docs/api/class-errors
+ * @see https://playwright.dev/docs/api/class/errors
  */
 
 // Error Codes

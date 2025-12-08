@@ -15,17 +15,12 @@ export default defineConfig({
   globalTimeout: 30 * 60 * 1000,
   timeout: 45_000,
   reportSlowTests: { max: 5, threshold: 15_000 },
-  reporter: isCI
-    ? [
-        ['html', { outputFolder: './reports', open: 'never' }],
-        ['json', { outputFile: './reports/results.json' }],
-        ['github'],
-      ]
-    : [
-        ['html', { outputFolder: './reports', open: 'on-failure' }],
-        ['json', { outputFile: './reports/results.json' }],
-        ['list'],
-      ],
+  reporter: [
+    ['html', { outputFolder: './reports', open: isCI ? 'never' : 'on-failure' }],
+    ['json', { outputFile: './reports/results.json' }],
+    ['list', { printSteps: true }],
+    ...(isCI ? [['github'] as const] : []),
+  ],
   expect: {
     timeout: 5_000,
     toHaveScreenshot: { maxDiffPixels: 100, animations: 'disabled' },

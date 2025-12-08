@@ -20,24 +20,33 @@ dotenv.config();
 const parseNumber = (
   value: string | undefined,
   fallback: number,
-  options?: { min?: number; max?: number }
+  options: { min?: number; max?: number } = {}
 ): number => {
-  if (!value) return fallback;
-  const parsed = parseInt(value, 10);
+  const parsed = parseInt(value ?? '', 10);
   if (isNaN(parsed)) return fallback;
-  if (options?.min !== undefined && parsed < options.min) return options.min;
-  if (options?.max !== undefined && parsed > options.max) return options.max;
-  return parsed;
+
+  const { min, max } = options;
+  let result = parsed;
+  if (min !== undefined) {
+    result = Math.max(result, min);
+  }
+  if (max !== undefined) {
+    result = Math.min(result, max);
+  }
+  return result;
 };
+
+const TRUTHY_VALUES = new Set(['true', '1', 'yes', 'on']);
+const FALSY_VALUES = new Set(['false', '0', 'no', 'off']);
 
 const parseBoolean = (
   value: string | undefined,
   fallback: boolean
 ): boolean => {
-  if (value === undefined) return fallback;
+  if (!value) return fallback;
   const lower = value.toLowerCase().trim();
-  if (['true', '1', 'yes', 'on'].includes(lower)) return true;
-  if (['false', '0', 'no', 'off'].includes(lower)) return false;
+  if (TRUTHY_VALUES.has(lower)) return true;
+  if (FALSY_VALUES.has(lower)) return false;
   return fallback;
 };
 
