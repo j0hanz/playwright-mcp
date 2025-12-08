@@ -658,8 +658,19 @@ export class InteractionActions extends BaseAction {
   }
 }
 
+/**
+ * Filters out undefined values from an object.
+ * Optimized to avoid intermediate array allocations.
+ */
 function filterDefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([_, value]) => value !== undefined)
-  ) as Partial<T>;
+  const result: Partial<T> = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+      if (value !== undefined) {
+        result[key as keyof T] = value;
+      }
+    }
+  }
+  return result;
 }

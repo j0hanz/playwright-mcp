@@ -97,11 +97,12 @@ class RateLimiter {
         right = mid;
       }
     }
+    // Use slice assignment instead of splice to avoid O(n) element shifting
     if (left > 0) {
-      this.timestamps.splice(0, left);
+      this.timestamps = this.timestamps.slice(left);
     }
     if (this.timestamps.length > this.maxTracked) {
-      this.timestamps.splice(0, this.timestamps.length - this.maxTracked);
+      this.timestamps = this.timestamps.slice(-this.maxTracked);
     }
   }
 }

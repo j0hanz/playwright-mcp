@@ -203,15 +203,30 @@ export function isMCPPlaywrightError(
   return false;
 }
 
-// Error Pattern Mapping - Grouped by category for maintainability
+// Error Pattern Mapping - Optimized with Map-based lookup for common error names
+// Uses O(1) Map lookup first, falls back to pattern matching only when needed
 
+/**
+ * Map for O(1) lookup of common error names.
+ * Most Playwright errors have predictable error.name values.
+ */
+const ERROR_NAME_MAP: ReadonlyMap<string, ErrorCode> = new Map([
+  ['TimeoutError', ErrorCode.TIMEOUT_EXCEEDED],
+  ['NavigationError', ErrorCode.PAGE_NAVIGATION_FAILED],
+]);
+
+/**
+ * Patterns grouped by category for early termination.
+ * Ordered by frequency of occurrence for faster matching.
+ */
 const STRING_ERROR_PATTERNS: ReadonlyArray<{
   pattern: string;
   code: ErrorCode;
 }> = [
-  // Timeout errors
-  { pattern: 'TimeoutError', code: ErrorCode.TIMEOUT_EXCEEDED },
+  // High-frequency patterns first
   { pattern: 'Timeout', code: ErrorCode.TIMEOUT_EXCEEDED },
+  { pattern: 'waiting for selector', code: ErrorCode.ELEMENT_NOT_FOUND },
+  { pattern: 'waiting for locator', code: ErrorCode.ELEMENT_NOT_FOUND },
   // Navigation errors
   { pattern: 'Navigation failed', code: ErrorCode.PAGE_NAVIGATION_FAILED },
   { pattern: 'net::ERR_', code: ErrorCode.PAGE_NAVIGATION_FAILED },
@@ -219,11 +234,8 @@ const STRING_ERROR_PATTERNS: ReadonlyArray<{
   { pattern: 'ERR_CONNECTION_REFUSED', code: ErrorCode.NETWORK_ERROR },
   { pattern: 'ERR_INTERNET_DISCONNECTED', code: ErrorCode.NETWORK_ERROR },
   // Element errors
-  { pattern: 'waiting for selector', code: ErrorCode.ELEMENT_NOT_FOUND },
-  { pattern: 'waiting for locator', code: ErrorCode.ELEMENT_NOT_FOUND },
   { pattern: 'Element not found', code: ErrorCode.ELEMENT_NOT_FOUND },
   { pattern: 'no element matches', code: ErrorCode.ELEMENT_NOT_FOUND },
-  { pattern: 'strict mode violation', code: ErrorCode.ELEMENT_NOT_FOUND },
   { pattern: 'strict mode violation', code: ErrorCode.STRICT_MODE_VIOLATION },
   { pattern: 'resolved to', code: ErrorCode.ELEMENT_NOT_FOUND },
   { pattern: 'element is not visible', code: ErrorCode.ELEMENT_NOT_VISIBLE },
@@ -254,26 +266,28 @@ const STRING_ERROR_PATTERNS: ReadonlyArray<{
   { pattern: 'screenshot', code: ErrorCode.SCREENSHOT_FAILED },
 ];
 
-const REGEX_ERROR_PATTERNS: ReadonlyArray<{
-  pattern: RegExp;
-  code: ErrorCode;
-}> = [{ pattern: /exceeded\s+\d+ms/i, code: ErrorCode.TIMEOUT_EXCEEDED }];
+/** Precompiled regex for timeout pattern matching */
+const TIMEOUT_REGEX = /exceeded\s+\d+ms/i;
 
 function mapErrorToCode(error: Error): ErrorCode {
-  const errorString = `${error.name} ${error.message}`;
+  // O(1) lookup for common error names first
+  const mappedCode = ERROR_NAME_MAP.get(error.name);
+  if (mappedCode !== undefined) {
+    return mappedCode;
+  }
 
-  // Check string patterns (linear scan but patterns are short)
+  const errorMessage = error.message;
+
+  // Check string patterns - most common patterns are first for early termination
   for (const { pattern, code } of STRING_ERROR_PATTERNS) {
-    if (errorString.includes(pattern)) {
+    if (errorMessage.includes(pattern)) {
       return code;
     }
   }
 
-  // Check regex patterns
-  for (const { pattern, code } of REGEX_ERROR_PATTERNS) {
-    if (pattern.test(errorString)) {
-      return code;
-    }
+  // Check regex pattern for timeout with duration
+  if (TIMEOUT_REGEX.test(errorMessage)) {
+    return ErrorCode.TIMEOUT_EXCEEDED;
   }
 
   return ErrorCode.INTERNAL_ERROR;
