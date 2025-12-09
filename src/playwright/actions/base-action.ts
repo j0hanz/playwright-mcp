@@ -70,12 +70,12 @@ export abstract class BaseAction {
     action: (page: Page) => Promise<T>,
     meta?: Record<string, unknown>
   ): Promise<T> {
-    const startTime = Date.now();
+    const startTime = performance.now();
     const page = this.sessionManager.getPage(sessionId, pageId);
 
     try {
       const result = await action(page);
-      const duration = Date.now() - startTime;
+      const duration = Math.round(performance.now() - startTime);
       this.sessionManager.updateActivity(sessionId);
 
       this.logger.info(`${operation} completed`, {
@@ -87,7 +87,7 @@ export abstract class BaseAction {
 
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const duration = Math.round(performance.now() - startTime);
       const err = toError(error);
 
       this.logger.error(`${operation} failed`, {
@@ -124,12 +124,12 @@ export abstract class BaseAction {
     ) => Promise<T>,
     meta?: Record<string, unknown>
   ): Promise<T> {
-    const startTime = Date.now();
+    const startTime = performance.now();
     const session = this.sessionManager.getSession(sessionId);
 
     try {
       const result = await action(session.context, session);
-      const duration = Date.now() - startTime;
+      const duration = Math.round(performance.now() - startTime);
       this.sessionManager.updateActivity(sessionId);
 
       this.logger.info(`${operation} completed`, {
@@ -140,7 +140,7 @@ export abstract class BaseAction {
 
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const duration = Math.round(performance.now() - startTime);
       const err = toError(error);
 
       this.logger.error(`${operation} failed`, {

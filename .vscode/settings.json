@@ -2,197 +2,114 @@
   "chat.mcp.serverSampling": {
     "playwright/.vscode/mcp.json: exa": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: github": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: context7": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: memory": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: apify": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: playwright": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: mui-mcp": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: Ref": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: markitdown": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: sequential-thinking": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: filesystem": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: brave-search": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: shadcn": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: everything": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
       ]
     },
     "playwright/.vscode/mcp.json: microsoft.docs.mcp": {
       "allowedModels": [
-        "copilot/gpt-5-mini",
-        "copilot/claude-haiku-4.5",
         "copilot/claude-opus-4.5",
         "copilot/claude-sonnet-4.5",
-        "copilot/gemini-3-pro-preview",
-        "copilot/gpt-5-codex",
-        "copilot/gpt-5.1-codex",
-        "copilot/gpt-5.1-codex-max",
-        "copilot/oswe-vscode-prime"
+        "copilot/gemini-3-pro-preview"
+      ]
+    },
+    "playwright/.vscode/mcp.json: gemini": {
+      "allowedModels": [
+        "copilot/claude-opus-4.5",
+        "copilot/claude-sonnet-4.5",
+        "copilot/gemini-3-pro-preview"
       ]
     }
   }

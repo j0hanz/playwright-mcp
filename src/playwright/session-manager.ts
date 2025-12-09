@@ -87,6 +87,8 @@ class RateLimiter {
 
   private pruneExpired(): void {
     const cutoff = Date.now() - this.windowMs;
+
+    // Binary search for first non-expired timestamp
     let left = 0;
     let right = this.timestamps.length;
     while (left < right) {
@@ -97,12 +99,19 @@ class RateLimiter {
         right = mid;
       }
     }
-    // Use slice assignment instead of splice to avoid O(n) element shifting
-    if (left > 0) {
-      this.timestamps = this.timestamps.slice(left);
-    }
-    if (this.timestamps.length > this.maxTracked) {
-      this.timestamps = this.timestamps.slice(-this.maxTracked);
+
+    // Optimize: Combine pruning and maxTracked cap in single slice operation
+    if (left > 0 || this.timestamps.length > this.maxTracked) {
+      const remaining = this.timestamps.length - left;
+      if (remaining > this.maxTracked) {
+        // Need to both prune expired and cap to maxTracked
+        this.timestamps = this.timestamps.slice(
+          left + remaining - this.maxTracked
+        );
+      } else if (left > 0) {
+        // Only need to prune expired timestamps
+        this.timestamps = this.timestamps.slice(left);
+      }
     }
   }
 }

@@ -2,7 +2,7 @@
   "servers": {
     "exa": {
       "type": "http",
-      "url": "https://mcp.exa.ai/mcp?exaApiKey=${input:exa-api-key}&tools=web_search_exa,deep_search_exa,get_code_context_exa,crawling_exa,company_research_exa,linkedin_search_exa,deep_researcher_start,deep_researcher_check"
+      "url": "https://mcp.exa.ai/mcp?exaApiKey=${input:exa-api-key}&tools=web_search_exa,get_code_context_exa"
     },
     "github": {
       "type": "http",
@@ -88,6 +88,13 @@
     "microsoft.docs.mcp": {
       "type": "http",
       "url": "https://learn.microsoft.com/api/mcp"
+    },
+    "gemini": {
+      "command": "npx",
+      "args": ["-y", "github:aliargun/mcp-server-gemini"],
+      "env": {
+        "GEMINI_API_KEY": "${input:gemini-api-key}"
+      }
     }
   },
   "inputs": [
@@ -114,6 +121,12 @@
       "id": "brave-api-key",
       "type": "promptString",
       "description": "Brave Search API Key"
+    },
+    {
+      "password": true,
+      "id": "gemini-api-key",
+      "type": "promptString",
+      "description": "Gemini API Key"
     },
     {
       "id": "verifyConnection",

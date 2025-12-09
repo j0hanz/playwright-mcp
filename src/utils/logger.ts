@@ -100,14 +100,22 @@ const humanFormat = winston.format.combine(
 
       const metaKeys = Object.keys(meta);
       if (metaKeys.length > 0) {
-        const cleanMeta: Record<string, unknown> = {};
-        for (const key of metaKeys) {
-          if (!key.startsWith('Symbol(')) {
-            cleanMeta[key] = meta[key];
+        // Optimize: Fast path for common case (no symbols)
+        const hasSymbols = metaKeys.some((key) => key.startsWith('Symbol('));
+
+        if (hasSymbols) {
+          const cleanMeta: Record<string, unknown> = {};
+          for (const key of metaKeys) {
+            if (!key.startsWith('Symbol(')) {
+              cleanMeta[key] = meta[key];
+            }
           }
-        }
-        if (Object.keys(cleanMeta).length > 0) {
-          parts.push(JSON.stringify(cleanMeta));
+          if (Object.keys(cleanMeta).length > 0) {
+            parts.push(JSON.stringify(cleanMeta));
+          }
+        } else {
+          // No symbols, serialize directly
+          parts.push(JSON.stringify(meta));
         }
       }
 
@@ -187,12 +195,17 @@ export class Logger {
     meta?: LogMeta,
     requestId?: string
   ): void {
-    winstonInstance.log(level, message, {
-      context: this.context,
-      requestId: requestId ?? this.defaultRequestId,
-      sessionId: this.defaultSessionId,
-      ...meta,
-    });
+    // Optimize: Build log metadata conditionally to avoid unnecessary allocations
+    const logMeta: Record<string, unknown> = { context: this.context };
+
+    const effectiveRequestId = requestId ?? this.defaultRequestId;
+    if (effectiveRequestId) logMeta.requestId = effectiveRequestId;
+
+    if (this.defaultSessionId) logMeta.sessionId = this.defaultSessionId;
+
+    if (meta) Object.assign(logMeta, meta);
+
+    winstonInstance.log(level, message, logMeta);
   }
 
   info(message: string, meta?: LogMeta, requestId?: string): void {
