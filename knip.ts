@@ -13,7 +13,7 @@ const isCI = !!process.env.CI;
 const config: KnipConfig = {
   $schema: 'https://unpkg.com/knip@5/schema.json',
 
-  entry: ['src/index.ts', 'pages/**/*.ts', 'src/config/playwright-config.ts'],
+  entry: ['src/index.ts', 'pages/**/*.ts'],
 
   project: ['src/**/*.ts', 'pages/**/*.ts', 'tests/**/*.ts'],
 
@@ -27,7 +27,7 @@ const config: KnipConfig = {
     'src/playwright/security.ts': ['exports'],
     'src/utils/constants.ts': ['exports'],
     'src/utils/error-handler.ts': ['exports'],
-    'src/config/playwright-config.ts': ['exports', 'types'],
+    'src/utils/retry.ts': ['exports'], // RETRY_PREDICATES is intentional public API
   },
 
   ignoreExportsUsedInFile: { interface: true, type: true },
