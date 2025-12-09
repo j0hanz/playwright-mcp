@@ -143,7 +143,7 @@ export class SessionManager {
     this.rateLimiter = new RateLimiter({
       maxRequests: this.config.maxSessionsPerMinute,
       windowMs: MS_PER_MINUTE,
-      maxTracked: this.config.maxSessionsPerMinute * 2,
+      maxTracked: this.config.maxSessionsPerMinute * 10,
     });
   }
 

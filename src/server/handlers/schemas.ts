@@ -82,10 +82,8 @@ export const reducedMotionSchema = z
 // Viewport and Position Schemas
 // ============================================================================
 
-/** Minimum aspect ratio (width/height) - prevents extreme tall viewports like 320x2160 */
-const MIN_ASPECT_RATIO = 0.5; // 1:2 (tall mobile)
-/** Maximum aspect ratio (width/height) - prevents extreme wide viewports */
-const MAX_ASPECT_RATIO = 4.0; // 4:1 (ultra-wide)
+const MIN_ASPECT_RATIO = 0.1;
+const MAX_ASPECT_RATIO = 10.0;
 
 export const viewportSchema = z
   .object({

@@ -59,13 +59,10 @@ export class MCPPlaywrightServer {
       // Stop cleanup interval if failing repeatedly
       if (this.cleanupFailures >= MCPPlaywrightServer.MAX_CLEANUP_FAILURES) {
         this.logger.error(
-          'Cleanup failing repeatedly, stopping cleanup interval',
+          'Cleanup failing repeatedly. Keeping interval active but please investigate.',
           { failures: this.cleanupFailures }
         );
-        if (this.cleanupInterval) {
-          clearInterval(this.cleanupInterval);
-          this.cleanupInterval = null;
-        }
+        this.cleanupFailures = 0;
       }
     }
   }
