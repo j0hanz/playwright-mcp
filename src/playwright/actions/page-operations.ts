@@ -1,4 +1,4 @@
-// Page Operations - Viewport, tabs, screenshots, accessibility scans
+// Page Operations - Viewport, tabs, screenshots, PDF, cookies, accessibility scans
 // @see https://playwright.dev/docs/pages
 // @see https://playwright.dev/docs/screenshots
 // @see https://playwright.dev/docs/accessibility-testing
@@ -578,6 +578,186 @@ export class PageOperations extends BaseAction {
         };
       },
       { interestingOnly: options.interestingOnly, root: options.root }
+    );
+  }
+
+  /**
+   * Generate a PDF from the current page (Chromium only)
+   */
+  async generatePdf(
+    sessionId: string,
+    pageId: string,
+    options: {
+      path?: string;
+      format?:
+        | 'Letter'
+        | 'Legal'
+        | 'Tabloid'
+        | 'Ledger'
+        | 'A0'
+        | 'A1'
+        | 'A2'
+        | 'A3'
+        | 'A4'
+        | 'A5'
+        | 'A6';
+      landscape?: boolean;
+      printBackground?: boolean;
+      scale?: number;
+      margin?: {
+        top?: string;
+        right?: string;
+        bottom?: string;
+        left?: string;
+      };
+      headerTemplate?: string;
+      footerTemplate?: string;
+      displayHeaderFooter?: boolean;
+      pageRanges?: string;
+    } = {}
+  ): Promise<{
+    success: boolean;
+    base64?: string;
+    path?: string;
+    pageCount?: number;
+  }> {
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Generate PDF',
+      async (page) => {
+        const pdfBuffer = await page.pdf({
+          path: options.path,
+          format: options.format || 'A4',
+          landscape: options.landscape || false,
+          printBackground: options.printBackground ?? true,
+          scale: options.scale || 1,
+          margin: options.margin,
+          headerTemplate: options.headerTemplate,
+          footerTemplate: options.footerTemplate,
+          displayHeaderFooter: options.displayHeaderFooter || false,
+          pageRanges: options.pageRanges,
+        });
+
+        return {
+          success: true,
+          base64: pdfBuffer.toString('base64'),
+          path: options.path,
+        };
+      },
+      { format: options.format, landscape: options.landscape }
+    );
+  }
+
+  /**
+   * Get all cookies from the browser context
+   */
+  async getCookies(
+    sessionId: string,
+    urls?: string[]
+  ): Promise<{
+    success: boolean;
+    cookies: Array<{
+      name: string;
+      value: string;
+      domain: string;
+      path: string;
+      expires: number;
+      httpOnly: boolean;
+      secure: boolean;
+      sameSite: 'Strict' | 'Lax' | 'None';
+    }>;
+  }> {
+    const session = this.sessionManager.getSession(sessionId);
+    const cookies = await session.context.cookies(urls);
+    this.sessionManager.updateActivity(sessionId);
+
+    return {
+      success: true,
+      cookies: cookies.map((c) => ({
+        name: c.name,
+        value: c.value,
+        domain: c.domain,
+        path: c.path,
+        expires: c.expires,
+        httpOnly: c.httpOnly,
+        secure: c.secure,
+        sameSite: c.sameSite,
+      })),
+    };
+  }
+
+  /**
+   * Set cookies in the browser context
+   */
+  async setCookies(
+    sessionId: string,
+    cookies: Array<{
+      name: string;
+      value: string;
+      url?: string;
+      domain?: string;
+      path?: string;
+      expires?: number;
+      httpOnly?: boolean;
+      secure?: boolean;
+      sameSite?: 'Strict' | 'Lax' | 'None';
+    }>
+  ): Promise<{ success: boolean; count: number }> {
+    const session = this.sessionManager.getSession(sessionId);
+    await session.context.addCookies(cookies);
+    this.sessionManager.updateActivity(sessionId);
+
+    return {
+      success: true,
+      count: cookies.length,
+    };
+  }
+
+  /**
+   * Clear all cookies from the browser context
+   */
+  async clearCookies(
+    sessionId: string,
+    options?: {
+      name?: string;
+      domain?: string;
+      path?: string;
+    }
+  ): Promise<{ success: boolean }> {
+    const session = this.sessionManager.getSession(sessionId);
+
+    if (options?.name || options?.domain || options?.path) {
+      // Clear specific cookies by filtering
+      await session.context.clearCookies(options);
+    } else {
+      // Clear all cookies
+      await session.context.clearCookies();
+    }
+
+    this.sessionManager.updateActivity(sessionId);
+    return { success: true };
+  }
+
+  /**
+   * Get the video path for a page if video recording is enabled
+   */
+  async getVideoPath(
+    sessionId: string,
+    pageId: string
+  ): Promise<{ success: boolean; path: string | null }> {
+    return this.executePageOperation(
+      sessionId,
+      pageId,
+      'Get video path',
+      async (page) => {
+        const video = page.video();
+        if (!video) {
+          return { success: true, path: null };
+        }
+        const path = await video.path().catch(() => null);
+        return { success: true, path };
+      }
     );
   }
 }

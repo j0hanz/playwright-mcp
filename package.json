@@ -25,6 +25,7 @@
   "dependencies": {
     "@axe-core/playwright": "^4.11.0",
     "@modelcontextprotocol/sdk": "^1.24.3",
+    "axe-core": "^4.10.2",
     "dotenv": "^17.2.3",
     "playwright": "^1.57.0",
     "uuid": "^13.0.0",

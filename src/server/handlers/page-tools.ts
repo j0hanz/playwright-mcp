@@ -1,4 +1,4 @@
-// Page Tool Handlers - Screenshots, content, waiting, and accessibility tools
+// Page Tool Handlers - Screenshots, PDF, content, cookies, waiting, and accessibility tools
 // @see https://playwright.dev/docs/api/class-page
 
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import {
   longTimeoutOption,
   readOnlyAnnotations,
   waitStateSchema,
+  destructiveAnnotations,
 } from './schemas.js';
 import { textContent } from './types.js';
 
@@ -170,6 +171,92 @@ const schemas = {
       .describe('YAML-like accessibility tree representation'),
     elementCount: z.number().describe('Number of elements in the tree'),
   },
+
+  // PDF generation input/output (Chromium only)
+  pdfInput: {
+    ...basePageInput,
+    path: z.string().optional().describe('File path to save the PDF'),
+    format: z
+      .enum([
+        'Letter',
+        'Legal',
+        'Tabloid',
+        'Ledger',
+        'A0',
+        'A1',
+        'A2',
+        'A3',
+        'A4',
+        'A5',
+        'A6',
+      ])
+      .default('A4')
+      .describe('Paper format'),
+    landscape: z.boolean().default(false).describe('Paper orientation'),
+    printBackground: z
+      .boolean()
+      .default(true)
+      .describe('Print background graphics'),
+    scale: z
+      .number()
+      .min(0.1)
+      .max(2)
+      .default(1)
+      .describe('Scale of the webpage rendering (0.1 to 2)'),
+    margin: z
+      .object({
+        top: z.string().optional(),
+        right: z.string().optional(),
+        bottom: z.string().optional(),
+        left: z.string().optional(),
+      })
+      .optional()
+      .describe('Paper margins (e.g., "1cm", "0.5in")'),
+    pageRanges: z
+      .string()
+      .optional()
+      .describe('Paper ranges to print, e.g., "1-5, 8, 11-13"'),
+    displayHeaderFooter: z
+      .boolean()
+      .default(false)
+      .describe('Display header and footer'),
+    headerTemplate: z
+      .string()
+      .optional()
+      .describe('HTML template for the header'),
+    footerTemplate: z
+      .string()
+      .optional()
+      .describe('HTML template for the footer'),
+  },
+  pdfOutput: {
+    success: z.boolean(),
+    base64: z.string().optional().describe('Base64-encoded PDF'),
+    path: z.string().optional(),
+  },
+
+  // Cookie schemas
+  cookieSchema: z.object({
+    name: z.string(),
+    value: z.string(),
+    domain: z.string(),
+    path: z.string(),
+    expires: z.number(),
+    httpOnly: z.boolean(),
+    secure: z.boolean(),
+    sameSite: z.enum(['Strict', 'Lax', 'None']),
+  }),
+  setCookieInput: z.object({
+    name: z.string(),
+    value: z.string(),
+    url: z.string().optional(),
+    domain: z.string().optional(),
+    path: z.string().optional(),
+    expires: z.number().optional(),
+    httpOnly: z.boolean().optional(),
+    secure: z.boolean().optional(),
+    sameSite: z.enum(['Strict', 'Lax', 'None']).optional(),
+  }),
 } as const;
 
 export function registerPageTools(ctx: ToolContext): void {
@@ -525,6 +612,213 @@ export function registerPageTools(ctx: ToolContext): void {
         structuredContent: result,
       };
     }, 'Error getting accessibility snapshot')
+  );
+
+  // ============================================================================
+  // PDF Generation Tool (Chromium only)
+  // ============================================================================
+
+  server.registerTool(
+    'page_pdf',
+    {
+      title: 'Generate PDF',
+      description: [
+        'Generate a PDF from the current page. Note: PDF generation only works in Chromium headless mode.',
+        '',
+        'Features:',
+        '- Multiple paper formats (A4, Letter, Legal, etc.)',
+        '- Landscape/portrait orientation',
+        '- Custom margins and scale',
+        '- Header/footer templates',
+        '- Page range selection',
+        '',
+        'Returns base64-encoded PDF data or saves to file path.',
+      ].join('\n'),
+      annotations: readOnlyAnnotations,
+      inputSchema: schemas.pdfInput,
+      outputSchema: schemas.pdfOutput,
+    },
+    createToolHandler(
+      async ({
+        sessionId,
+        pageId,
+        path,
+        format,
+        landscape,
+        printBackground,
+        scale,
+        margin,
+        pageRanges,
+        displayHeaderFooter,
+        headerTemplate,
+        footerTemplate,
+      }) => {
+        const result = await browserManager.pageOperations.generatePdf(
+          sessionId,
+          pageId,
+          {
+            path,
+            format,
+            landscape,
+            printBackground,
+            scale,
+            margin,
+            pageRanges,
+            displayHeaderFooter,
+            headerTemplate,
+            footerTemplate,
+          }
+        );
+
+        const description = path
+          ? `PDF generated and saved to ${path}`
+          : 'PDF generated (base64 data available)';
+
+        return {
+          content: [textContent(description)],
+          structuredContent: result,
+        };
+      },
+      'Error generating PDF'
+    )
+  );
+
+  // ============================================================================
+  // Cookie Management Tools
+  // ============================================================================
+
+  server.registerTool(
+    'cookies_get',
+    {
+      title: 'Get Cookies',
+      description:
+        'Retrieve all cookies from the browser context, optionally filtered by URLs.',
+      annotations: readOnlyAnnotations,
+      inputSchema: {
+        sessionId: z.string().describe('Browser session ID'),
+        urls: z
+          .array(z.string())
+          .optional()
+          .describe('URLs to filter cookies by'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        cookies: z.array(schemas.cookieSchema),
+      },
+    },
+    createToolHandler(async ({ sessionId, urls }) => {
+      const result = await browserManager.pageOperations.getCookies(
+        sessionId,
+        urls
+      );
+
+      return {
+        content: [textContent(`Retrieved ${result.cookies.length} cookie(s)`)],
+        structuredContent: result,
+      };
+    }, 'Error getting cookies')
+  );
+
+  server.registerTool(
+    'cookies_set',
+    {
+      title: 'Set Cookies',
+      description:
+        'Add one or more cookies to the browser context. Useful for setting authentication tokens or session data.',
+      annotations: interactionAnnotations,
+      inputSchema: {
+        sessionId: z.string().describe('Browser session ID'),
+        cookies: z
+          .array(schemas.setCookieInput)
+          .describe('Array of cookies to set'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        count: z.number(),
+      },
+    },
+    createToolHandler(async ({ sessionId, cookies }) => {
+      const result = await browserManager.pageOperations.setCookies(
+        sessionId,
+        cookies
+      );
+
+      return {
+        content: [textContent(`Set ${result.count} cookie(s)`)],
+        structuredContent: result,
+      };
+    }, 'Error setting cookies')
+  );
+
+  server.registerTool(
+    'cookies_clear',
+    {
+      title: 'Clear Cookies',
+      description:
+        'Clear all cookies from the browser context, or clear specific cookies by name, domain, or path.',
+      annotations: destructiveAnnotations,
+      inputSchema: {
+        sessionId: z.string().describe('Browser session ID'),
+        name: z.string().optional().describe('Clear cookies with this name'),
+        domain: z
+          .string()
+          .optional()
+          .describe('Clear cookies from this domain'),
+        path: z.string().optional().describe('Clear cookies with this path'),
+      },
+      outputSchema: schemas.successResult,
+    },
+    createToolHandler(async ({ sessionId, name, domain, path }) => {
+      const options =
+        name || domain || path ? { name, domain, path } : undefined;
+      const result = await browserManager.pageOperations.clearCookies(
+        sessionId,
+        options
+      );
+
+      const description = options
+        ? `Cleared cookies matching criteria`
+        : 'Cleared all cookies';
+
+      return {
+        content: [textContent(description)],
+        structuredContent: result,
+      };
+    }, 'Error clearing cookies')
+  );
+
+  // ============================================================================
+  // Video Recording Tool
+  // ============================================================================
+
+  server.registerTool(
+    'video_path',
+    {
+      title: 'Get Video Recording Path',
+      description:
+        'Get the file path of the video recording for a page. Only available if video recording was enabled during browser launch.',
+      annotations: readOnlyAnnotations,
+      inputSchema: basePageInput,
+      outputSchema: {
+        success: z.boolean(),
+        path: z.string().nullable(),
+      },
+    },
+    createToolHandler(async ({ sessionId, pageId }) => {
+      const result = await browserManager.pageOperations.getVideoPath(
+        sessionId,
+        pageId
+      );
+
+      const description = result.path
+        ? `Video recording path: ${result.path}`
+        : 'No video recording available for this page';
+
+      return {
+        content: [textContent(description)],
+        structuredContent: result,
+      };
+    }, 'Error getting video path')
   );
 }
 

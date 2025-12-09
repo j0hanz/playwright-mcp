@@ -22,7 +22,9 @@ test.describe('Browser Lifecycle - Launch and Close', () => {
   });
 
   test('launch firefox browser', async ({ browser, browserName }) => {
-    // Skip: Firefox-specific test, only runs when browserName is firefox
+    // Conditional skip: This test validates Firefox-specific behavior and should only
+    // run when the test is executed with the Firefox project configuration.
+    // eslint-disable-next-line no-restricted-properties -- Intentional browser-specific test
     test.skip(browserName !== 'firefox', 'Firefox-only test');
 
     const context = await browser.newContext();
@@ -35,7 +37,9 @@ test.describe('Browser Lifecycle - Launch and Close', () => {
   });
 
   test('launch webkit browser', async ({ browser, browserName }) => {
-    // Skip: WebKit-specific test, only runs when browserName is webkit
+    // Conditional skip: This test validates WebKit-specific behavior and should only
+    // run when the test is executed with the WebKit project configuration.
+    // eslint-disable-next-line no-restricted-properties -- Intentional browser-specific test
     test.skip(browserName !== 'webkit', 'WebKit-only test');
 
     const context = await browser.newContext();

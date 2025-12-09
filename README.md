@@ -187,12 +187,21 @@ npm start
 | Tool                       | Description                                      |
 | -------------------------- | ------------------------------------------------ |
 | `page_screenshot`          | Capture screenshots (full page, element, region) |
+| `page_pdf`                 | Generate PDF from page (Chromium only)           |
 | `page_content`             | Get HTML and text content                        |
 | `page_evaluate`            | Execute JavaScript (read-only)                   |
 | `wait_for_selector`        | Wait for elements                                |
 | `page_wait_for_load_state` | Wait for page load                               |
 | `accessibility_scan`       | Run axe-core accessibility audit                 |
 | `browser_snapshot`         | Get accessibility tree snapshot                  |
+
+### Cookie Management
+
+| Tool            | Description                           |
+| --------------- | ------------------------------------- |
+| `cookies_get`   | Retrieve cookies from browser context |
+| `cookies_set`   | Add cookies (auth tokens, sessions)   |
+| `cookies_clear` | Clear all or specific cookies         |
 
 ### Advanced
 
@@ -204,6 +213,7 @@ npm start
 | `console_capture`                | Capture console messages |
 | `har_record_start`               | Record HTTP archive      |
 | `clock_install`                  | Control time in tests    |
+| `video_path`                     | Get video recording path |
 
 ## Best Practices for Stable Tests
 
